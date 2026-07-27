@@ -28,13 +28,15 @@ build/
 .cache/
 coverage/
 .tools/
+**/bin/
+**/obj/
 
 # SQL Server local files
 *.mdf
 *.ldf
 
 # Large railway raw datasets (place locally, do not commit)
-data/railway/raw/**
-data/railway/archive/**
-!data/railway/raw/.gitkeep
-!data/railway/archive/.gitkeep
+database/data/railway/raw/**
+database/data/railway/archive/**
+!database/data/railway/raw/.gitkeep
+!database/data/railway/archive/.gitkeep

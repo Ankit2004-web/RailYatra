@@ -76,7 +76,6 @@ router.get('/:id/route', async (req, res) => {
                 departureDayOffset: s.departureDayOffset || 0,
                 haltMinutes: s.haltMinutes,
                 distanceKm: s.distanceKm,
-                platform: s.platformHint || null,
                 isSource: s.stopOrder === 1,
                 isDestination: s.stopOrder === stops.length
             }))
@@ -100,14 +99,16 @@ router.get('/:id/seats', async (req, res) => {
             return res.status(404).json({ msg: 'Train not found' });
         }
 
-        const seats = await seatRepository.getSeatMap(req.params.id, classCode, journeyDate);
+        const seatMap = await seatRepository.getSeatMap(req.params.id, classCode, journeyDate);
 
         res.json({
             trainId: Number(req.params.id),
             classCode,
             journeyDate,
             tatkalEligible: isTatkalEligible(journeyDate),
-            seats
+            coachCount: seatMap.coaches?.length || 0,
+            coaches: seatMap.coaches || [],
+            seats: seatMap.seats || seatMap
         });
     } catch (err) {
         console.error(err.message);

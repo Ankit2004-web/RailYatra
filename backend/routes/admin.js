@@ -81,7 +81,7 @@ router.get('/data-import/status', async (req, res) => {
             pool.request().query(`SELECT COUNT(*) AS cnt FROM BookingSeatAllocations`)
         ]);
 
-        const reportPath = path.join(__dirname, '../../data/railway/RailwayDataImportReport.json');
+        const reportPath = path.join(__dirname, '../../database/data/railway/RailwayDataImportReport.json');
         let lastImportReport = null;
         if (fs.existsSync(reportPath)) {
             try {

@@ -16,7 +16,7 @@
 ## Project Structure
 
 ```
-├── client/              # React 19 + Vite frontend (primary UI)
+├── frontend/            # React 19 + Vite UI
 │   ├── public/          # Static assets (logo, banners)
 │   └── src/             # Pages, components, styles
 ├── backend/             # Node.js + Express API
@@ -24,12 +24,13 @@
 │   ├── repositories/    # Data access layer
 │   ├── routes/          # API endpoints
 │   ├── services/        # Business logic
+│   ├── scripts/         # Startup & utility scripts
+│   ├── docs/            # OpenAPI spec and data docs
+│   ├── dotnet/          # Optional ASP.NET Core master-data API
 │   └── server.js
-├── database/            # SQL Server schema, seeds, imports
-├── frontend/            # Legacy vanilla HTML UI (optional)
-├── data/railway/        # Processed railway master datasets
-├── docs/                # OpenAPI spec and data docs
-├── scripts/             # Startup and utility scripts
+├── database/            # SQL Server schema, seeds, imports, datasets
+│   ├── data/railway/    # Processed & raw railway master data
+│   └── import/          # ETL importers
 ├── package.json
 └── README.md
 ```
@@ -51,7 +52,7 @@
 # 1. Start LocalDB (Windows)
 sqllocaldb start MSSQLLocalDB
 
-# 2. Install dependencies (backend + React client)
+# 2. Install dependencies (backend + frontend)
 npm run install:all
 
 # 3. Configure environment
@@ -75,7 +76,7 @@ npm run dev
 
 Terminal 2 — React dev server (proxies `/api` to port 5000):
 ```bash
-npm run client:dev
+npm run frontend:dev
 ```
 
 Open **http://localhost:5173**
@@ -93,7 +94,7 @@ npm run import:datameet
 node database/verify-search.js
 ```
 
-After import you get ~8,988 stations, ~5,207 trains, and ~417k stops. See `data/railway/RailwayDataImportReport.json` for honest counts and limitations.
+After import you get ~8,988 stations, ~5,207 trains, and ~417k stops. See `database/data/railway/RailwayDataImportReport.json` for honest counts and limitations.
 
 **API documentation:** http://localhost:5000/api/swagger
 
@@ -176,7 +177,7 @@ ADMIN_PASSWORD=Admin@123
 | `npm run db:setup` | Create tables + seed data (`database/`) |
 | `npm run db:sync` | Sync database schema (`database/sync.js`) |
 | `npm run db:seed` | Seed stations, trains, admin (`database/seed.js`) |
-| `npm run download:railway` | Download DataMeet JSON to `data/railway/raw/` |
+| `npm run download:railway` | Download DataMeet JSON to `database/data/railway/raw/` |
 | `npm run import:railway` | Import dev CSV sample (~24 stations, 8 trains) |
 | `npm run import:datameet` | Bulk import DataMeet JSON (~5k trains) |
 | `npm run db:migrate-master` | Link legacy seed rows to normalized FKs |
@@ -189,7 +190,7 @@ ADMIN_PASSWORD=Admin@123
 - **Multi-day running logic** — Source departure date from day offsets; skips day filter when running days missing
 - **Admin trains UI** — Paginated list, filters, full route timeline with day/distance/platform
 - **Passenger search** — Station autocomplete, train autocomplete, route modal
-- **Category B simulation** — Fares and availability are development-only, separate from master data
+- **Category B fares** — Estimated from IRCA passenger fare table with **[Commercial Circular No. 11 of 2025](https://indianrailways.gov.in/railwayboard/uploads/directorate/traffic_comm/Comm_Cir_2025/CC%2011%20of%202025.pdf)** revision (effective 01.07.2025): +1 paisa/km non-AC Mail/Express, +2 paisa/km AC, ordinary 2S slab rules; reservation & superfast charges unchanged
 - **Segment bookings** — Route-segment seat allocations stored in `BookingSeatAllocations`
 - **Swagger UI** — Interactive API docs at `/api/swagger`
 - **Documentation** — `docs/RAILWAY_DATA_*.md` architecture, import, dictionary

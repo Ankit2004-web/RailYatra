@@ -5,7 +5,7 @@ WORKDIR /app
 COPY backend/package.json backend/package-lock.json* ./backend/
 RUN cd backend && npm install --omit=dev
 
-COPY package.json scripts/ ./
+COPY package.json ./
 COPY backend/ ./backend/
 COPY database/ ./database/
 COPY frontend/ ./frontend/
@@ -15,4 +15,4 @@ ENV PORT=5000
 
 EXPOSE 5000
 
-CMD ["node", "scripts/start.js"]
+CMD ["node", "backend/scripts/start.js"]

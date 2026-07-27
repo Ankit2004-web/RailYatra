@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="RailYatra.Api/RailYatra.Api.csproj" />
+  <Project Path="RailYatra.Application/RailYatra.Application.csproj" />
+  <Project Path="RailYatra.Domain/RailYatra.Domain.csproj" />
+  <Project Path="RailYatra.Infrastructure/RailYatra.Infrastructure.csproj" />
+  <Project Path="RailYatra.Tests/RailYatra.Tests.csproj" />
+</Solution>

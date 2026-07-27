@@ -1,4 +1,6 @@
 const { getPool } = require('../../database/connection');
+const trainClassRepository = require('./trainClassRepository');
+const { getAllSeatsForClass, buildRakeFromTrainClasses } = require('../services/rakeCompositionService');
 
 const BERTH_TYPES = ['LB', 'MB', 'UB', 'SL', 'SU', 'WS'];
 
@@ -14,11 +16,64 @@ const getBerthType = (seatNumber, classCode) => {
 
 const formatSeat = (row) => ({
     id: row.id,
+    coachNumber: row.coachNumber || null,
     seatNumber: row.seatNumber,
+    displayLabel: row.displayLabel || (row.coachNumber ? `${row.coachNumber}-${row.seatNumber}` : String(row.seatNumber)),
     berthType: row.berthType,
     status: row.status,
     classCode: row.classCode
 });
+
+async function buildRakeSeatMap(trainId, classCode) {
+    const pool = await getPool();
+    const trainResult = await pool.request()
+        .input('id', 'Int', trainId)
+        .query(`
+            SELECT t.trainName, tt.code AS trainTypeCode
+            FROM Trains t
+            LEFT JOIN TrainTypes tt ON tt.id = t.trainTypeId
+            WHERE t.id = @id
+        `);
+    const trainRow = trainResult.recordset[0];
+    if (!trainRow) return { coaches: [], seats: [] };
+
+    const classes = await trainClassRepository.findByTrainId(trainId);
+    const rake = buildRakeFromTrainClasses(
+        { trainName: trainRow.trainName, trainTypeCode: trainRow.trainTypeCode },
+        classes
+    );
+
+    const classCoaches = rake.coaches.filter((c) => c.classCode === classCode);
+    const rakeSeats = getAllSeatsForClass(rake.coaches, classCode).map((s) => ({
+        id: null,
+        coachNumber: s.coachNumber,
+        seatNumber: s.seatNumber,
+        displayLabel: s.displayLabel,
+        berthType: s.berthType,
+        status: s.status || 'Available',
+        classCode
+    }));
+
+    const coaches = classCoaches.map((c) => ({
+        coachNumber: c.coachNumber,
+        coachType: c.coachType,
+        coachModel: c.coachModel,
+        seatingCapacity: c.seatingCapacity,
+        sleepingBerths: c.sleepingBerths,
+        seatCount: (c.seats || []).length,
+        seats: (c.seats || []).map((s) => ({
+            id: null,
+            coachNumber: s.coachNumber,
+            seatNumber: s.seatNumber,
+            displayLabel: s.displayLabel,
+            berthType: s.berthType,
+            status: s.status || 'Available',
+            classCode
+        }))
+    }));
+
+    return { coaches, seats: rakeSeats };
+}
 
 const getSeatMap = async (trainId, classCode, journeyDate) => {
     const pool = await getPool();
@@ -31,22 +86,13 @@ const getSeatMap = async (trainId, classCode, journeyDate) => {
                 ORDER BY seatNumber ASC`);
 
     if (result.recordset.length) {
-        return result.recordset.map(formatSeat);
+        return {
+            coaches: [],
+            seats: result.recordset.map(formatSeat)
+        };
     }
 
-    const classResult = await pool.request()
-        .input('trainId', 'Int', trainId)
-        .input('classCode', 'NVarChar', classCode)
-        .query('SELECT availableSeats FROM TrainClasses WHERE trainId = @trainId AND classCode = @classCode');
-
-    const availableSeats = classResult.recordset[0]?.availableSeats || 0;
-    return Array.from({ length: availableSeats }, (_, index) => ({
-        id: null,
-        seatNumber: index + 1,
-        berthType: getBerthType(index + 1, classCode),
-        status: 'Available',
-        classCode
-    }));
+    return buildRakeSeatMap(trainId, classCode);
 };
 
 const seedSeatsForClass = async (trainId, classCode, totalSeats, journeyDate) => {
@@ -132,6 +178,7 @@ module.exports = {
     BERTH_TYPES,
     getBerthType,
     getSeatMap,
+    buildRakeSeatMap,
     seedSeatsForClass,
     validateAndLockSeats,
     releaseSeatsForBooking,

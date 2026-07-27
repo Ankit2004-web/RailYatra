@@ -7,12 +7,13 @@ const {
     normalizeCode, normalizeName, normalizeTrainNumber, normalizeTime,
     parseBool, parseIntSafe, parseFloatSafe, inferTrainTypeCode, parseRunningDaysField
 } = require('./normalizers');
+const { getClassCapacity } = require('../../backend/utils/coachCapacity');
 
 const BATCH_SIZE = 200;
 
 class RailwayDataImporter {
     constructor(options = {}) {
-        this.dataDir = options.dataDir || path.join(__dirname, '../../data/railway/processed');
+        this.dataDir = options.dataDir || path.join(__dirname, '../data/railway/processed');
         this.sourceName = options.sourceName || 'Development Dataset';
         this.sourceUrl = options.sourceUrl || null;
         this.publisher = options.publisher || 'RailYatra (Development)';
@@ -407,6 +408,7 @@ class RailwayDataImporter {
                 if (!trainId) throw new Error('Unknown train');
                 const classCode = normalizeCode(row.classCode);
                 const travelClassId = classMap.get(classCode) || null;
+                const defaultCap = getClassCapacity(classCode, row.trainName || '', row.trainTypeCode || '');
 
                 const existing = await pool.request()
                     .input('trainId', 'Int', trainId)
@@ -417,8 +419,8 @@ class RailwayDataImporter {
                     await pool.request()
                         .input('id', 'Int', existing.recordset[0].id)
                         .input('price', 'Decimal', parseFloatSafe(row.price, 1000))
-                        .input('totalSeats', 'Int', parseIntSafe(row.totalSeats, 50))
-                        .input('availableSeats', 'Int', parseIntSafe(row.availableSeats, row.totalSeats || 50))
+                        .input('totalSeats', 'Int', parseIntSafe(row.totalSeats, defaultCap))
+                        .input('availableSeats', 'Int', parseIntSafe(row.availableSeats, parseIntSafe(row.totalSeats, defaultCap)))
                         .input('travelClassId', 'Int', travelClassId)
                         .query(`UPDATE TrainClasses SET price=@price, totalSeats=@totalSeats, availableSeats=@availableSeats,
                                 travelClassId=@travelClassId, isAvailable=1, updatedAt=SYSUTCDATETIME() WHERE id=@id`);
@@ -429,8 +431,8 @@ class RailwayDataImporter {
                         .input('classCode', 'NVarChar', classCode)
                         .input('className', 'NVarChar', row.className || classCode)
                         .input('price', 'Decimal', parseFloatSafe(row.price, 1000))
-                        .input('totalSeats', 'Int', parseIntSafe(row.totalSeats, 50))
-                        .input('availableSeats', 'Int', parseIntSafe(row.availableSeats, row.totalSeats || 50))
+                        .input('totalSeats', 'Int', parseIntSafe(row.totalSeats, defaultCap))
+                        .input('availableSeats', 'Int', parseIntSafe(row.availableSeats, parseIntSafe(row.totalSeats, defaultCap)))
                         .input('travelClassId', 'Int', travelClassId)
                         .query(`INSERT INTO TrainClasses (trainId, classCode, className, price, totalSeats, availableSeats, travelClassId, isAvailable)
                                 VALUES (@trainId, @classCode, @className, @price, @totalSeats, @availableSeats, @travelClassId, 1)`);

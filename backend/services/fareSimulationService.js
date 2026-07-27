@@ -1,7 +1,17 @@
 /**
- * Development fare simulation engine (Category B — NOT official Indian Railways fares).
+ * Fare estimation using IRCA table + MoR Commercial Circular No. 11 of 2025 (w.e.f. 01.07.2025).
+ * Segment-specific authorized fares in TrainSegmentFares take precedence when present.
  */
 const { getPool } = require('../../database/connection');
+const {
+    calculateClassFare,
+    calculateBasicFare,
+    getDefaultRatePerKm,
+    OFFICIAL_FARE_REFERENCE,
+    RESERVATION_CHARGE,
+    SUPERFAST_SURCHARGE,
+    isSuperfastTrain
+} = require('../utils/irctcFareTable2025');
 
 async function getFareRule(travelClassCode, trainTypeCode) {
     const pool = await getPool();
@@ -46,20 +56,17 @@ async function getExactSegmentFare({ trainId, fromStationId, toStationId, travel
     return result.recordset[0]?.fare ?? null;
 }
 
-function defaultRateForClass(classCode) {
-    const rates = { '1A': 4.5, '2A': 2.8, '3A': 2.0, '3E': 1.8, SL: 0.8, CC: 1.5, EC: 2.2, '2S': 0.5 };
-    return rates[classCode] || 1.0;
-}
-
 async function calculateEstimatedFare({
     trainId,
     trainTypeCode,
+    trainName,
     distanceKm,
     travelClassCode,
     quotaCode,
     passengerCount = 1,
     fromStationId,
-    toStationId
+    toStationId,
+    journeyDate
 }) {
     if (fromStationId && toStationId) {
         const exact = await getExactSegmentFare({
@@ -70,26 +77,34 @@ async function calculateEstimatedFare({
         }
     }
 
-    const rule = await getFareRule(travelClassCode, trainTypeCode);
-    const rate = rule?.baseRatePerKm ?? defaultRateForClass(travelClassCode);
-    let baseFare = Math.max(rule?.minimumFare || 0, Math.round(distanceKm * rate));
-    if (/RAJ|DUR|VB|SHAT|SF/i.test(trainTypeCode || '')) {
-        baseFare = Math.round(baseFare * 1.15);
-    }
+    const perPassenger = calculateClassFare({
+        distanceKm,
+        classCode: travelClassCode,
+        trainTypeCode,
+        trainName,
+        journeyDate,
+        quotaCode
+    });
 
-    let perPassenger = baseFare;
-    if (quotaCode === 'SS' || quotaCode === 'SeniorCitizen') perPassenger = Math.round(perPassenger * 0.6);
-    if (quotaCode === 'TQ' || quotaCode === 'Tatkal') perPassenger = Math.round(perPassenger * 1.3);
+    const basic = calculateBasicFare({
+        distanceKm,
+        classCode: travelClassCode,
+        trainTypeCode,
+        trainName,
+        journeyDate
+    });
 
-    const reservation = (rule?.reservationCharge ?? 40) * passengerCount;
-    const superfast = (rule?.superfastCharge ?? 0) * passengerCount;
-    const total = perPassenger * passengerCount + reservation + superfast;
+    const reservation = (RESERVATION_CHARGE[travelClassCode] ?? 30) * passengerCount;
+    const superfast = isSuperfastTrain(trainTypeCode, trainName)
+        ? (SUPERFAST_SURCHARGE[travelClassCode] ?? 20) * passengerCount
+        : 0;
 
-    return buildFareBreakdown(total, passengerCount, travelClassCode, quotaCode, 'development_simulation', {
-        baseFare: perPassenger * passengerCount,
+    return buildFareBreakdown(perPassenger * passengerCount, passengerCount, travelClassCode, quotaCode, 'cc11_2025_simulation', {
+        baseFare: basic * passengerCount,
         reservationCharge: reservation,
         superfastCharge: superfast,
-        distanceKm
+        distanceKm,
+        fareReference: OFFICIAL_FARE_REFERENCE
     });
 }
 
@@ -100,7 +115,7 @@ function buildFareBreakdown(total, passengerCount, classCode, quotaCode, source,
         classCode,
         quotaCode: quotaCode || 'GN',
         fareSource: source,
-        isSimulated: source === 'development_simulation',
+        isSimulated: source === 'cc11_2025_simulation',
         ...extra
     };
 }
@@ -112,12 +127,13 @@ async function seedDefaultFareRulesIfEmpty() {
 
     const classes = await pool.request().query('SELECT id, code FROM TravelClasses');
     for (const cls of classes.recordset) {
+        const rate = getDefaultRatePerKm(cls.code, 'EXP', '', '2025-07-01');
         await pool.request()
             .input('tcId', 'Int', cls.id)
-            .input('rate', 'Decimal', defaultRateForClass(cls.code))
-            .input('min', 'Decimal', cls.code === '2S' ? 30 : 100)
-            .query(`INSERT INTO FareRules (travelClassId, baseRatePerKm, minimumFare, reservationCharge, superfastCharge)
-                    VALUES (@tcId, @rate, @min, 40, 20)`);
+            .input('rate', 'Decimal', rate)
+            .input('min', 'Decimal', cls.code === '2S' ? 10 : 100)
+            .query(`INSERT INTO FareRules (travelClassId, baseRatePerKm, minimumFare, reservationCharge, superfastCharge, effectiveFrom)
+                    VALUES (@tcId, @rate, @min, 40, 20, '2025-07-01')`);
     }
 }
 

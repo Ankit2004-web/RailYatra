@@ -1,0 +1,6 @@
+@RailYatra.Api_HostAddress = http://localhost:5269
+
+GET {{RailYatra.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

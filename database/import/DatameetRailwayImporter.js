@@ -12,6 +12,7 @@ const {
     normalizeCode, normalizeName, normalizeTrainNumber, normalizeTime,
     parseIntSafe, inferTrainTypeCode
 } = require('./normalizers');
+const { getClassCapacity } = require('../../backend/utils/coachCapacity');
 
 const SOURCE = {
     name: 'DataMeet Indian Railways JSON (CC0)',
@@ -46,7 +47,7 @@ function haltMinutes(arrival, departure) {
 
 class DatameetRailwayImporter {
     constructor(options = {}) {
-        this.rawDir = options.rawDir || path.join(__dirname, '../../data/railway/raw');
+        this.rawDir = options.rawDir || path.join(__dirname, '../data/railway/raw');
         this.deactivateOthers = options.deactivateOthers !== false;
         this.report = {
             source: SOURCE.name,
@@ -359,6 +360,10 @@ class DatameetRailwayImporter {
 
     async importTrainClassesFromProps(trainId, props) {
         const pool = await getPool();
+        const trainName = props.name || '';
+        const trainTypeCode = this.mapTrainType(props.type);
+        const isPremiumRake = /rajdhani|shatabdi|duronto|vande bharat|garib rath|tejas|humsafar|anubhuthi/i.test(trainName);
+
         const classFlags = [
             ['1A', 'AC First Class', props.first_ac],
             ['2A', 'AC 2 Tier', props.second_ac],
@@ -367,6 +372,12 @@ class DatameetRailwayImporter {
             ['CC', 'Chair Car', props.chair_car]
         ].filter(([, , flag]) => flag === true || flag === 'true' || flag === 1);
 
+        const hasSleeper = classFlags.some(([code]) => code === 'SL');
+        const has2S = classFlags.some(([code]) => code === '2S');
+        if (!has2S && !isPremiumRake && (hasSleeper || /passenger|pass\b|memu|demu/i.test(trainName))) {
+            classFlags.push(['2S', 'Second Sitting', true]);
+        }
+
         if (!classFlags.length) return;
 
         const tc = await pool.request().query('SELECT id, code FROM TravelClasses');
@@ -374,6 +385,7 @@ class DatameetRailwayImporter {
 
         for (const [code, name] of classFlags) {
             const travelClassId = classMap.get(code === 'FC' ? 'FC' : code) || classMap.get(code) || null;
+            const capacity = getClassCapacity(code, props.name || '', this.mapTrainType(props.type));
             const existing = await pool.request()
                 .input('trainId', 'Int', trainId)
                 .input('classCode', 'NVarChar', code)
@@ -382,7 +394,9 @@ class DatameetRailwayImporter {
             if (existing.recordset[0]) {
                 await pool.request().input('id', 'Int', existing.recordset[0].id)
                     .input('travelClassId', 'Int', travelClassId)
-                    .query('UPDATE TrainClasses SET isAvailable=1, travelClassId=@travelClassId WHERE id=@id');
+                    .input('totalSeats', 'Int', capacity)
+                    .input('availableSeats', 'Int', capacity)
+                    .query('UPDATE TrainClasses SET isAvailable=1, travelClassId=@travelClassId, totalSeats=@totalSeats, availableSeats=@availableSeats WHERE id=@id');
                 this.track('trainClasses', 'updated');
             } else {
                 await pool.request()
@@ -390,8 +404,10 @@ class DatameetRailwayImporter {
                     .input('classCode', 'NVarChar', code)
                     .input('className', 'NVarChar', name)
                     .input('travelClassId', 'Int', travelClassId)
+                    .input('totalSeats', 'Int', capacity)
+                    .input('availableSeats', 'Int', capacity)
                     .query(`INSERT INTO TrainClasses (trainId, classCode, className, price, totalSeats, availableSeats, travelClassId, isAvailable)
-                            VALUES (@trainId, @classCode, @className, 1000, 50, 50, @travelClassId, 1)`);
+                            VALUES (@trainId, @classCode, @className, 1000, @totalSeats, @availableSeats, @travelClassId, 1)`);
                 this.track('trainClasses', 'inserted');
             }
         }

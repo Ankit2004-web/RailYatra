@@ -13,7 +13,7 @@ const fareSimulationService = require('../../backend/services/fareSimulationServ
 async function main() {
     const args = process.argv.slice(2);
     const dirIdx = args.indexOf('--dir');
-    const dataDir = dirIdx >= 0 ? path.resolve(args[dirIdx + 1]) : path.join(__dirname, '../../data/railway/processed');
+    const dataDir = dirIdx >= 0 ? path.resolve(args[dirIdx + 1]) : path.join(__dirname, '../data/railway/processed');
 
     console.log('Syncing database schema...');
     await syncDatabase();

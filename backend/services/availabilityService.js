@@ -7,10 +7,11 @@ class DevelopmentAvailabilityProvider {
     async checkAvailability({ trainId, journeyDate, classCode, fromStopSequence, toStopSequence, quota }) {
         const seatRepository = require('../repositories/seatRepository');
         const trainClassRepository = require('../repositories/trainClassRepository');
-        const seats = await seatRepository.getSeatMap(trainId, classCode, journeyDate);
+        const seatMap = await seatRepository.getSeatMap(trainId, classCode, journeyDate);
+        const seatList = Array.isArray(seatMap) ? seatMap : (seatMap.seats || []);
         const classRow = await trainClassRepository.findByTrainAndCode(trainId, classCode);
-        const totalSeats = classRow?.totalSeats || seats.length;
-        let available = seats.filter((s) => s.status === 'Available').length;
+        const totalSeats = classRow?.totalSeats || seatList.length;
+        let available = seatList.filter((s) => s.status === 'Available').length;
         let segmentAware = false;
 
         if (fromStopSequence && toStopSequence) {

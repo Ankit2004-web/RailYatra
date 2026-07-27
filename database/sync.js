@@ -30,7 +30,7 @@ async function syncDatabase() {
         console.log('SQL Server connected.');
 
         console.log('Syncing tables...');
-        const schemaFiles = ['schema.sql', 'schema-railway-master.sql'];
+        const schemaFiles = ['schema.sql', 'schema-railway-master.sql', 'schema-railway-etl.sql', 'schema-railway-coaches.sql'];
         for (const file of schemaFiles) {
             const schemaPath = path.join(__dirname, file);
             if (!fs.existsSync(schemaPath)) continue;

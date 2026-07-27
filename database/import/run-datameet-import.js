@@ -9,7 +9,7 @@ const syncDatabase = require('../sync');
 const { closePool } = require('../connection');
 const DatameetRailwayImporter = require('./DatameetRailwayImporter');
 
-const rawDir = path.join(__dirname, '../../data/railway/raw');
+const rawDir = path.join(__dirname, '../data/railway/raw');
 
 async function downloadIfMissing() {
     const files = ['datameet-stations.json', 'datameet-trains.json', 'datameet-schedules.json'];
@@ -17,7 +17,7 @@ async function downloadIfMissing() {
     if (!missing.length) return;
 
     console.log('Downloading datameet/railways datasets...');
-    const script = path.join(__dirname, '../../scripts/download-railway-data.ps1');
+    const script = path.join(__dirname, '../../backend/scripts/download-railway-data.ps1');
     execSync(`powershell -ExecutionPolicy Bypass -File "${script}" -Target datameet`, {
         stdio: 'inherit',
         cwd: path.join(__dirname, '../..')

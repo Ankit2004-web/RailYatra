@@ -20,6 +20,7 @@ const adminRoutes = require('./routes/admin');
 const captchaRoutes = require('./routes/captcha');
 const fareRoutes = require('./routes/fares');
 const availabilityRoutes = require('./routes/availability');
+const trainCoachRoutes = require('./routes/trainCoach');
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use('/api', apiLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/trains', trainRoutes);
+app.use('/api/train', trainCoachRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/stations', stationRoutes);
 app.use('/api/payments', paymentRoutes);
@@ -63,7 +65,7 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.get('/api/openapi.yaml', (req, res) => {
-    const specPath = path.join(__dirname, '../docs/openapi.yaml');
+    const specPath = path.join(__dirname, 'docs/openapi.yaml');
     if (fs.existsSync(specPath)) {
         res.type('text/yaml').send(fs.readFileSync(specPath, 'utf8'));
     } else {
@@ -109,19 +111,9 @@ app.get('/api/swagger', (req, res) => {
 </html>`);
 });
 
-const clientDist = path.join(__dirname, '../client/dist');
-const legacyFrontend = path.join(__dirname, '../frontend');
-const useReactClient = fs.existsSync(path.join(clientDist, 'index.html'));
-const frontendPath = useReactClient ? clientDist : legacyFrontend;
-
-if (useReactClient) {
-    app.use(express.static(clientDist));
-} else {
-    app.use('/assets', express.static(path.join(legacyFrontend, 'assets')));
-    app.use('/css', express.static(path.join(legacyFrontend, 'css')));
-    app.use('/js', express.static(path.join(legacyFrontend, 'js')));
-    app.use(express.static(legacyFrontend));
-}
+const frontendDist = path.join(__dirname, '../frontend/dist');
+app.use(express.static(frontendDist));
+const frontendPath = frontendDist;
 
 app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api') || path.extname(req.path)) {
@@ -142,6 +134,10 @@ const startServer = async () => {
     try {
         await syncDatabase();
         await seedDatabase();
+
+        const coachCapacityRulesService = require('./services/coachCapacityRulesService');
+        await coachCapacityRulesService.loadRulesCache();
+        console.log('Loaded IR CoachCapacityRules for per-coach seating data.');
 
         app.listen(PORT, () => {
             logger.info(`Server running on port ${PORT}`);

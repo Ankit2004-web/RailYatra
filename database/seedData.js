@@ -4,6 +4,8 @@ const addDays = (days) => {
     return date.toISOString().split('T')[0];
 };
 
+const { getClassCapacity, estimateTrainTotalCapacity } = require('../backend/utils/coachCapacity');
+
 module.exports = {
     stations: [
         ['NDLS', 'New Delhi', 'New Delhi', 'Delhi'],
@@ -73,14 +75,8 @@ module.exports = {
             ];
         }
 
-        let remainingSeats = totalSeats;
-
-        return templates.map(([classCode, className, multiplier, share], index) => {
-            const seats = index === templates.length - 1
-                ? remainingSeats
-                : Math.max(1, Math.floor(totalSeats * share));
-            remainingSeats -= seats;
-
+        return templates.map(([classCode, className, multiplier]) => {
+            const seats = getClassCapacity(classCode, trainName);
             return {
                 classCode,
                 className,
@@ -89,7 +85,10 @@ module.exports = {
                 availableSeats: seats
             };
         });
+
     },
+    getTrainTotalCapacity: (trainName, classCodes) =>
+        estimateTrainTotalCapacity(classCodes, trainName),
     buildTrainStops: (train) => {
         const [, , source, destination, departureTime, arrivalTime, , distance] = train;
         const midDistance = Math.floor(distance / 2);

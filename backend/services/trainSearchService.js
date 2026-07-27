@@ -6,6 +6,8 @@ const { getPool } = require('../../database/connection');
 const trainClassRepository = require('../repositories/trainClassRepository');
 const runningDayService = require('./runningDayService');
 const { computeAvgSpeedKmh } = require('../utils/trainSpeed');
+const { applyFaresToClasses, calculateClassFare } = require('../utils/irctcFareTable2025');
+const { enrichClassesFromTrainMeta } = require('./coachCompositionService');
 
 const normalizeStationQuery = (q) => String(q || '').trim();
 
@@ -151,6 +153,25 @@ async function loadRunningDaysMap(trainIds) {
 }
 
 function formatSearchResult(row, runningDayList, classes, durationMinutes, distanceKm, date) {
+    const journeyDate = date || row.journeyDate;
+    const segmentKm = distanceKm || row.trainDistance || 0;
+    const fareContext = {
+        distanceKm: segmentKm,
+        trainTypeCode: row.trainTypeCode,
+        trainName: row.trainName,
+        journeyDate
+    };
+    const pricedClasses = applyFaresToClasses(classes, fareContext);
+    const enrichedClasses = enrichClassesFromTrainMeta(
+        pricedClasses,
+        row.trainName,
+        row.trainTypeCode,
+        { includeSeats: false }
+    );
+    const lowestPrice = enrichedClasses.length
+        ? Math.min(...enrichedClasses.map((c) => c.price))
+        : calculateClassFare({ ...fareContext, classCode: 'SL' });
+
     return {
         id: row.trainId,
         trainId: row.trainId,
@@ -164,20 +185,21 @@ function formatSearchResult(row, runningDayList, classes, durationMinutes, dista
         arrivalTime: row.toArrivalTime,
         duration: runningDayService.formatDuration(durationMinutes),
         durationMinutes,
-        distance: distanceKm || row.trainDistance,
+        distance: segmentKm,
         avgSpeedKmh: computeAvgSpeedKmh(
-            distanceKm || row.trainDistance,
+            segmentKm,
             durationMinutes,
             row.trainTypeCode,
             row.trainName
         ),
-        date: date || row.journeyDate,
+        date: journeyDate,
         runningDays: runningDayService.runningDaysLabel(runningDayList),
         runningDaysList: runningDayList,
         runningStatus: row.runningStatus,
-        price: Number(row.price),
-        classes,
-        lowestPrice: classes.length ? Math.min(...classes.map((c) => c.price)) : Number(row.price),
+        price: lowestPrice,
+        classes: enrichedClasses,
+        lowestPrice,
+        fareReference: 'MoR Commercial Circular No. 11 of 2025 (w.e.f. 01.07.2025)',
         from: {
             stationCode: row.fromStationCode,
             stationName: row.fromStationName,

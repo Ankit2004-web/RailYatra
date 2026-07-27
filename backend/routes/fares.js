@@ -6,7 +6,7 @@ const trainStopRepository = require('../repositories/trainStopRepository');
 
 /**
  * GET /api/fares/estimate
- * Development fare simulation — NOT official Indian Railways fares.
+ * Fare estimate based on IRCA table + MoR Commercial Circular No. 11 of 2025.
  */
 router.get('/estimate', async (req, res) => {
     const {
@@ -53,12 +53,14 @@ router.get('/estimate', async (req, res) => {
         const fare = await fareSimulationService.calculateEstimatedFare({
             trainId: Number(trainId),
             trainTypeCode: train.trainTypeCode,
+            trainName: train.trainName,
             distanceKm,
             travelClassCode: classCode,
             quotaCode: quota || 'GN',
             passengerCount: Math.max(1, parseInt(passengers, 10) || 1),
             fromStationId: fromStation.id,
-            toStationId: toStation.id
+            toStationId: toStation.id,
+            journeyDate: date || null
         });
 
         res.json({
@@ -67,7 +69,7 @@ router.get('/estimate', async (req, res) => {
             to: toStation.code,
             journeyDate: date || null,
             ...fare,
-            disclaimer: 'Development fare simulation — not official Indian Railways pricing'
+            disclaimer: 'Simulated from IRCA fare table with CC 11/2025 revision. GST, dynamic charges, and exact PRS/UTS rounding may differ.'
         });
     } catch (err) {
         console.error(err.message);

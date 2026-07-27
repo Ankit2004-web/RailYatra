@@ -379,15 +379,21 @@ GO
 IF NOT EXISTS (SELECT 1 FROM dbo.TravelClasses)
 BEGIN
     INSERT INTO dbo.TravelClasses (code, name, description) VALUES
-    ('1A', 'AC First Class', 'First AC'),
+    ('1A', 'AC First Class', 'First AC — coupe/cabin berths'),
     ('2A', 'AC 2 Tier', 'Second AC'),
     ('3A', 'AC 3 Tier', 'Third AC'),
-    ('3E', 'AC 3 Economy', 'AC Economy'),
+    ('3E', 'AC 3 Economy', 'AC 3-tier economy (Garib Rath)'),
+    ('EA', 'Anubhuthi', 'AC chair car with entertainment'),
     ('SL', 'Sleeper', 'Sleeper Class'),
     ('CC', 'Chair Car', 'AC Chair Car'),
     ('EC', 'Executive Chair', 'Executive Chair Car'),
-    ('2S', 'Second Sitting', 'Second Sitting');
+    ('2S', 'Second Sitting', 'Second Sitting'),
+    ('GS', 'General', 'Unreserved / General');
 END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM dbo.TravelClasses WHERE code = 'EA')
+    INSERT INTO dbo.TravelClasses (code, name, description) VALUES ('EA', 'Anubhuthi', 'AC chair car with entertainment');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM dbo.Quotas)
