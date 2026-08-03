@@ -89,19 +89,48 @@ const updatePassword = async (id, password) => {
         .query('UPDATE Users SET password = @password, updatedAt = SYSUTCDATETIME() WHERE id = @id');
 };
 
-const updateProfile = async (id, { name, phone }) => {
+const updateProfile = async (id, { name, phone, theme }) => {
+    const pool = await getPool();
+    const request = pool.request().input('id', 'Int', id);
+
+    const fields = [];
+    if (name !== undefined) {
+        fields.push('name = @name');
+        request.input('name', 'NVarChar', name);
+    }
+    if (phone !== undefined) {
+        fields.push('phone = @phone');
+        request.input('phone', 'NVarChar', phone);
+    }
+    if (theme !== undefined) {
+        fields.push('theme = @theme');
+        request.input('theme', 'NVarChar', theme);
+    }
+
+    if (!fields.length) return findById(id).then(toSafeUser);
+
+    const result = await request.query(`
+        UPDATE Users SET ${fields.join(', ')}, updatedAt = SYSUTCDATETIME()
+        OUTPUT INSERTED.*
+        WHERE id = @id
+    `);
+    return result.recordset[0] ? toSafeUser(result.recordset[0]) : null;
+};
+
+const updateAvatar = async (id, avatarUrl) => {
     const pool = await getPool();
     const result = await pool.request()
         .input('id', 'Int', id)
-        .input('name', 'NVarChar', name)
-        .input('phone', 'NVarChar', phone)
+        .input('avatarUrl', 'NVarChar', avatarUrl)
         .query(`
-            UPDATE Users SET name = @name, phone = @phone, updatedAt = SYSUTCDATETIME()
+            UPDATE Users SET avatarUrl = @avatarUrl, updatedAt = SYSUTCDATETIME()
             OUTPUT INSERTED.*
             WHERE id = @id
         `);
     return result.recordset[0] ? toSafeUser(result.recordset[0]) : null;
 };
+
+const clearAvatar = async (id) => updateAvatar(id, null);
 
 const getBookingStats = async (userId) => {
     const pool = await getPool();
@@ -134,5 +163,7 @@ module.exports = {
     updateUser,
     updatePassword,
     updateProfile,
+    updateAvatar,
+    clearAvatar,
     getBookingStats
 };

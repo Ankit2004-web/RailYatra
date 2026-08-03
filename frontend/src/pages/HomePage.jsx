@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeftRight, Search, TrainFront, MapPin, ShieldCheck,
-  Route, Ticket, ArrowUpRight, Calendar, Tag
+  Route, Ticket, ArrowUpRight, Calendar
 } from 'lucide-react';
 import StationAutocomplete from '../components/StationAutocomplete';
+import Modal from '../components/Modal';
 
 const CLASS_OPTIONS = [
   { value: '', label: 'All Classes' },
@@ -37,6 +38,7 @@ function saveRecent(entry) {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const today = new Date().toISOString().split('T')[0];
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
@@ -44,15 +46,35 @@ export default function HomePage() {
   const [classCode, setClassCode] = useState('');
   const [routeAware, setRouteAware] = useState(true);
   const [recent, setRecent] = useState([]);
+  const [routeModalOpen, setRouteModalOpen] = useState(false);
+  const [searchHighlight, setSearchHighlight] = useState(false);
 
   useEffect(() => {
     setRecent(loadRecent());
     const saved = localStorage.getItem('railyatra_route_aware');
     if (saved != null) setRouteAware(saved === 'true');
-    if (window.location.hash === '#offers') {
-      document.getElementById('offers')?.scrollIntoView({ behavior: 'smooth' });
+
+    const hash = location.hash.replace('#', '');
+    if (hash === 'plan-journey') {
+      setRouteModalOpen(true);
     }
-  }, []);
+  }, [location.hash]);
+
+  const startRouteSearch = () => {
+    setRouteModalOpen(false);
+    setRouteAware(true);
+    localStorage.setItem('railyatra_route_aware', 'true');
+    setSearchHighlight(true);
+
+    window.setTimeout(() => {
+      document.getElementById('plan-journey')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      window.setTimeout(() => {
+        document.getElementById('source')?.focus({ preventScroll: true });
+      }, 450);
+    }, 150);
+
+    window.setTimeout(() => setSearchHighlight(false), 4000);
+  };
 
   const swap = () => {
     setSource(destination);
@@ -111,7 +133,11 @@ export default function HomePage() {
             </div>
           </div>
 
-          <form className="home-search-card card" onSubmit={submit}>
+          <form
+            id="plan-journey"
+            className={`home-search-card card${searchHighlight ? ' search-highlight' : ''}`}
+            onSubmit={submit}
+          >
             <h2>Plan your journey</h2>
 
             <div className="home-search-row home-search-stations">
@@ -201,26 +227,30 @@ export default function HomePage() {
 
       <section className="home-features" id="features">
         <div className="home-features-inner">
-          <article className="home-feature-card card">
+          <button
+            type="button"
+            className="home-feature-card card home-feature-link"
+            onClick={() => setRouteModalOpen(true)}
+          >
             <div className="feature-card-top">
               <div className="feature-icon"><Route size={22} /></div>
-              <Link to="/" className="feature-arrow" aria-label="Route-aware search">
+              <span className="feature-arrow" aria-hidden="true">
                 <ArrowUpRight size={18} />
-              </Link>
+              </span>
             </div>
             <h3>Route-aware search</h3>
             <p>Find trains that stop at both your boarding and alighting stations.</p>
             <div className="feature-illustration feature-illustration-route" aria-hidden="true">
               <span className="fi-pin" /><span className="fi-line" /><TrainFront size={14} /><span className="fi-line" /><span className="fi-pin" />
             </div>
-          </article>
+          </button>
 
-          <article className="home-feature-card card">
+          <Link to="/pnr" className="home-feature-card card home-feature-link">
             <div className="feature-card-top">
               <div className="feature-icon"><Ticket size={22} /></div>
-              <Link to="/pnr" className="feature-arrow" aria-label="PNR tracking">
+              <span className="feature-arrow" aria-hidden="true">
                 <ArrowUpRight size={18} />
-              </Link>
+              </span>
             </div>
             <h3>PNR tracking</h3>
             <p>Check booking status anytime with your 10-digit PNR number.</p>
@@ -228,14 +258,14 @@ export default function HomePage() {
               <span className="fi-pnr-box">PNR — — — — — — — — — —</span>
               <Search size={14} />
             </div>
-          </article>
+          </Link>
 
-          <article className="home-feature-card card">
+          <Link to="/login" className="home-feature-card card home-feature-link">
             <div className="feature-card-top">
               <div className="feature-icon"><ShieldCheck size={22} /></div>
-              <Link to="/login" className="feature-arrow" aria-label="Secure booking">
+              <span className="feature-arrow" aria-hidden="true">
                 <ArrowUpRight size={18} />
-              </Link>
+              </span>
             </div>
             <h3>Secure booking</h3>
             <p>Login, select seats, and pay with simulated or Razorpay checkout.</p>
@@ -243,19 +273,36 @@ export default function HomePage() {
               <ShieldCheck size={16} />
               <span className="fi-card" />
             </div>
-          </article>
+          </Link>
         </div>
       </section>
 
-      <section className="home-offers" id="offers">
-        <div className="home-offers-inner card">
-          <Tag size={20} className="offers-icon" aria-hidden="true" />
-          <div>
-            <h3>Offers &amp; deals</h3>
-            <p className="muted">Seasonal fare discounts and partner offers — coming soon.</p>
+      <Modal open={routeModalOpen} onClose={() => setRouteModalOpen(false)} title="Route-aware search" size="md">
+        <div className="route-modal">
+          <p>
+            Route-aware search finds trains that stop at <strong>both</strong> your boarding station
+            and your destination — not just trains that run on that overall route.
+          </p>
+          <div className="route-modal-example card">
+            <div className="route-modal-stops">
+              <span><MapPin size={14} aria-hidden="true" /> CNB (Kanpur)</span>
+              <span className="route-modal-line" aria-hidden="true" />
+              <span><TrainFront size={14} aria-hidden="true" /> Train stops here</span>
+              <span className="route-modal-line" aria-hidden="true" />
+              <span><MapPin size={14} aria-hidden="true" /> MGS (Mughal Sarai)</span>
+            </div>
+            <p className="muted">Only trains halting at both stations appear in results.</p>
           </div>
+          <ul className="route-modal-list">
+            <li>Enter <strong>From</strong> and <strong>To</strong> station codes or names</li>
+            <li>Pick your journey date and class</li>
+            <li>Keep the route-aware option enabled for accurate results</li>
+          </ul>
+          <button type="button" className="btn btn-primary btn-block" onClick={startRouteSearch}>
+            <Search size={18} aria-hidden="true" /> Start searching
+          </button>
         </div>
-      </section>
+      </Modal>
     </div>
   );
 }

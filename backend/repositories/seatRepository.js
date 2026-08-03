@@ -111,6 +111,16 @@ const seedSeatsForClass = async (trainId, classCode, totalSeats, journeyDate) =>
     }
 };
 
+const pickAvailableSeats = async (query, trainId, classCode, journeyDate, count) => {
+    const rows = await query(
+        `SELECT TOP (${Number(count)}) seatNumber FROM Seats
+         WHERE trainId = ? AND classCode = ? AND journeyDate = ? AND status = 'Available'
+         ORDER BY seatNumber ASC`,
+        [trainId, classCode, journeyDate]
+    );
+    return rows.map((row) => row.seatNumber);
+};
+
 const validateAndLockSeats = async (query, { trainId, classCode, journeyDate, seatNumbers, bookingId }) => {
     const totalRows = await query(
         'SELECT COUNT(*) AS count FROM Seats WHERE trainId = ? AND classCode = ? AND journeyDate = ?',
@@ -182,5 +192,6 @@ module.exports = {
     seedSeatsForClass,
     validateAndLockSeats,
     releaseSeatsForBooking,
-    countAvailableSeats
+    countAvailableSeats,
+    pickAvailableSeats
 };

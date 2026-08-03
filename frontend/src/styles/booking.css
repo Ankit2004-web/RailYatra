@@ -451,6 +451,26 @@
 }
 
 /* Payment summary */
+.booking-payment-badge {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.booking-payment-badge.live {
+  background: rgba(18, 184, 184, 0.1);
+  border: 1px solid rgba(18, 184, 184, 0.35);
+  color: var(--brand-deep);
+}
+
+.booking-payment-badge.dev {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #92400e;
+}
+
 .booking-summary {
   background: var(--muted-bg);
   border: 1px solid var(--border);
@@ -494,6 +514,200 @@
 .booking-summary-total span:last-child {
   color: var(--brand-dark);
   font-size: 1.375rem;
+}
+
+.booking-summary-discount span:last-child {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.booking-promo-note {
+  margin: 12px 0 0;
+  font-size: 0.8125rem;
+}
+
+/* Payment offers */
+.payment-offers-panel {
+  margin-bottom: 24px;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: linear-gradient(180deg, #ffffff 0%, var(--muted-bg) 100%);
+}
+
+.payment-offers-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.payment-offers-head h3 {
+  margin: 4px 0 0;
+  font-size: 1.0625rem;
+  color: var(--brand-deep);
+}
+
+.payment-offers-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--brand-dark);
+}
+
+.payment-offers-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--brand-dark);
+  text-decoration: none;
+}
+
+.payment-offers-link:hover {
+  text-decoration: underline;
+}
+
+.payment-method-row {
+  margin-bottom: 16px;
+}
+
+.payment-method-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.payment-method-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payment-method-chip {
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.payment-method-chip.active {
+  background: var(--brand-deep);
+  border-color: var(--brand-deep);
+  color: #ffffff;
+}
+
+.payment-offer-recs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.payment-offer-rec {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.payment-offer-rec-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.payment-offer-rec-main strong {
+  display: block;
+  font-size: 0.875rem;
+  color: var(--brand-deep);
+}
+
+.payment-offer-rec-main p {
+  margin: 2px 0 4px;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.payment-offer-rec-main code {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-dark);
+}
+
+.payment-offer-rec-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.payment-offer-save {
+  font-size: 0.875rem;
+  font-weight: 800;
+  color: var(--success);
+}
+
+.payment-promo-box label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--brand-deep);
+}
+
+.payment-promo-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.payment-promo-input-row .input {
+  flex: 1;
+  text-transform: uppercase;
+}
+
+.payment-promo-error {
+  margin: 8px 0 0;
+  font-size: 0.8125rem;
+  color: var(--danger);
+}
+
+.payment-promo-success {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0;
+  font-size: 0.8125rem;
+  color: var(--success);
+  font-weight: 600;
+}
+
+.payment-promo-success .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
 }
 
 /* Buttons */

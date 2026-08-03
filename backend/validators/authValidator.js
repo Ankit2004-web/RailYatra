@@ -28,8 +28,13 @@ const resetPasswordRules = [
 ];
 
 const profileRules = [
-    body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 100 }),
-    body('phone').trim().notEmpty().withMessage('Phone is required').matches(/^[0-9+\-\s]{10,15}$/).withMessage('Invalid phone number')
+    body('name').optional({ values: 'falsy' }).trim().notEmpty().withMessage('Name is required').isLength({ max: 100 }),
+    body('phone').optional({ values: 'falsy' }).trim().notEmpty().withMessage('Phone is required').matches(/^[0-9+\-\s]{10,15}$/).withMessage('Invalid phone number'),
+    body('theme').optional({ values: 'falsy' }).isIn(['light', 'dark', 'ocean']).withMessage('Invalid theme')
+];
+
+const avatarRules = [
+    body('avatarData').notEmpty().withMessage('Image data is required')
 ];
 
 const changePasswordRules = [
@@ -37,4 +42,4 @@ const changePasswordRules = [
     body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
 ];
 
-module.exports = { registerRules, loginRules, forgotPasswordRules, resetPasswordRules, profileRules, changePasswordRules };
+module.exports = { registerRules, loginRules, forgotPasswordRules, resetPasswordRules, profileRules, changePasswordRules, avatarRules };

@@ -1,0 +1,86 @@
+/* ===== Shared production page layout ===== */
+
+.page-shell {
+  background: var(--bg);
+  min-height: calc(100vh - 76px);
+}
+
+.page-hero {
+  background:
+    linear-gradient(135deg, rgba(15, 45, 61, 0.97) 0%, rgba(10, 166, 166, 0.85) 100%),
+    url('/login-hero.png') center / cover no-repeat;
+  color: #ffffff;
+  padding: 32px var(--container-pad) 44px;
+  text-align: left;
+}
+
+.page-hero-inner {
+  max-width: var(--results-max);
+  margin: 0 auto;
+}
+
+.page-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.page-hero-title {
+  margin: 10px 0 8px;
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.page-hero-subtitle {
+  margin: 0;
+  max-width: 560px;
+  font-size: 1rem;
+  line-height: 1.55;
+  opacity: 0.92;
+}
+
+.page-body {
+  max-width: var(--results-max);
+  margin: 0 auto;
+  padding: 28px var(--container-pad) 48px;
+  text-align: left;
+}
+
+.page-hero-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.page-hero-copy {
+  flex: 1;
+  min-width: min(100%, 320px);
+}
+
+.page-hero-panel {
+  width: 100%;
+  max-width: 460px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .page-hero-split {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-hero-panel {
+    max-width: none;
+  }
+}

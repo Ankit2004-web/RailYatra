@@ -1,0 +1,48 @@
+[data-theme="dark"] {
+  --brand: #12B8B8;
+  --brand-light: #5ecfcf;
+  --brand-dark: #0AA6A6;
+  --brand-deep: #e8eef2;
+  --brand-navy: #c8d8e0;
+  --ocean: #0AA6A6;
+  --sky: #1a3a42;
+  --bg: #0b1118;
+  --surface: #141c26;
+  --text: #e8eef2;
+  --muted: #8ba3b0;
+  --border: #243040;
+  --muted-bg: #1a2430;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="ocean"] {
+  --brand: #0891b2;
+  --brand-light: #67e8f9;
+  --brand-dark: #0e7490;
+  --brand-deep: #0a3d4d;
+  --brand-navy: #164e63;
+  --ocean: #0891b2;
+  --sky: #cffafe;
+  --bg: #e8f4f8;
+  --surface: #ffffff;
+  --text: #0a3d4d;
+  --muted: #4b7280;
+  --border: #b8dce8;
+  --muted-bg: #d9f0f7;
+  --shadow: 0 4px 24px rgba(8, 145, 178, 0.12);
+}
+
+[data-theme="dark"] .card {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .app-header,
+[data-theme="dark"] .app-footer {
+  background: var(--surface);
+}
+
+[data-theme="ocean"] .profile-hero {
+  background:
+    linear-gradient(135deg, rgba(10, 61, 77, 0.95) 0%, rgba(8, 145, 178, 0.88) 100%),
+    url('/login-hero.png') center / cover no-repeat;
+}

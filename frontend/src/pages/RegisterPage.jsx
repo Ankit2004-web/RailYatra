@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { User, Mail, Phone, Lock, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import CaptchaField from '../components/CaptchaField';
+import AuthShell from '../components/AuthShell';
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [showPassword, setShowPassword] = useState(false);
   const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,37 +31,78 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card card">
-        <h1>Create account</h1>
-        <p className="muted">Join to book trains and track PNR</p>
-        <form onSubmit={submit} className="stack">
-          <div className="field">
-            <label htmlFor="name">Full name</label>
-            <input id="name" className="input" value={form.name} onChange={set('name')} required />
+    <AuthShell
+      title="Create your account"
+      subtitle="Join RailYatra to book trains and manage all your journeys in one place."
+      sideTitle="Start your rail journey"
+      sidePoints={[
+        'Free registration — book in minutes',
+        'Save passengers and view booking history',
+        'PNR tracking and e-ticket downloads'
+      ]}
+    >
+      <form className="auth-form" onSubmit={submit}>
+        <div className="field auth-field">
+          <label htmlFor="name">Full name</label>
+          <div className="auth-input-wrap">
+            <User size={18} className="auth-input-icon" aria-hidden="true" />
+            <input id="name" className="input auth-input" value={form.name} onChange={set('name')} placeholder="Your full name" required />
           </div>
-          <div className="field">
-            <label htmlFor="email">Email</label>
-            <input id="email" type="email" className="input" value={form.email} onChange={set('email')} required />
+        </div>
+
+        <div className="field auth-field">
+          <label htmlFor="email">Email address</label>
+          <div className="auth-input-wrap">
+            <Mail size={18} className="auth-input-icon" aria-hidden="true" />
+            <input id="email" type="email" className="input auth-input" value={form.email} onChange={set('email')} placeholder="you@example.com" required />
           </div>
-          <div className="field">
-            <label htmlFor="phone">Phone</label>
-            <input id="phone" className="input" value={form.phone} onChange={set('phone')} required />
+        </div>
+
+        <div className="field auth-field">
+          <label htmlFor="phone">Phone number</label>
+          <div className="auth-input-wrap">
+            <Phone size={18} className="auth-input-icon" aria-hidden="true" />
+            <input id="phone" className="input auth-input" value={form.phone} onChange={set('phone')} placeholder="10-digit mobile" required />
           </div>
-          <div className="field">
-            <label htmlFor="password">Password</label>
-            <input id="password" type="password" className="input" value={form.password} onChange={set('password')} minLength={6} required />
+        </div>
+
+        <div className="field auth-field">
+          <label htmlFor="password">Password</label>
+          <div className="auth-input-wrap">
+            <Lock size={18} className="auth-input-icon" aria-hidden="true" />
+            <input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              className="input auth-input"
+              value={form.password}
+              onChange={set('password')}
+              placeholder="Min. 6 characters"
+              minLength={6}
+              required
+            />
+            <button
+              type="button"
+              className="auth-toggle-password"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
-          <CaptchaField onChange={setCaptcha} />
-          {error && <div className="alert alert-error">{error}</div>}
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? 'Creating…' : 'Register'}
-          </button>
-        </form>
-        <p className="auth-footer">
-          Already have an account? <Link to="/login">Sign in</Link>
-        </p>
-      </div>
-    </div>
+        </div>
+
+        <CaptchaField onChange={setCaptcha} />
+        {error && <div className="alert alert-error auth-alert">{error}</div>}
+
+        <button type="submit" className="btn btn-primary btn-block auth-submit" disabled={loading}>
+          <UserPlus size={18} aria-hidden="true" />
+          {loading ? 'Creating account…' : 'Create Account'}
+        </button>
+      </form>
+
+      <p className="auth-switch">
+        Already have an account? <Link to="/login">Sign in</Link>
+      </p>
+    </AuthShell>
   );
 }

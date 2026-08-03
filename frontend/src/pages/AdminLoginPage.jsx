@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Mail, Lock, Shield } from 'lucide-react';
 import CaptchaField from '../components/CaptchaField';
+import AuthShell from '../components/AuthShell';
 import { api, setToken } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 
 export default function AdminLoginPage() {
   const { user } = useAuth();
@@ -40,27 +42,41 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="auth-page">
-      <div className="auth-card card">
-        <h1>Admin Login</h1>
-        <p className="muted">Operations dashboard access</p>
-        <form onSubmit={submit} className="stack">
-          <div className="field">
-            <label htmlFor="admin-email">Email</label>
-            <input id="admin-email" type="email" className="input" value={email} onChange={(e) => setEmail(e.target.value)} required />
+    <AuthShell
+      title="Admin login"
+      subtitle="Sign in to manage trains, bookings, stations, and reports."
+      sideTitle="Operations dashboard"
+      sidePoints={[
+        'Manage trains and master data',
+        'View bookings and revenue reports',
+        'Admin-only secure access'
+      ]}
+    >
+      <form className="auth-form" onSubmit={submit}>
+        <div className="field auth-field">
+          <label htmlFor="admin-email">Admin email</label>
+          <div className="auth-input-wrap">
+            <Mail size={18} className="auth-input-icon" aria-hidden="true" />
+            <input id="admin-email" type="email" className="input auth-input" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
-          <div className="field">
-            <label htmlFor="admin-password">Password</label>
-            <input id="admin-password" type="password" className="input" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        </div>
+        <div className="field auth-field">
+          <label htmlFor="admin-password">Password</label>
+          <div className="auth-input-wrap">
+            <Lock size={18} className="auth-input-icon" aria-hidden="true" />
+            <input id="admin-password" type="password" className="input auth-input" value={password} onChange={(e) => setPassword(e.target.value)} required />
           </div>
-          <CaptchaField onChange={setCaptcha} />
-          {error && <div className="alert alert-error">{error}</div>}
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign In'}
-          </button>
-        </form>
-        <p className="auth-footer"><Link to="/">← Back to site</Link></p>
-      </div>
-    </div>
+        </div>
+        <CaptchaField onChange={setCaptcha} />
+        {error && <div className="alert alert-error auth-alert">{error}</div>}
+        <button type="submit" className="btn btn-primary btn-block auth-submit" disabled={loading}>
+          <Shield size={18} aria-hidden="true" />
+          {loading ? 'Signing in…' : 'Admin Sign In'}
+        </button>
+      </form>
+      <p className="auth-switch">
+        <Link to="/login">← Passenger login</Link> · <Link to="/">Home</Link>
+      </p>
+    </AuthShell>
   );
 }

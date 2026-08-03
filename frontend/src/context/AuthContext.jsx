@@ -40,8 +40,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    const me = await api.get('/auth/me');
+    setUser(me);
+    return me;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, isAdmin: !!user?.isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, refreshUser, isAdmin: !!user?.isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

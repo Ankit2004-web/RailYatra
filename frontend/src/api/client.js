@@ -30,7 +30,8 @@ async function request(path, options = {}) {
   }
 
   if (!response.ok) {
-    const err = new Error(data?.msg || data?.message || `Request failed (${response.status})`);
+    const detail = data?.errors?.map((e) => e.message).filter(Boolean).join(', ');
+    const err = new Error(detail || data?.msg || data?.message || `Request failed (${response.status})`);
     err.status = response.status;
     err.data = data;
     throw err;

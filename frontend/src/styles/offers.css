@@ -1,0 +1,378 @@
+/* ===== Offers Page ===== */
+
+.offers-page {
+  /* uses .page-shell */
+}
+
+.offers-hero {
+  /* uses .page-hero */
+}
+
+.offers-hero-inner {
+  /* uses .page-hero-inner */
+}
+
+.offers-hero h1,
+.page-hero-title {
+  margin: 10px 0 8px;
+}
+
+.offers-hero-subtitle,
+.page-hero-subtitle {
+  margin: 0 0 20px;
+}
+
+.offers-hero-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.offers-stat-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.875rem;
+}
+
+.offers-stat-card strong {
+  color: #ffffff;
+}
+
+.offers-body {
+  /* uses .page-body */
+}
+
+/* Filters */
+.offers-section {
+  text-align: left;
+}
+
+.offers-filters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 22px;
+  scrollbar-width: none;
+}
+
+.offers-filters::-webkit-scrollbar {
+  display: none;
+}
+
+.offers-filter {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.offers-filter:hover {
+  border-color: var(--brand);
+  color: var(--brand-dark);
+}
+
+.offers-filter.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+/* Offer grid */
+.offers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.offer-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  border-top: 4px solid var(--brand);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.offer-card:hover {
+  box-shadow: 0 12px 32px rgba(18, 184, 184, 0.14);
+  transform: translateY(-2px);
+}
+
+.offer-card[data-category="train"] { border-top-color: var(--brand); }
+.offer-card[data-category="bank"] { border-top-color: #4f46e5; }
+.offer-card[data-category="payment"] { border-top-color: #16a34a; }
+.offer-card[data-category="new"] { border-top-color: #f97316; }
+
+.offer-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px 0;
+}
+
+.offer-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: rgba(18, 184, 184, 0.12);
+  color: var(--brand-dark);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.offer-card[data-category="bank"] .offer-badge {
+  background: rgba(79, 70, 229, 0.12);
+  color: #4338ca;
+}
+
+.offer-card[data-category="payment"] .offer-badge {
+  background: rgba(22, 163, 74, 0.12);
+  color: #15803d;
+}
+
+.offer-card[data-category="new"] .offer-badge {
+  background: rgba(249, 115, 22, 0.12);
+  color: #c2410c;
+}
+
+.offer-tag-icon {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.offer-card-body {
+  padding: 12px 18px 0;
+  flex: 1;
+}
+
+.offer-title {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--brand-deep);
+}
+
+.offer-subtitle {
+  margin: 0 0 14px;
+  font-size: 0.9375rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.offer-code-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--muted-bg);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.offer-code-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.offer-code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--brand-deep);
+}
+
+.offer-copy-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--brand-dark);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.offer-copy-btn:hover {
+  border-color: var(--brand);
+  background: rgba(18, 184, 184, 0.08);
+}
+
+.offer-valid {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--brand-dark);
+}
+
+.offer-terms {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+  line-height: 1.45;
+  padding-bottom: 14px;
+}
+
+.offer-cta {
+  margin: 0 18px 18px;
+  width: calc(100% - 36px);
+}
+
+.offers-empty {
+  text-align: center;
+  padding: 32px 16px;
+  margin-bottom: 24px;
+}
+
+/* Bank strip */
+.offers-bank-strip {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  text-align: left;
+}
+
+.offers-bank-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.offers-bank-logos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.offers-bank-logos span {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-deep);
+  background: var(--muted-bg);
+  border: 1px solid var(--border);
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+/* How to apply */
+.offers-how {
+  padding: 22px 24px;
+  text-align: left;
+}
+
+.offers-how h2 {
+  margin: 0 0 14px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--brand-deep);
+}
+
+.offers-how-steps {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text);
+  line-height: 1.65;
+}
+
+.offers-how-steps li {
+  margin-bottom: 8px;
+}
+
+.offers-how-steps li:last-child {
+  margin-bottom: 0;
+}
+
+/* Toast */
+.offers-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  background: var(--brand-deep);
+  color: #ffffff;
+  padding: 12px 20px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 12px 32px rgba(15, 45, 61, 0.25);
+  animation: offerToastIn 0.25s ease;
+}
+
+@keyframes offerToastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+[data-theme="dark"] .offer-code-box {
+  background: var(--muted-bg);
+}
+
+[data-theme="dark"] .offers-bank-logos span {
+  background: var(--muted-bg);
+}
+
+@media (max-width: 1024px) {
+  .offers-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .offers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .offers-hero-stats {
+    flex-direction: column;
+  }
+
+  .offers-stat-card {
+    width: 100%;
+  }
+
+  .offer-title {
+    font-size: 1.35rem;
+  }
+}

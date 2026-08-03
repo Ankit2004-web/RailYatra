@@ -4,11 +4,15 @@ import {
   ArrowLeft, ArrowRight, Armchair, CreditCard, Users, UserPlus, Trash2, LayoutGrid
 } from 'lucide-react';
 import { api } from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import ProtectedRoute from '../components/ProtectedRoute';
+import { openRazorpayCheckout } from '../utils/razorpay';
 import CaptchaField from '../components/CaptchaField';
 import CoachChartModal from '../components/search/CoachChartModal';
+import PaymentOffersPanel from '../components/PaymentOffersPanel';
 import { formatDisplayDate } from '../utils/trainMapper';
 import { formatIrctcAvailability, irctcAvailabilityClass } from '../utils/irctcAvailability';
+import { getAppliedOfferDetails } from '../utils/offerEngine';
 
 const STEPS = [
   { num: 1, label: 'Class' },
@@ -48,6 +52,7 @@ function BookingStepper({ step }) {
 }
 
 function BookingContent() {
+  const { user } = useAuth();
   const [params] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -66,6 +71,9 @@ function BookingContent() {
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [chartOpen, setChartOpen] = useState(false);
+  const [promoCode, setPromoCode] = useState(() => localStorage.getItem('railyatra_promo') || '');
+  const [paymentMethod, setPaymentMethod] = useState('card');
+  const [paymentConfig, setPaymentConfig] = useState(null);
 
   useEffect(() => {
     if (!trainId) {
@@ -83,9 +91,20 @@ function BookingContent() {
     }
   }, [location.state?.classCode]);
 
+  useEffect(() => {
+    if (step !== 3) return;
+    api.get('/payments/config')
+      .then(setPaymentConfig)
+      .catch(() => setPaymentConfig({ devMode: true }));
+  }, [step]);
+
   const classes = train?.classes || [];
   const selectedClass = classes.find((c) => c.classCode === classCode);
-  const total = selectedClass ? Number(selectedClass.price) * passengers.length : 0;
+  const baseTotal = selectedClass ? Number(selectedClass.price) * passengers.length : 0;
+  const offerCtx = { total: baseTotal, classCode, journeyDate: date, paymentMethod };
+  const appliedOffer = getAppliedOfferDetails(promoCode, offerCtx);
+  const discount = appliedOffer.savings || 0;
+  const payableTotal = Math.max(baseTotal - discount, 0);
 
   const weekday = useMemo(() => {
     if (!date) return '';
@@ -113,12 +132,38 @@ function BookingContent() {
   };
 
   const payAndConfirm = async (booking) => {
-    const order = await api.post('/payments/create-order', { bookingId: booking.id, amount: booking.totalPrice });
+    const order = await api.post('/payments/create-order', { bookingId: booking.id });
+
     if (order.devMode) {
       const confirmed = await api.post('/payments/dev-confirm', { bookingId: booking.id });
       return confirmed.booking;
     }
-    return booking;
+
+    const payment = await openRazorpayCheckout({
+      key: order.key,
+      orderId: order.orderId,
+      amount: order.amount,
+      currency: order.currency,
+      description: `${train.trainName} (${train.trainNumber}) · ${classCode}`,
+      prefill: {
+        name: user?.name || '',
+        email: user?.email || '',
+        contact: user?.phone || ''
+      },
+      notes: {
+        bookingId: String(booking.id),
+        train: train.trainNumber
+      }
+    });
+
+    const verified = await api.post('/payments/verify', {
+      bookingId: booking.id,
+      razorpay_order_id: payment.razorpay_order_id,
+      razorpay_payment_id: payment.razorpay_payment_id,
+      razorpay_signature: payment.razorpay_signature
+    });
+
+    return verified.booking;
   };
 
   const submit = async (e) => {
@@ -150,7 +195,12 @@ function BookingContent() {
       const final = await payAndConfirm(booking);
       navigate('/bookings', { state: { message: `Booked! PNR ${final.pnrNumber}` } });
     } catch (err) {
-      setError(err.message || 'Booking failed');
+      const message = err.message || 'Booking failed';
+      if (message === 'Payment cancelled') {
+        setError('Payment was cancelled. Your booking is saved — complete payment from My Bookings or try again.');
+      } else {
+        setError(message);
+      }
     } finally {
       setLoading(false);
     }
@@ -381,6 +431,24 @@ function BookingContent() {
                 </div>
               </div>
 
+              {paymentConfig && (
+                <div className={`booking-payment-badge ${paymentConfig.devMode ? 'dev' : 'live'}`}>
+                  {paymentConfig.devMode
+                    ? 'Dev payment mode — booking will be auto-confirmed without real charges'
+                    : 'Secure payment via Razorpay — UPI, cards, net banking & wallets'}
+                </div>
+              )}
+
+              <PaymentOffersPanel
+                baseTotal={baseTotal}
+                classCode={classCode}
+                journeyDate={date}
+                appliedCode={appliedOffer.error ? '' : promoCode}
+                onApplyCode={setPromoCode}
+                paymentMethod={paymentMethod}
+                onPaymentMethodChange={setPaymentMethod}
+              />
+
               <div className="booking-summary">
                 <div className="booking-summary-row">
                   <span>Train</span>
@@ -404,12 +472,23 @@ function BookingContent() {
                 </div>
                 <div className="booking-summary-row">
                   <span>Base fare ({classCode} × {passengers.length})</span>
-                  <span>₹{total.toLocaleString('en-IN')}</span>
+                  <span>₹{baseTotal.toLocaleString('en-IN')}</span>
                 </div>
+                {discount > 0 && appliedOffer.offer && (
+                  <div className="booking-summary-row booking-summary-discount">
+                    <span>Promo ({appliedOffer.offer.code})</span>
+                    <span>−₹{discount.toLocaleString('en-IN')}</span>
+                  </div>
+                )}
                 <div className="booking-summary-total">
-                  <span>Total amount</span>
-                  <span>₹{total.toLocaleString('en-IN')}</span>
+                  <span>Total payable</span>
+                  <span>₹{payableTotal.toLocaleString('en-IN')}</span>
                 </div>
+                {discount > 0 && (
+                  <p className="booking-promo-note muted">
+                    You save ₹{discount.toLocaleString('en-IN')} with coupon {appliedOffer.offer.code}.
+                  </p>
+                )}
               </div>
 
               <CaptchaField onChange={setCaptcha} />
@@ -420,7 +499,11 @@ function BookingContent() {
                   <ArrowLeft size={16} aria-hidden="true" /> Back
                 </button>
                 <button type="submit" className="booking-btn-primary" disabled={loading}>
-                  {loading ? 'Processing…' : 'Confirm & Pay'}
+                  {loading
+                    ? 'Processing…'
+                    : paymentConfig?.devMode
+                      ? 'Confirm & Pay (Dev)'
+                      : 'Pay with Razorpay'}
                 </button>
               </div>
             </>

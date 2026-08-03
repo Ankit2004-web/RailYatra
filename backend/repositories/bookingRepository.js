@@ -215,7 +215,7 @@ const createBooking = async ({
     fromStationId,
     toStationId
 }) => {
-    return withTransaction(async ({ query }) => {
+    const txResult = await withTransaction(async ({ query }) => {
         const trains = await query('SELECT * FROM Trains WITH (UPDLOCK, ROWLOCK) WHERE id = ?', [trainId]);
         const train = trains[0];
         if (!train) return { error: 'Train not found', status: 404 };
@@ -272,8 +272,20 @@ const createBooking = async ({
                     booking = inserted[0];
                 } else {
                     if (!seatNumbers || seatNumbers.length !== passengers.length) {
-                        const autoStart = classRow.availableSeats - passengers.length + 1;
-                        seatNumbers = passengers.map((_, index) => autoStart + index);
+                        const pickedSeats = await seatRepository.pickAvailableSeats(
+                            query,
+                            trainId,
+                            classCode,
+                            journeyDate,
+                            passengers.length
+                        );
+                        if (pickedSeats.length === passengers.length) {
+                            seatNumbers = pickedSeats;
+                        } else if (pickedSeats.length === 0) {
+                            seatNumbers = [];
+                        } else {
+                            return { error: 'Not enough seats available. Join waitlist/RAC or pick different seats.', status: 400 };
+                        }
                     }
 
                     const inserted = await query(
@@ -334,8 +346,11 @@ const createBooking = async ({
             });
         }
 
-        return { booking: await findById(booking.id) };
+        return { bookingId: booking.id };
     });
+
+    if (txResult.error) return txResult;
+    return { booking: await findById(txResult.bookingId) };
 };
 
 const confirmBooking = async (bookingId) => {
@@ -375,7 +390,7 @@ const getRefundPreview = async (id, userId, isAdmin) => {
 };
 
 const failBooking = async (bookingId) => {
-    return withTransaction(async ({ query }) => {
+    const txResult = await withTransaction(async ({ query }) => {
         const rows = await query('SELECT * FROM Bookings WHERE id = ?', [bookingId]);
         const booking = rows[0];
         if (!booking) return null;
@@ -388,8 +403,11 @@ const failBooking = async (bookingId) => {
             `UPDATE Bookings SET status = 'Cancelled', paymentStatus = 'Failed', updatedAt = SYSUTCDATETIME() WHERE id = ?`,
             [bookingId]
         );
-        return findById(bookingId);
+        return { bookingId };
     });
+
+    if (!txResult?.bookingId) return null;
+    return findById(txResult.bookingId);
 };
 
 const promoteWaitlist = async (query, trainId, classCode, journeyDate) => {
@@ -437,7 +455,7 @@ const promoteWaitlist = async (query, trainId, classCode, journeyDate) => {
 };
 
 const updateStatus = async (id, status, userId, isAdmin) => {
-    return withTransaction(async ({ query }) => {
+    const txResult = await withTransaction(async ({ query }) => {
         const rows = await query(
             `SELECT b.*, t.id AS train_id
              FROM Bookings b WITH (UPDLOCK, ROWLOCK)
@@ -491,13 +509,18 @@ const updateStatus = async (id, status, userId, isAdmin) => {
                 await promoteWaitlist(query, booking.trainId, booking.classCode, booking.journeyDate);
             }
 
-            const updated = await findById(id);
-            return { booking: updated, refund: refundCalc };
+            return { bookingId: id, refund: refundCalc };
         }
 
         await query('UPDATE Bookings SET status = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?', [status, id]);
-        return { booking: await findById(id) };
+        return { bookingId: id };
     });
+
+    if (txResult.error) return txResult;
+    return {
+        booking: await findById(txResult.bookingId),
+        refund: txResult.refund || null
+    };
 };
 
 const findAllFiltered = async ({ pnr, trainId, status, fromDate, toDate }) => {

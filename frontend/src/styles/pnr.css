@@ -1,0 +1,546 @@
+/* ===== PNR Status Page ===== */
+
+.pnr-page {
+  /* uses .page-shell */
+}
+
+.pnr-hero {
+  /* uses .page-hero */
+}
+
+.pnr-hero-inner {
+  /* uses .page-hero-inner + .page-hero-split */
+}
+
+.pnr-hero-copy h1,
+.page-hero-title {
+  margin: 12px 0 14px;
+}
+
+.pnr-hero-copy p,
+.page-hero-subtitle {
+  margin: 0;
+}
+
+.pnr-search-card {
+  padding: 24px;
+  border: none;
+  box-shadow: 0 20px 48px rgba(15, 45, 61, 0.22);
+}
+
+.pnr-search-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.pnr-search-head h2 {
+  margin: 0 0 4px;
+  font-size: 1.125rem;
+  color: var(--brand-deep);
+}
+
+.pnr-search-head p {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.pnr-search-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, rgba(18, 184, 184, 0.18), rgba(10, 166, 166, 0.08));
+  color: var(--brand-dark);
+  flex-shrink: 0;
+}
+
+.pnr-input-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.pnr-input-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.pnr-input {
+  width: 100%;
+  padding: 16px 72px 16px 44px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  color: var(--brand-deep);
+  background: var(--muted-bg);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pnr-input:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: 0 0 0 4px rgba(18, 184, 184, 0.15);
+  background: #ffffff;
+}
+
+.pnr-input::placeholder {
+  color: #b8c9cf;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.pnr-digit-count {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.pnr-digit-count.ready {
+  color: var(--success);
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.pnr-search-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pnr-submit-btn {
+  flex: 1;
+  min-width: 180px;
+  min-height: 48px;
+}
+
+.pnr-body {
+  /* uses .page-body */
+}
+
+.pnr-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.pnr-alert-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.pnr-alert strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.pnr-alert p {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.9;
+}
+
+/* Ticket result card */
+.pnr-ticket {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 40px rgba(15, 45, 61, 0.1);
+}
+
+.pnr-ticket-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  background: linear-gradient(90deg, var(--brand-deep), var(--brand-dark));
+  color: #ffffff;
+}
+
+.pnr-ticket-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pnr-status-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pnr-ticket-pnr-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px 0;
+  flex-wrap: wrap;
+}
+
+.pnr-ticket-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.pnr-ticket-number {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--brand-deep);
+  font-family: ui-monospace, monospace;
+}
+
+.pnr-train-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px 20px;
+  border-bottom: 1px dashed var(--border);
+}
+
+.pnr-train-no {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--brand-dark);
+  background: rgba(18, 184, 184, 0.12);
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.pnr-train-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--brand-deep);
+}
+
+.pnr-class-badge {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--brand-deep);
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.9375rem;
+}
+
+.pnr-route-strip {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  background: var(--muted-bg);
+}
+
+.pnr-route-station {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pnr-route-station.end {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.pnr-route-code {
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--brand-deep);
+}
+
+.pnr-route-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.pnr-route-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand-dark);
+  min-width: 100px;
+}
+
+.pnr-route-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+  flex-shrink: 0;
+}
+
+.pnr-route-line {
+  flex: 1;
+  height: 2px;
+  background: linear-gradient(90deg, var(--brand), var(--brand-light));
+  border-radius: 999px;
+}
+
+.pnr-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  padding: 24px;
+}
+
+.pnr-detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+}
+
+.pnr-detail-item svg {
+  color: var(--brand-dark);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.pnr-detail-item span {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.pnr-detail-item strong {
+  font-size: 0.9375rem;
+  color: var(--brand-deep);
+  line-height: 1.35;
+}
+
+.pnr-wl-banner {
+  margin: 0 24px 16px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #e0f2fe;
+  color: #075985;
+  font-size: 0.875rem;
+}
+
+.pnr-seats {
+  padding: 0 24px 20px;
+}
+
+.pnr-seats strong {
+  display: block;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pnr-seat-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pnr-seat-chip {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(18, 184, 184, 0.12);
+  color: var(--brand-deep);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.pnr-passengers {
+  padding: 0 24px 24px;
+}
+
+.pnr-passengers-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--brand-deep);
+}
+
+.pnr-passengers-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.pnr-passenger-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.pnr-passenger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.pnr-passenger-table th,
+.pnr-passenger-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.pnr-passenger-table th {
+  background: var(--muted-bg);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.pnr-passenger-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.pnr-passenger-table tbody tr:hover {
+  background: rgba(18, 184, 184, 0.04);
+}
+
+.pnr-ticket-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px dashed var(--border);
+  background: var(--muted-bg);
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+/* Help cards */
+.pnr-help-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.pnr-help-card {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+}
+
+.pnr-help-card svg {
+  color: var(--brand-dark);
+}
+
+.pnr-help-card h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--brand-deep);
+}
+
+.pnr-help-card p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.55;
+  flex: 1;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .pnr-help-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pnr-route-strip {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .pnr-route-station,
+  .pnr-route-station.end {
+    align-items: center;
+    text-align: center;
+  }
+
+  .pnr-route-track {
+    justify-content: center;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .pnr-hero {
+    padding: 28px 16px 36px;
+  }
+
+  .pnr-body {
+    padding: 24px 16px 40px;
+  }
+
+  .pnr-input {
+    font-size: 1.125rem;
+    letter-spacing: 0.14em;
+  }
+
+  .pnr-search-actions {
+    flex-direction: column;
+  }
+
+  .pnr-submit-btn {
+    width: 100%;
+  }
+}

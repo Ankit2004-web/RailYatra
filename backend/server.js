@@ -21,6 +21,7 @@ const captchaRoutes = require('./routes/captcha');
 const fareRoutes = require('./routes/fares');
 const availabilityRoutes = require('./routes/availability');
 const trainCoachRoutes = require('./routes/trainCoach');
+const { UPLOAD_DIR: AVATAR_UPLOAD_DIR } = require('./services/avatarService');
 
 const app = express();
 
@@ -33,7 +34,7 @@ app.use(helmet({
             scriptSrc: ["'self'", "'unsafe-inline'", 'https://checkout.razorpay.com', 'https://cdn.jsdelivr.net'],
             styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
             fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com'],
-            imgSrc: ["'self'", 'data:'],
+            imgSrc: ["'self'", 'data:', 'blob:'],
             connectSrc: ["'self'", 'https://api.razorpay.com'],
             frameSrc: ['https://api.razorpay.com']
         }
@@ -41,7 +42,8 @@ app.use(helmet({
 }));
 
 app.use(cors());
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '5mb' }));
+app.use('/uploads/avatars', express.static(AVATAR_UPLOAD_DIR));
 app.use(requestLogger);
 app.use('/api', apiLimiter);
 
@@ -123,7 +125,14 @@ app.get('*', (req, res, next) => {
     res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
+app.use('/api', (req, res) => {
+    res.status(404).json({ msg: 'API route not found. Restart the server if you recently updated the app.' });
+});
+
 app.use((err, req, res, next) => {
+    if (err.type === 'entity.too.large') {
+        return res.status(413).json({ msg: 'Image is too large. Try a smaller photo.' });
+    }
     logger.error('Unhandled error', { error: err.message, stack: err.stack, path: req.path });
     res.status(500).json({ msg: 'Internal server error' });
 });

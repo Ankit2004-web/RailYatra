@@ -19,7 +19,11 @@ const verifyRules = [
 ];
 
 router.get('/config', (req, res) => {
-    res.json({ devMode: !razorpayService.isConfigured() });
+    const configured = razorpayService.isConfigured();
+    res.json({
+        devMode: !configured,
+        keyId: configured ? process.env.RAZORPAY_KEY_ID : null
+    });
 });
 
 router.post('/create-order', auth, paymentRules, validate, async (req, res) => {

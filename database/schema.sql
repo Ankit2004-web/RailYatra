@@ -74,6 +74,8 @@ BEGIN
         password NVARCHAR(255) NOT NULL,
         phone NVARCHAR(15) NOT NULL,
         isAdmin BIT NOT NULL DEFAULT 0,
+        avatarUrl NVARCHAR(500) NULL,
+        theme NVARCHAR(20) NOT NULL DEFAULT 'light',
         createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
         updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
     );
@@ -124,6 +126,18 @@ GO
 IF COL_LENGTH('dbo.Users', 'isBlocked') IS NULL
 BEGIN
     ALTER TABLE dbo.Users ADD isBlocked BIT NOT NULL DEFAULT 0;
+END
+GO
+
+IF COL_LENGTH('dbo.Users', 'avatarUrl') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD avatarUrl NVARCHAR(500) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Users', 'theme') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD theme NVARCHAR(20) NOT NULL DEFAULT 'light';
 END
 GO
 

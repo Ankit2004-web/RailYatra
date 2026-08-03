@@ -1,14 +1,16 @@
 const express = require('express');
+const { validationResult } = require('express-validator');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const validateCaptcha = require('../middleware/captcha');
 const { authLimiter } = require('../middleware/rateLimit');
-const { registerRules, loginRules, forgotPasswordRules, resetPasswordRules, profileRules, changePasswordRules } = require('../validators/authValidator');
+const { registerRules, loginRules, forgotPasswordRules, resetPasswordRules, profileRules, changePasswordRules, avatarRules } = require('../validators/authValidator');
 const userRepository = require('../repositories/userRepository');
 const passwordResetRepository = require('../repositories/passwordResetRepository');
 const { sendPasswordResetEmail } = require('../services/emailService');
+const { saveAvatar, removeAvatarFiles } = require('../services/avatarService');
 const logger = require('../utils/logger');
 
 const signToken = (user) => {
@@ -76,7 +78,7 @@ router.post('/forgot-password', authLimiter, forgotPasswordRules, validate, vali
 
         const resetRecord = await passwordResetRepository.createToken(user.id);
         const baseUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
-        const resetUrl = `${baseUrl}/resetPassword.html?token=${resetRecord.token}`;
+        const resetUrl = `${baseUrl}/reset-password?token=${resetRecord.token}`;
 
         const emailResult = await sendPasswordResetEmail({ to: user.email, resetUrl });
 
@@ -127,19 +129,133 @@ router.get('/me', auth, async (req, res) => {
     }
 });
 
-router.put('/profile', auth, profileRules, validate, async (req, res) => {
+const runRules = async (req, rules) => {
+    await Promise.all(rules.map((rule) => rule.run(req)));
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        const err = new Error(errors.array()[0]?.msg || 'Validation failed');
+        err.status = 400;
+        throw err;
+    }
+};
+
+router.post('/profile-photo', auth, async (req, res) => {
     try {
-        const user = await userRepository.updateProfile(req.user.id, {
-            name: req.body.name,
-            phone: req.body.phone
-        });
+        const { avatarData } = req.body;
+        if (typeof avatarData !== 'string' || !avatarData.startsWith('data:image/')) {
+            return res.status(400).json({ msg: 'Image data is required' });
+        }
+        const avatarUrl = saveAvatar(req.user.id, avatarData);
+        const user = await userRepository.updateAvatar(req.user.id, avatarUrl);
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+        logger.info('Avatar updated', { userId: req.user.id });
+        res.json(user);
+    } catch (err) {
+        if (err.message?.includes('Invalid image')) {
+            return res.status(400).json({ msg: err.message });
+        }
+        logger.error('Avatar update failed', { error: err.message });
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.delete('/profile-photo', auth, async (req, res) => {
+    try {
+        removeAvatarFiles(req.user.id);
+        const user = await userRepository.clearAvatar(req.user.id);
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+        logger.info('Avatar removed', { userId: req.user.id });
+        res.json(user);
+    } catch (err) {
+        logger.error('Avatar remove failed', { error: err.message });
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.put('/profile', auth, async (req, res) => {
+    try {
+        if (req.body.removeAvatar) {
+            removeAvatarFiles(req.user.id);
+            const user = await userRepository.clearAvatar(req.user.id);
+            if (!user) {
+                return res.status(404).json({ msg: 'User not found' });
+            }
+            logger.info('Avatar removed', { userId: req.user.id });
+            return res.json(user);
+        }
+
+        if (req.body.avatarData !== undefined) {
+            const { avatarData } = req.body;
+            if (typeof avatarData !== 'string' || !avatarData.startsWith('data:image/')) {
+                return res.status(400).json({ msg: 'Image data is required' });
+            }
+            const avatarUrl = saveAvatar(req.user.id, avatarData);
+            const user = await userRepository.updateAvatar(req.user.id, avatarUrl);
+            if (!user) {
+                return res.status(404).json({ msg: 'User not found' });
+            }
+            logger.info('Avatar updated', { userId: req.user.id });
+            return res.json(user);
+        }
+
+        await runRules(req, profileRules);
+
+        const payload = {};
+        if (req.body.name !== undefined) payload.name = req.body.name;
+        if (req.body.phone !== undefined) payload.phone = req.body.phone;
+        if (req.body.theme !== undefined) payload.theme = req.body.theme;
+
+        const user = await userRepository.updateProfile(req.user.id, payload);
         if (!user) {
             return res.status(404).json({ msg: 'User not found' });
         }
         logger.info('Profile updated', { userId: req.user.id });
         res.json(user);
     } catch (err) {
+        if (err.status === 400) {
+            return res.status(400).json({ msg: err.message });
+        }
+        if (err.message?.includes('Invalid image')) {
+            return res.status(400).json({ msg: err.message });
+        }
         logger.error('Profile update failed', { error: err.message });
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.put('/avatar', auth, avatarRules, validate, async (req, res) => {
+    try {
+        const avatarUrl = saveAvatar(req.user.id, req.body.avatarData);
+        const user = await userRepository.updateAvatar(req.user.id, avatarUrl);
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+        logger.info('Avatar updated', { userId: req.user.id });
+        res.json(user);
+    } catch (err) {
+        if (err.message?.includes('Invalid image')) {
+            return res.status(400).json({ msg: err.message });
+        }
+        logger.error('Avatar update failed', { error: err.message });
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.delete('/avatar', auth, async (req, res) => {
+    try {
+        removeAvatarFiles(req.user.id);
+        const user = await userRepository.clearAvatar(req.user.id);
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+        logger.info('Avatar removed', { userId: req.user.id });
+        res.json(user);
+    } catch (err) {
+        logger.error('Avatar remove failed', { error: err.message });
         res.status(500).json({ msg: 'Server error' });
     }
 });
