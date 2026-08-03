@@ -44,5 +44,5 @@
 [data-theme="ocean"] .profile-hero {
   background:
     linear-gradient(135deg, rgba(10, 61, 77, 0.95) 0%, rgba(8, 145, 178, 0.88) 100%),
-    url('/login-hero.png') center / cover no-repeat;
+    url('/chatgpt-login-hero.png') center / cover no-repeat;
 }

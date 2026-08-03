@@ -46,7 +46,7 @@
   inset: 0;
   z-index: 0;
   background:
-    url('/login-hero.png') center center / cover no-repeat;
+    url('/chatgpt-login-hero.png') center center / cover no-repeat;
   transform: scale(1.02);
   animation: loginHeroFade 0.6s ease both;
 }
