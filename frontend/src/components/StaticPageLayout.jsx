@@ -6,7 +6,7 @@ export default function StaticPageLayout({ title, subtitle, badge, icon: Icon, c
     <div className="static-page page-shell">
       <section className="static-page-hero page-hero">
         <div className="static-page-hero-inner page-hero-inner">
-          <Link to="/" className="static-page-back">
+          <Link to="/home" className="static-page-back">
             <ArrowLeft size={16} aria-hidden="true" /> Back to home
           </Link>
           {badge && (

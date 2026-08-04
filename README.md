@@ -105,12 +105,7 @@ To use offline mock data instead of the live API, run in browser console:
 
 ## Default Admin
 
-| Field | Value |
-|-------|-------|
-| Email | `admin@railway.com` |
-| Password | `Admin@123` |
-
-Admin panel: http://localhost:5000/adminLogin.html
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your environment before running `npm run db:seed` to create the first admin user. Register a normal account first if you prefer, then promote it via the admin API.
 
 ## Environment Variables
 
@@ -120,8 +115,8 @@ DB_NAME=RailwayReservation
 DB_TRUSTED_CONNECTION=true
 JWT_SECRET=your_secret_key
 PORT=5000
-ADMIN_EMAIL=admin@railway.com
-ADMIN_PASSWORD=Admin@123
+ADMIN_EMAIL=
+ADMIN_PASSWORD=
 ```
 
 ## API Endpoints

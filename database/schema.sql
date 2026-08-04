@@ -321,3 +321,37 @@ BEGIN
     ALTER TABLE dbo.Passengers ADD passengerStatus NVARCHAR(20) NOT NULL DEFAULT 'Confirmed';
 END
 GO
+
+IF COL_LENGTH('dbo.Bookings', 'paymentBreakdown') IS NULL
+BEGIN
+    ALTER TABLE dbo.Bookings ADD paymentBreakdown NVARCHAR(MAX) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Bookings', 'grandTotal') IS NULL
+BEGIN
+    ALTER TABLE dbo.Bookings ADD grandTotal DECIMAL(10,2) NULL;
+END
+GO
+
+IF OBJECT_ID('dbo.SavedPassengers', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SavedPassengers (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NOT NULL,
+        name NVARCHAR(100) NOT NULL,
+        age INT NOT NULL,
+        gender NVARCHAR(10) NOT NULL,
+        berthPreference NVARCHAR(20) NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = 'FK_SavedPassengers_Users')
+BEGIN
+    ALTER TABLE dbo.SavedPassengers
+    ADD CONSTRAINT FK_SavedPassengers_Users FOREIGN KEY (userId) REFERENCES dbo.Users(id) ON DELETE CASCADE;
+END
+GO

@@ -124,8 +124,23 @@ async function seedDatabase() {
             console.log('Train stops already exist, skipping.');
         }
 
-        const adminEmail = process.env.ADMIN_EMAIL || 'admin@railway.com';
-        const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
+        const demoEmails = ['demo@railway.com', 'admin@railway.com'];
+        for (const demoEmail of demoEmails) {
+            await pool.request()
+                .input('email', 'NVarChar', demoEmail)
+                .query('DELETE FROM Users WHERE email = @email');
+        }
+
+        const adminEmail = process.env.ADMIN_EMAIL?.trim();
+        const adminPassword = process.env.ADMIN_PASSWORD?.trim();
+
+        if (!adminEmail || !adminPassword) {
+            console.log('ADMIN_EMAIL and ADMIN_PASSWORD not set — skipping admin seed.');
+            console.log('Seed completed successfully.');
+            const migrateMasterData = require('./migrate-master-data');
+            await migrateMasterData();
+            return;
+        }
 
         const adminResult = await pool.request()
             .input('email', 'NVarChar', adminEmail)

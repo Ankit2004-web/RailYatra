@@ -5,7 +5,7 @@ import {
   CreditCard, ShieldCheck, Hash, Armchair, CircleAlert
 } from 'lucide-react';
 import { api } from '../api/client';
-import { formatDisplayDate } from '../utils/trainMapper';
+import { formatDisplayDate, formatJourneyDay, formatBoardingTime } from '../utils/trainMapper';
 
 function formatPnrDisplay(value) {
   const digits = value.replace(/\D/g, '').slice(0, 10);
@@ -33,6 +33,18 @@ export default function PnrPage() {
     if (!result?.journeyDate) return '';
     return new Date(`${result.journeyDate}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'long' });
   }, [result?.journeyDate]);
+
+  useEffect(() => {
+    const digits = (location.state?.pnr || '').replace(/\D/g, '');
+    if (digits.length !== 10) return;
+    setLoading(true);
+    setSearched(true);
+    setError('');
+    api.get(`/bookings/pnr/${digits}`)
+      .then(setResult)
+      .catch((err) => setError(err.message || 'PNR not found'))
+      .finally(() => setLoading(false));
+  }, [location.state?.pnr]);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -157,8 +169,11 @@ export default function PnrPage() {
 
             <div className="pnr-route-strip">
               <div className="pnr-route-station">
-                <span className="pnr-route-code">{result.train?.source}</span>
-                <span className="pnr-route-label">From</span>
+                <span className="pnr-route-code">{result.boarding?.code || result.train?.source}</span>
+                <span className="pnr-route-label">Boarding</span>
+                {result.boarding?.departureTime && (
+                  <small>{formatBoardingTime(result.boarding.departureTime)}</small>
+                )}
               </div>
               <div className="pnr-route-track" aria-hidden="true">
                 <span className="pnr-route-dot" />
@@ -168,8 +183,11 @@ export default function PnrPage() {
                 <span className="pnr-route-dot" />
               </div>
               <div className="pnr-route-station end">
-                <span className="pnr-route-code">{result.train?.destination}</span>
-                <span className="pnr-route-label">To</span>
+                <span className="pnr-route-code">{result.alighting?.code || result.train?.destination}</span>
+                <span className="pnr-route-label">Destination</span>
+                {result.alighting?.arrivalTime && (
+                  <small>{formatBoardingTime(result.alighting.arrivalTime)}</small>
+                )}
               </div>
             </div>
 
@@ -178,7 +196,10 @@ export default function PnrPage() {
                 <Calendar size={16} aria-hidden="true" />
                 <div>
                   <span>Journey Date</span>
-                  <strong>{formatDisplayDate(result.journeyDate)}{weekday ? ` · ${weekday}` : ''}</strong>
+                  <strong>
+                    {formatJourneyDay(result.journeyDate)}
+                    {result.boarding?.departureTime ? ` · Boarding ${formatBoardingTime(result.boarding.departureTime)}` : ''}
+                  </strong>
                 </div>
               </div>
               <div className="pnr-detail-item">
@@ -272,7 +293,7 @@ export default function PnrPage() {
 
             <div className="pnr-ticket-foot">
               <MapPin size={14} aria-hidden="true" />
-              <span>Booked by {result.bookedBy || 'Passenger'} · Booked on {formatDisplayDate(result.bookingDate)}</span>
+              <span>Booked on {formatDisplayDate(result.bookingDate)}</span>
             </div>
           </article>
         )}
@@ -293,7 +314,7 @@ export default function PnrPage() {
               <TrainFront size={20} aria-hidden="true" />
               <h3>Need a new ticket?</h3>
               <p>Search trains between stations and book in a few clicks.</p>
-              <Link to="/" className="btn btn-outline btn-sm">Search Trains</Link>
+              <Link to="/home" className="btn btn-outline btn-sm">Search Trains</Link>
             </div>
           </div>
         )}

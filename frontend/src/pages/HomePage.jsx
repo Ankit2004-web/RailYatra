@@ -85,6 +85,7 @@ export default function HomePage() {
     if (!src || !dest || !dt) return;
     const params = new URLSearchParams({ source: src, destination: dest, date: dt });
     if (cls) params.set('class', cls);
+    if (routeAware) params.set('routeAware', '1');
     saveRecent({ source: src, destination: dest, date: dt });
     setRecent(loadRecent());
     navigate(`/search?${params}`);

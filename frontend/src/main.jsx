@@ -14,6 +14,7 @@ import './styles/login-enterprise.css';
 import './styles/profile.css';
 import './styles/static-pages.css';
 import './styles/offers.css';
+import './styles/admin.css';
 
 const storedTheme = localStorage.getItem('railyatra-theme');
 if (storedTheme) document.documentElement.setAttribute('data-theme', storedTheme);

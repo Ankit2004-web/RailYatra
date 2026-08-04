@@ -11,7 +11,8 @@ export default function SearchSummary({
   trainCount,
   loading,
   sortBy,
-  onSortChange
+  onSortChange,
+  routeAware
 }) {
   return (
     <section className="search-summary card" aria-label="Search summary">
@@ -26,7 +27,7 @@ export default function SearchSummary({
 
       <div className="search-summary-content">
         <div className="search-summary-top">
-          <Link to="/" className="modify-link">
+          <Link to="/home" className="modify-link">
             <ArrowLeft size={14} aria-hidden="true" />
             Modify search
           </Link>
@@ -35,6 +36,7 @@ export default function SearchSummary({
           </h1>
           <p className="search-hero-meta">
             {formatDisplayDate(date)} · {weekday} · {loading ? 'Searching…' : `${trainCount} train(s) found`}
+            {routeAware ? ' · Route-aware search' : ''}
           </p>
         </div>
 

@@ -15,7 +15,7 @@ export default function ErrorState({ onRetry }) {
         <button type="button" className="btn btn-primary" onClick={onRetry}>
           <RefreshCw size={16} /> Retry
         </button>
-        <Link to="/" className="btn btn-outline">Modify Search</Link>
+        <Link to="/home" className="btn btn-outline">Modify Search</Link>
       </div>
     </div>
   );

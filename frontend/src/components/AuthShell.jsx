@@ -53,7 +53,7 @@ export default function AuthShell({ children, title, subtitle, sideTitle, sidePo
             <span>RailYatra</span>
           </Link>
           {!isEnterprise && (
-            <Link to="/" className="auth-topbar-home">← Back to home</Link>
+            <Link to="/home" className="auth-topbar-home">← Back to home</Link>
           )}
         </header>
 

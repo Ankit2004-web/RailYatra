@@ -10,13 +10,17 @@ const getHoursUntilJourney = (journeyDate) => {
 const calculateRefund = ({ totalPrice, journeyDate, paymentStatus, bookingStatus, passengerCount = 1 }) => {
     const originalAmount = Number(totalPrice || 0);
 
-    if (bookingStatus === 'Waitlisted' || paymentStatus !== 'Paid') {
+    if (bookingStatus === 'Waitlisted' || bookingStatus === 'RAC' || paymentStatus !== 'Paid') {
         return {
             originalAmount,
             refundPercent: paymentStatus === 'Paid' ? 100 : 0,
             cancellationCharge: 0,
             refundAmount: paymentStatus === 'Paid' ? originalAmount : 0,
-            rule: bookingStatus === 'Waitlisted' ? 'Full refund for waitlisted booking' : 'No payment made'
+            rule: bookingStatus === 'Waitlisted'
+                ? 'Full refund for waitlisted booking'
+                : bookingStatus === 'RAC'
+                    ? 'Full refund for RAC booking'
+                    : 'No payment made'
         };
     }
 

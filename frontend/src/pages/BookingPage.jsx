@@ -5,14 +5,20 @@ import {
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import ProtectedRoute from '../components/ProtectedRoute';
-import { openRazorpayCheckout } from '../utils/razorpay';
+import { completeBookingPayment } from '../utils/paymentFlow';
 import CaptchaField from '../components/CaptchaField';
 import CoachChartModal from '../components/search/CoachChartModal';
 import PaymentOffersPanel from '../components/PaymentOffersPanel';
 import { formatDisplayDate } from '../utils/trainMapper';
 import { formatIrctcAvailability, irctcAvailabilityClass } from '../utils/irctcAvailability';
 import { getAppliedOfferDetails } from '../utils/offerEngine';
+import { calculatePaymentBreakdown } from '../utils/paymentBreakdown';
+import {
+  BOOKING_TYPE_OPTIONS,
+  QUOTA_OPTIONS,
+  isSoldOut,
+  isTatkalEligible
+} from '../utils/bookingOptions';
 
 const STEPS = [
   { num: 1, label: 'Class' },
@@ -74,14 +80,18 @@ function BookingContent() {
   const [promoCode, setPromoCode] = useState(() => localStorage.getItem('railyatra_promo') || '');
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [paymentConfig, setPaymentConfig] = useState(null);
+  const [quota, setQuota] = useState('General');
+  const [bookingType, setBookingType] = useState('General');
+  const [joinWaitlist, setJoinWaitlist] = useState(false);
+  const [joinRac, setJoinRac] = useState(false);
 
   useEffect(() => {
     if (!trainId) {
-      navigate('/');
+      navigate('/home');
       return;
     }
     if (!train) {
-      api.get(`/trains/${trainId}`).then(setTrain).catch(() => navigate('/'));
+      api.get(`/trains/${trainId}`).then(setTrain).catch(() => navigate('/home'));
     }
   }, [trainId, train, navigate]);
 
@@ -100,11 +110,18 @@ function BookingContent() {
 
   const classes = train?.classes || [];
   const selectedClass = classes.find((c) => c.classCode === classCode);
+  const soldOut = isSoldOut(selectedClass, passengers.length);
+  const tatkalEligible = isTatkalEligible(date);
   const baseTotal = selectedClass ? Number(selectedClass.price) * passengers.length : 0;
   const offerCtx = { total: baseTotal, classCode, journeyDate: date, paymentMethod };
   const appliedOffer = getAppliedOfferDetails(promoCode, offerCtx);
   const discount = appliedOffer.savings || 0;
-  const payableTotal = Math.max(baseTotal - discount, 0);
+  const ticketFare = Math.max(baseTotal - discount, 0);
+  const paymentBreakdown = useMemo(
+    () => calculatePaymentBreakdown({ ticketFare, passengerCount: passengers.length }),
+    [ticketFare, passengers.length]
+  );
+  const payableTotal = paymentBreakdown.totalFare;
 
   const weekday = useMemo(() => {
     if (!date) return '';
@@ -131,55 +148,31 @@ function BookingContent() {
     setPassengers(passengers.map((p, i) => (i === idx ? { ...p, [key]: value } : p)));
   };
 
-  const payAndConfirm = async (booking) => {
-    const order = await api.post('/payments/create-order', { bookingId: booking.id });
-
-    if (order.devMode) {
-      const confirmed = await api.post('/payments/dev-confirm', { bookingId: booking.id });
-      return confirmed.booking;
-    }
-
-    const payment = await openRazorpayCheckout({
-      key: order.key,
-      orderId: order.orderId,
-      amount: order.amount,
-      currency: order.currency,
-      description: `${train.trainName} (${train.trainNumber}) · ${classCode}`,
-      prefill: {
-        name: user?.name || '',
-        email: user?.email || '',
-        contact: user?.phone || ''
-      },
-      notes: {
-        bookingId: String(booking.id),
-        train: train.trainNumber
-      }
-    });
-
-    const verified = await api.post('/payments/verify', {
-      bookingId: booking.id,
-      razorpay_order_id: payment.razorpay_order_id,
-      razorpay_payment_id: payment.razorpay_payment_id,
-      razorpay_signature: payment.razorpay_signature
-    });
-
-    return verified.booking;
-  };
+  const payAndConfirm = async (booking) => completeBookingPayment(booking, user, {
+    trainNumber: train.trainNumber,
+    description: `${train.trainName} (${train.trainNumber}) · ${classCode}`
+  });
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
+      if (soldOut && !joinWaitlist && !joinRac) {
+        setError('Not enough seats available. Join waitlist or RAC to continue.');
+        setLoading(false);
+        return;
+      }
+
       const payload = {
         trainId: Number(trainId),
         journeyDate: date,
         classCode,
         passengers: passengers.map((p) => ({ ...p, age: Number(p.age) })),
-        bookingType: 'General',
-        quota: 'General',
-        joinWaitlist: false,
-        joinRac: false,
+        bookingType: bookingType === 'Tatkal' && tatkalEligible ? 'Tatkal' : 'General',
+        quota,
+        joinWaitlist: soldOut && joinWaitlist,
+        joinRac: soldOut && joinRac && !joinWaitlist,
         seatNumbers: [],
         ...captcha
       };
@@ -190,6 +183,9 @@ function BookingContent() {
         payload.fromStationId = train.fromStationId;
         payload.toStationId = train.toStationId;
       }
+
+      payload.fromStationCode = source || train?.from?.stationCode || train?.sourceStation?.code;
+      payload.toStationCode = destination || train?.to?.stationCode || train?.destinationStation?.code;
 
       const booking = await api.post('/bookings', payload);
       const final = await payAndConfirm(booking);
@@ -408,6 +404,73 @@ function BookingContent() {
                 </button>
               )}
 
+              <div className="booking-options card" style={{ marginTop: 20, padding: 16 }}>
+                <h3 style={{ marginBottom: 12, fontSize: '1rem' }}>Booking options</h3>
+                <div className="booking-form-grid">
+                  <div className="field">
+                    <label htmlFor="quota">Quota</label>
+                    <select id="quota" className="input" value={quota} onChange={(e) => setQuota(e.target.value)}>
+                      {QUOTA_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="bookingType">Booking type</label>
+                    <select
+                      id="bookingType"
+                      className="input"
+                      value={bookingType}
+                      onChange={(e) => setBookingType(e.target.value)}
+                      disabled={!tatkalEligible}
+                    >
+                      {BOOKING_TYPE_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    {!tatkalEligible && (
+                      <small className="muted">Tatkal opens 1–2 days before journey</small>
+                    )}
+                  </div>
+                </div>
+
+                {soldOut && (
+                  <div className="booking-wl-options" style={{ marginTop: 12 }}>
+                    <p className="muted" style={{ marginBottom: 8 }}>
+                      Selected class has limited availability for {passengers.length} passenger(s).
+                    </p>
+                    <label className="route-aware-toggle">
+                      <input
+                        type="checkbox"
+                        checked={joinWaitlist}
+                        onChange={(e) => {
+                          setJoinWaitlist(e.target.checked);
+                          if (e.target.checked) setJoinRac(false);
+                        }}
+                      />
+                      Join Waitlist (WL)
+                    </label>
+                    <label className="route-aware-toggle" style={{ marginLeft: 16 }}>
+                      <input
+                        type="checkbox"
+                        checked={joinRac}
+                        onChange={(e) => {
+                          setJoinRac(e.target.checked);
+                          if (e.target.checked) setJoinWaitlist(false);
+                        }}
+                      />
+                      Join RAC
+                    </label>
+                  </div>
+                )}
+
+                {!soldOut && (
+                  <p className="muted" style={{ marginTop: 10 }}>
+                    Seats will be auto-assigned from available inventory after payment.
+                  </p>
+                )}
+              </div>
+
               <div className="booking-btn-row">
                 <button type="button" className="booking-btn-back" onClick={() => setStep(1)}>
                   <ArrowLeft size={16} aria-hidden="true" /> Back
@@ -471,22 +534,46 @@ function BookingContent() {
                   <span>{passengers.length}</span>
                 </div>
                 <div className="booking-summary-row">
-                  <span>Base fare ({classCode} × {passengers.length})</span>
-                  <span>₹{baseTotal.toLocaleString('en-IN')}</span>
+                  <span>Quota / Type</span>
+                  <span>{quota} · {bookingType === 'Tatkal' && tatkalEligible ? 'Tatkal' : 'General'}</span>
+                </div>
+                <div className="booking-summary-row">
+                  <span>Seat assignment</span>
+                  <span>{soldOut ? (joinWaitlist ? 'Waitlist' : joinRac ? 'RAC' : 'Not selected') : 'Auto-assign on confirm'}</span>
+                </div>
+                <div className="booking-summary-row">
+                  <span>Boarding</span>
+                  <span>{source || train?.from?.stationCode || train?.source || '—'}</span>
+                </div>
+                <div className="booking-summary-row">
+                  <span>Alighting</span>
+                  <span>{destination || train?.to?.stationCode || train?.destination || '—'}</span>
+                </div>
+                <div className="booking-summary-row">
+                  <span>Ticket fare ({classCode} × {passengers.length})</span>
+                  <span>Rs. {ticketFare.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="booking-summary-row">
+                  <span>Convenience fee (incl. GST)</span>
+                  <span>Rs. {paymentBreakdown.irctcConvenienceFee.toFixed(2)}</span>
+                </div>
+                <div className="booking-summary-row">
+                  <span>PG charge</span>
+                  <span>Rs. {paymentBreakdown.pgCharge.toFixed(2)}</span>
                 </div>
                 {discount > 0 && appliedOffer.offer && (
                   <div className="booking-summary-row booking-summary-discount">
                     <span>Promo ({appliedOffer.offer.code})</span>
-                    <span>−₹{discount.toLocaleString('en-IN')}</span>
+                    <span>−Rs. {discount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                   </div>
                 )}
                 <div className="booking-summary-total">
                   <span>Total payable</span>
-                  <span>₹{payableTotal.toLocaleString('en-IN')}</span>
+                  <span>Rs. {payableTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
                 {discount > 0 && (
                   <p className="booking-promo-note muted">
-                    You save ₹{discount.toLocaleString('en-IN')} with coupon {appliedOffer.offer.code}.
+                    Promo {appliedOffer.offer.code} applied for display — final fare is calculated server-side.
                   </p>
                 )}
               </div>
@@ -526,9 +613,5 @@ function BookingContent() {
 }
 
 export default function BookingPage() {
-  return (
-    <ProtectedRoute>
-      <BookingContent />
-    </ProtectedRoute>
-  );
+  return <BookingContent />;
 }

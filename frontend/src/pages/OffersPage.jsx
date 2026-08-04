@@ -31,7 +31,7 @@ export default function OffersPage() {
       </section>
 
       <div className="offers-body page-body container">
-        <OffersSection onBookNow={() => navigate('/')} />
+        <OffersSection onBookNow={() => navigate('/home')} />
       </div>
     </div>
   );

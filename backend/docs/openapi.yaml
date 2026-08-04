@@ -105,9 +105,96 @@ paths:
         - { name: pnr, in: path, required: true, schema: { type: string } }
       responses:
         '200':
-          description: Booking and passenger status
+          description: Booking and passenger status (PII limited)
         '404':
           description: PNR not found
+  /bookings/{id}/pending:
+    delete:
+      summary: Remove unpaid pending booking
+      tags: [Bookings]
+      security: [{ AuthToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Pending booking removed
+  /passengers/saved:
+    get:
+      summary: List saved passengers for current user
+      tags: [Passengers]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200':
+          description: Saved passenger list
+    post:
+      summary: Add saved passenger
+      tags: [Passengers]
+      security: [{ AuthToken: [] }]
+      responses:
+        '201':
+          description: Saved passenger created
+  /passengers/saved/{id}:
+    put:
+      summary: Update saved passenger
+      tags: [Passengers]
+      security: [{ AuthToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Updated passenger
+    delete:
+      summary: Delete saved passenger
+      tags: [Passengers]
+      security: [{ AuthToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          description: Passenger removed
+  /payments/create-order:
+    post:
+      summary: Create Razorpay order for booking payment
+      tags: [Payments]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200':
+          description: Payment order details
+  /payments/verify:
+    post:
+      summary: Verify Razorpay payment signature
+      tags: [Payments]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200':
+          description: Payment confirmed
+  /payments/dev-confirm:
+    post:
+      summary: Simulate payment (dev mode only)
+      tags: [Payments]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200':
+          description: Payment simulated
+  /trains/{id}/seats:
+    get:
+      summary: Seat map with availability flags
+      tags: [Trains]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: classCode, in: query, required: true, schema: { type: string } }
+        - { name: journeyDate, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: Seat map with isAvailable and isBooked flags
+  /admin/rac/promote:
+    post:
+      summary: Promote next paid RAC booking to confirmed
+      tags: [Admin]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200':
+          description: RAC booking promoted
   /admin/data-import/status:
     get:
       summary: Master data import provenance and counts

@@ -33,6 +33,7 @@ export default function SearchResultsPage() {
   const destination = params.get('destination') || '';
   const date = params.get('date') || '';
   const urlClass = params.get('class') || '';
+  const routeAware = params.get('routeAware') === '1';
 
   const [trains, setTrains] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +69,7 @@ export default function SearchResultsPage() {
 
   useEffect(() => {
     if (!source || !destination || !date) {
-      navigate('/');
+      navigate('/home');
       return;
     }
     fetchTrains();
@@ -198,6 +199,7 @@ export default function SearchResultsPage() {
           loading={loading}
           sortBy={sortBy}
           onSortChange={(v) => { setSortBy(v); setPage(1); }}
+          routeAware={routeAware}
         />
 
         <button

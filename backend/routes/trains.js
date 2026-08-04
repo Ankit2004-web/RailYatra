@@ -12,6 +12,14 @@ const seatRepository = require('../repositories/seatRepository');
 const { getClassesForTrain } = require('../../database/seedData');
 const { isTatkalEligible } = require('../utils/tatkal');
 
+const normalizeSeat = (seat) => ({
+    ...seat,
+    isAvailable: seat.status === 'Available',
+    isBooked: seat.status === 'Booked' || (seat.status && seat.status !== 'Available')
+});
+
+const normalizeSeatList = (seats) => (Array.isArray(seats) ? seats : []).map(normalizeSeat);
+
 router.get('/', async (req, res) => {
     try {
         const trains = await trainRepository.findAll();
@@ -100,15 +108,21 @@ router.get('/:id/seats', async (req, res) => {
         }
 
         const seatMap = await seatRepository.getSeatMap(req.params.id, classCode, journeyDate);
+        const rawSeats = seatMap.seats || seatMap;
+        const seats = normalizeSeatList(rawSeats);
+        const coaches = (seatMap.coaches || []).map((coach) => ({
+            ...coach,
+            seats: normalizeSeatList(coach.seats)
+        }));
 
         res.json({
             trainId: Number(req.params.id),
             classCode,
             journeyDate,
             tatkalEligible: isTatkalEligible(journeyDate),
-            coachCount: seatMap.coaches?.length || 0,
-            coaches: seatMap.coaches || [],
-            seats: seatMap.seats || seatMap
+            coachCount: coaches.length || seatMap.coaches?.length || 0,
+            coaches,
+            seats
         });
     } catch (err) {
         console.error(err.message);

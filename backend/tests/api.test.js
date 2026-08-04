@@ -37,6 +37,11 @@ test('GET /api/swagger serves Swagger UI HTML', async () => {
     assert.match(response.text, /openapi\.yaml/i);
 });
 
+test('GET /api/passengers/saved requires auth', async () => {
+    const response = await request(app).get('/api/passengers/saved');
+    assert.equal(response.status, 401);
+});
+
 test('GET /api/docs includes swaggerUi link', async () => {
     const response = await request(app).get('/api/docs');
     assert.equal(response.status, 200);

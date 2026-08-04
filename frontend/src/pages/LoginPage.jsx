@@ -9,7 +9,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = location.state?.from || '/';
+  const from = location.state?.from || '/home';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

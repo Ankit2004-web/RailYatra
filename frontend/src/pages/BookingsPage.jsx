@@ -3,26 +3,31 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, TrainFront, Calendar, Ticket, Users,
   CreditCard, Download, XCircle, Search, MapPin, Armchair,
-  CheckCircle2, Clock, Ban
+  CheckCircle2, Clock, Ban, Wallet
 } from 'lucide-react';
 import { api } from '../api/client';
-import ProtectedRoute from '../components/ProtectedRoute';
-import { formatDisplayDate } from '../utils/trainMapper';
+import { useAuth } from '../context/AuthContext';
+import { completeBookingPayment } from '../utils/paymentFlow';
+import { formatDisplayDate, formatJourneyDay, formatBoardingTime, normalizeDateInput } from '../utils/trainMapper';
+import { isAwaitingPayment, bookingFareAmount } from '../utils/bookingStatus';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
   { id: 'upcoming', label: 'Upcoming' },
   { id: 'confirmed', label: 'Confirmed' },
+  { id: 'pending', label: 'Pending Payment' },
   { id: 'cancelled', label: 'Cancelled' }
 ];
 
 function matchesFilter(booking, filter) {
   const today = new Date().toISOString().split('T')[0];
+  const journeyDate = normalizeDateInput(booking.journeyDate) || '';
   if (filter === 'all') return true;
   if (filter === 'cancelled') return booking.status === 'Cancelled';
   if (filter === 'confirmed') return booking.status === 'Confirmed';
+  if (filter === 'pending') return isAwaitingPayment(booking);
   if (filter === 'upcoming') {
-    return booking.journeyDate >= today && !['Cancelled'].includes(booking.status);
+    return journeyDate >= today && !['Cancelled'].includes(booking.status);
   }
   return true;
 }
@@ -45,8 +50,15 @@ async function downloadTicket(bookingId, pnrNumber) {
   URL.revokeObjectURL(url);
 }
 
-function BookingCard({ booking, onCancel, onDownload, downloading }) {
+function BookingCard({ booking, onCancel, onDownload, onPay, downloading, payingId }) {
   const passengerCount = booking.passengers?.length || 0;
+  const boardingTime = formatBoardingTime(
+    booking.boarding?.departureTime || booking.train?.departureTime
+  );
+  const journeyLabel = [
+    formatJourneyDay(booking.journeyDate),
+    boardingTime ? `Boarding ${boardingTime}` : null
+  ].filter(Boolean).join(' · ');
 
   return (
     <article className="my-booking-card card">
@@ -66,7 +78,11 @@ function BookingCard({ booking, onCancel, onDownload, downloading }) {
           <h3>{booking.train?.trainName}</h3>
           <div className="my-booking-route">
             <MapPin size={14} aria-hidden="true" />
-            <span>{booking.train?.source} → {booking.train?.destination}</span>
+            <span>
+              {booking.boarding?.name || booking.train?.source}
+              {' → '}
+              {booking.alighting?.name || booking.train?.destination}
+            </span>
           </div>
         </div>
         <span className="my-booking-class">{booking.classCode}</span>
@@ -77,7 +93,7 @@ function BookingCard({ booking, onCancel, onDownload, downloading }) {
           <Calendar size={15} aria-hidden="true" />
           <div>
             <span>Journey</span>
-            <strong>{formatDisplayDate(booking.journeyDate)}</strong>
+            <strong>{journeyLabel}</strong>
           </div>
         </div>
         <div className="my-booking-meta-item">
@@ -91,7 +107,7 @@ function BookingCard({ booking, onCancel, onDownload, downloading }) {
           <CreditCard size={15} aria-hidden="true" />
           <div>
             <span>Fare</span>
-            <strong>₹{Number(booking.totalPrice).toLocaleString('en-IN')}</strong>
+            <strong>₹{bookingFareAmount(booking).toLocaleString('en-IN')}</strong>
           </div>
         </div>
         <div className="my-booking-meta-item">
@@ -102,6 +118,13 @@ function BookingCard({ booking, onCancel, onDownload, downloading }) {
           </div>
         </div>
       </div>
+
+      {booking.seatNumbers?.length > 0 && booking.status === 'Confirmed' && (
+        <div className="my-booking-seats">
+          <strong>Seat(s):</strong>{' '}
+          {booking.seatNumbers.join(', ')}
+        </div>
+      )}
 
       {booking.waitlistPosition > 0 && (
         <div className="my-booking-wl">Waitlist position: WL #{booking.waitlistPosition}</div>
@@ -118,6 +141,17 @@ function BookingCard({ booking, onCancel, onDownload, downloading }) {
         <Link to={`/pnr`} state={{ pnr: booking.pnrNumber }} className="btn btn-outline btn-sm">
           <Search size={14} aria-hidden="true" /> PNR Status
         </Link>
+        {isAwaitingPayment(booking) && (
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            disabled={payingId === booking.id}
+            onClick={() => onPay(booking)}
+          >
+            <Wallet size={14} aria-hidden="true" />
+            {payingId === booking.id ? 'Processing…' : 'Pay Now'}
+          </button>
+        )}
         {booking.status === 'Confirmed' && (
           <button
             type="button"
@@ -149,11 +183,13 @@ function BookingCard({ booking, onCancel, onDownload, downloading }) {
 
 function BookingsContent() {
   const location = useLocation();
+  const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [toast, setToast] = useState(location.state?.message || '');
   const [downloadingId, setDownloadingId] = useState(null);
+  const [payingId, setPayingId] = useState(null);
   const [actionError, setActionError] = useState('');
 
   useEffect(() => {
@@ -177,20 +213,49 @@ function BookingsContent() {
     const today = new Date().toISOString().split('T')[0];
     return {
       total: bookings.length,
-      upcoming: bookings.filter((b) => b.journeyDate >= today && b.status !== 'Cancelled').length,
+      upcoming: bookings.filter((b) => {
+        const journeyDate = normalizeDateInput(b.journeyDate) || '';
+        return journeyDate >= today && b.status !== 'Cancelled';
+      }).length,
       confirmed: bookings.filter((b) => b.status === 'Confirmed').length
     };
   }, [bookings]);
 
   const cancel = async (id) => {
-    if (!window.confirm('Cancel this booking?')) return;
     setActionError('');
     try {
-      await api.put(`/bookings/${id}`, { status: 'Cancelled' });
-      setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, status: 'Cancelled' } : b)));
+      const preview = await api.get(`/bookings/${id}/refund-preview`);
+      const refundText = preview.refundAmount > 0
+        ? `Estimated refund: ₹${Number(preview.refundAmount).toLocaleString('en-IN')} (${preview.refundPercent}%)`
+        : 'No refund applicable for this cancellation.';
+      if (!window.confirm(`Cancel this booking?\n\n${refundText}`)) return;
+
+      const result = await api.put(`/bookings/${id}`, { status: 'Cancelled' });
+      setBookings((prev) => prev.map((b) => (
+        b.id === id ? { ...b, status: 'Cancelled', refund: result.refund || preview } : b
+      )));
       setToast('Booking cancelled successfully');
     } catch (err) {
       setActionError(err.message || 'Cancellation failed');
+    }
+  };
+
+  const handlePay = async (booking) => {
+    setActionError('');
+    setPayingId(booking.id);
+    try {
+      const final = await completeBookingPayment(booking, user, {
+        trainNumber: booking.train?.trainNumber,
+        description: `${booking.train?.trainName || 'Train'} · ${booking.classCode}`
+      });
+      setBookings((prev) => prev.map((b) => (b.id === booking.id ? { ...b, ...final } : b)));
+      setToast(`Payment complete! PNR ${final.pnrNumber}`);
+    } catch (err) {
+      setActionError(err.message === 'Payment cancelled'
+        ? 'Payment cancelled. You can retry from My Bookings.'
+        : err.message || 'Payment failed');
+    } finally {
+      setPayingId(null);
     }
   };
 
@@ -270,7 +335,7 @@ function BookingsContent() {
                 </button>
               ))}
             </div>
-            <Link to="/" className="btn btn-primary btn-sm">
+            <Link to="/home" className="btn btn-primary btn-sm">
               <Search size={14} aria-hidden="true" /> Book another trip
             </Link>
           </div>
@@ -283,7 +348,7 @@ function BookingsContent() {
             </div>
             <h2>No bookings yet</h2>
             <p>Search trains, pick your class, and complete payment to see tickets here.</p>
-            <Link to="/" className="btn btn-primary">Search Trains</Link>
+            <Link to="/home" className="btn btn-primary">Search Trains</Link>
           </div>
         ) : filtered.length === 0 ? (
           <div className="my-bookings-empty card">
@@ -302,7 +367,9 @@ function BookingsContent() {
                 booking={b}
                 onCancel={cancel}
                 onDownload={handleDownload}
+                onPay={handlePay}
                 downloading={downloadingId === b.id}
+                payingId={payingId}
               />
             ))}
           </div>
@@ -323,9 +390,5 @@ function BookingsContent() {
 }
 
 export default function BookingsPage() {
-  return (
-    <ProtectedRoute>
-      <BookingsContent />
-    </ProtectedRoute>
-  );
+  return <BookingsContent />;
 }

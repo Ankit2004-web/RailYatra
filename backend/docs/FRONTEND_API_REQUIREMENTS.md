@@ -164,5 +164,3 @@ Currently implemented in mock via `Store` + localStorage.
 - `token` — session
 - `railwayRecentSearches` — recent searches
 - `dashReadNotifs` — notification read state
-
-Demo account (mock seed): **demo@railway.com** / **Demo@123**

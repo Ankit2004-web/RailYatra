@@ -7,7 +7,6 @@ import {
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import ProtectedRoute from '../components/ProtectedRoute';
 import UserAvatar from '../components/UserAvatar';
 import { compressImageForAvatar, isSupportedAvatarFile } from '../utils/avatarImage';
 
@@ -432,9 +431,5 @@ function ProfileContent() {
 }
 
 export default function ProfilePage() {
-  return (
-    <ProtectedRoute>
-      <ProfileContent />
-    </ProtectedRoute>
-  );
+  return <ProfileContent />;
 }

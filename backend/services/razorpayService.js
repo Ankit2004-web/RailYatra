@@ -68,6 +68,7 @@ const verifyPayment = ({ orderId, paymentId, signature }) => {
     }
 
     if (!isConfigured()) return false;
+    if (!signature) return false;
 
     const body = `${orderId}|${paymentId}`;
     const expected = crypto
@@ -78,8 +79,24 @@ const verifyPayment = ({ orderId, paymentId, signature }) => {
     return expected === signature;
 };
 
+const processRefund = async ({ paymentId, amount }) => {
+    if (!isConfigured() || String(paymentId).startsWith('dev_pay_')) {
+        return { devMode: true, id: `dev_refund_${paymentId}_${Date.now()}` };
+    }
+
+    const client = getClient();
+    if (!client) {
+        return { devMode: true, id: `dev_refund_${paymentId}_${Date.now()}` };
+    }
+
+    const amountPaise = Math.round(Number(amount) * 100);
+    const refund = await client.payments.refund(paymentId, { amount: amountPaise });
+    return refund;
+};
+
 module.exports = {
     isConfigured,
     createOrder,
-    verifyPayment
+    verifyPayment,
+    processRefund
 };

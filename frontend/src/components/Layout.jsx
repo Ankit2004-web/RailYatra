@@ -20,7 +20,7 @@ export default function Layout() {
     <div className="app-shell">
       <header className="app-header">
         <div className="header-inner">
-          <Link to="/" className="brand" onClick={() => setMenuOpen(false)} aria-label="RailYatra home">
+          <Link to="/home" className="brand" onClick={() => setMenuOpen(false)} aria-label="RailYatra home">
             <img src="/logo.png" alt="" className="brand-logo" />
             <span className="brand-text">
               <strong>RailYatra</strong>
@@ -30,7 +30,7 @@ export default function Layout() {
 
           <div className="header-end">
             <nav className={`main-nav ${menuOpen ? 'open' : ''}`}>
-              <NavLink to="/" end className={navClass} onClick={() => setMenuOpen(false)}>
+              <NavLink to="/home" end className={navClass} onClick={() => setMenuOpen(false)}>
                 <Search size={16} /> Search
               </NavLink>
               <NavLink to="/pnr" className={navClass} onClick={() => setMenuOpen(false)}>
@@ -85,7 +85,7 @@ export default function Layout() {
 
       <footer className="app-footer">
         <div className="footer-inner header-inner">
-          <Link to="/" className="brand" aria-label="RailYatra home">
+          <Link to="/home" className="brand" aria-label="RailYatra home">
             <img src="/logo.png" alt="" className="brand-logo" />
             <span className="brand-text footer-brand-text">
               <strong>RailYatra</strong>

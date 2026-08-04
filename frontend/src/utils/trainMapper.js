@@ -102,16 +102,53 @@ const CLASS_LABELS = {
 };
 
 export function formatJourneyDate(dateStr, dayOffset = 0) {
-  if (!dateStr) return '';
-  const d = new Date(`${dateStr}T00:00:00`);
+  const normalized = normalizeDateInput(dateStr);
+  if (!normalized) return '';
+  const d = new Date(`${normalized}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '';
   if (dayOffset) d.setDate(d.getDate() + dayOffset);
   return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+export function normalizeDateInput(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return null;
+    return value.toISOString().split('T')[0];
+  }
+  const str = String(value).trim();
+  if (!str) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  const parsed = new Date(str);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString().split('T')[0];
+}
+
 export function formatDisplayDate(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(`${dateStr}T00:00:00`);
+  const normalized = normalizeDateInput(dateStr);
+  if (!normalized) return '—';
+  const d = new Date(`${normalized}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '—';
   return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export function formatJourneyDay(dateStr) {
+  const normalized = normalizeDateInput(dateStr);
+  if (!normalized) return '—';
+  const d = new Date(`${normalized}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  });
+}
+
+export function formatBoardingTime(timeStr) {
+  if (!timeStr) return '';
+  const normalized = String(timeStr).trim();
+  return normalized.length >= 5 ? normalized.slice(0, 5) : normalized;
 }
 
 export function parseTimeToMinutes(timeStr, dayOffset = 0) {

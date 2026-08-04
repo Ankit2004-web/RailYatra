@@ -3,13 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Shield } from 'lucide-react';
 import CaptchaField from '../components/CaptchaField';
 import AuthShell from '../components/AuthShell';
-import { api, setToken } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 
 export default function AdminLoginPage() {
-  const { user } = useAuth();
+  const { user, login, logout } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@railway.com');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
@@ -25,15 +24,13 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await api.post('/auth/login', { email, password, ...captcha });
-      setToken(data.token);
-      const me = await api.get('/auth/me');
+      const me = await login({ email, password, ...captcha });
       if (!me.isAdmin) {
-        setToken(null);
+        logout();
         setError('Admin access required');
         return;
       }
-      window.location.href = '/admin';
+      navigate('/admin');
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
@@ -75,7 +72,7 @@ export default function AdminLoginPage() {
         </button>
       </form>
       <p className="auth-switch">
-        <Link to="/login">← Passenger login</Link> · <Link to="/">Home</Link>
+        <Link to="/login">← Passenger login</Link> · <Link to="/home">Home</Link>
       </p>
     </AuthShell>
   );

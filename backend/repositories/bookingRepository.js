@@ -3,7 +3,9 @@ const seatRepository = require('./seatRepository');
 const refundRepository = require('./refundRepository');
 const bookingSeatAllocationRepository = require('./bookingSeatAllocationRepository');
 const { calculateRefund } = require('../utils/refund');
+const { parsePaymentBreakdown } = require('../utils/paymentBreakdown');
 const { sendBookingConfirmationEmail } = require('../services/emailService');
+const runningDayService = require('../services/runningDayService');
 
 const parseSeatNumbers = (value) => {
     try {
@@ -11,6 +13,20 @@ const parseSeatNumbers = (value) => {
     } catch {
         return [];
     }
+};
+
+const toDateOnly = (value) => {
+    if (!value) return null;
+    if (value instanceof Date) {
+        if (Number.isNaN(value.getTime())) return null;
+        return value.toISOString().split('T')[0];
+    }
+    const str = String(value).trim();
+    if (!str) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    const parsed = new Date(str);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return parsed.toISOString().split('T')[0];
 };
 
 const formatTrainSummary = (train) => ({
@@ -25,17 +41,61 @@ const formatTrainSummary = (train) => ({
     date: train.journeyDate
 });
 
-const formatBooking = (booking, train, user, passengers) => ({
+const formatBooking = (booking, train, user, passengers) => {
+    const paymentBreakdown = parsePaymentBreakdown(
+        booking.paymentBreakdown,
+        booking.totalPrice,
+        passengers?.length || 1
+    );
+
+    const boardingDeparture = booking.from_stop_departure_time || train?.departureTime || null;
+    const alightingArrival = booking.to_stop_arrival_time || train?.arrivalTime || null;
+    const durationMinutes = boardingDeparture && alightingArrival
+        ? runningDayService.calculateDurationMinutes(
+            {
+                departureTime: boardingDeparture,
+                departureDayOffset: booking.from_stop_departure_day_offset || 0
+            },
+            {
+                arrivalTime: alightingArrival,
+                arrivalDayOffset: booking.to_stop_arrival_day_offset || 0
+            }
+        )
+        : null;
+
+    const trainSummary = train ? {
+        ...formatTrainSummary(train),
+        departureTime: boardingDeparture,
+        arrivalTime: alightingArrival
+    } : null;
+
+    return {
     id: booking.id,
     _id: booking.id,
     user: user ? { id: user.id, name: user.name, email: user.email, phone: user.phone } : booking.userId,
-    train: train ? formatTrainSummary(train) : null,
+    train: trainSummary,
+    boarding: booking.from_station_code ? {
+        code: booking.from_station_code,
+        name: booking.from_station_name,
+        departureTime: boardingDeparture,
+        arrivalTime: booking.from_stop_arrival_time || null
+    } : null,
+    alighting: booking.to_station_code ? {
+        code: booking.to_station_code,
+        name: booking.to_station_name,
+        arrivalTime: alightingArrival,
+        departureTime: booking.to_stop_departure_time || null
+    } : null,
+    distanceKm: booking.segment_distance_km != null ? Number(booking.segment_distance_km) : null,
+    duration: durationMinutes != null ? runningDayService.formatDuration(durationMinutes) : null,
     passengers: passengers || [],
     totalPrice: Number(booking.totalPrice),
+    grandTotal: Number(booking.grandTotal || paymentBreakdown.totalFare),
+    paymentBreakdown,
     seatNumbers: parseSeatNumbers(booking.seatNumbers),
     status: booking.status,
     bookingDate: booking.bookingDate,
-    journeyDate: booking.journeyDate,
+    journeyDate: toDateOnly(booking.journeyDate),
     pnrNumber: booking.pnrNumber,
     classCode: booking.classCode || null,
     className: booking.className || null,
@@ -49,7 +109,8 @@ const formatBooking = (booking, train, user, passengers) => ({
         cancellationCharge: Number(booking.cancellationCharge || 0),
         rule: booking.refundReason || null
     } : null
-});
+};
+};
 
 const getPassengersByBookingIds = async (bookingIds) => {
     if (!bookingIds.length) return {};
@@ -85,16 +146,39 @@ const mapBookingRow = (row, user, passengers) => formatBooking(
     passengers
 );
 
+const BOOKING_DETAIL_SELECT = `
+                fs.code AS from_station_code, fs.name AS from_station_name,
+                ts.code AS to_station_code, ts.name AS to_station_name,
+                fstop.departureTime AS from_stop_departure_time,
+                fstop.arrivalTime AS from_stop_arrival_time,
+                fstop.departureDayOffset AS from_stop_departure_day_offset,
+                tstop.arrivalTime AS to_stop_arrival_time,
+                tstop.departureTime AS to_stop_departure_time,
+                tstop.arrivalDayOffset AS to_stop_arrival_day_offset,
+                CASE
+                    WHEN fstop.distanceKm IS NOT NULL AND tstop.distanceKm IS NOT NULL
+                    THEN tstop.distanceKm - fstop.distanceKm
+                    ELSE NULL
+                END AS segment_distance_km`;
+
+const BOOKING_DETAIL_JOINS = `
+            LEFT JOIN Stations fs ON b.fromStationId = fs.id
+            LEFT JOIN Stations ts ON b.toStationId = ts.id
+            LEFT JOIN TrainStops fstop ON fstop.trainId = t.id AND fstop.stationId = b.fromStationId
+            LEFT JOIN TrainStops tstop ON tstop.trainId = t.id AND tstop.stationId = b.toStationId`;
+
 const findByUserId = async (userId) => {
     const pool = await getPool();
     const bookings = await pool.request()
         .input('userId', 'Int', userId)
-        .query(`SELECT b.*, t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime, t.journeyDate,
+        .query(`SELECT b.*, t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime,
                 tc.className,
+                ${BOOKING_DETAIL_SELECT},
                 r.refundAmount, r.refundPercent, r.cancellationCharge, r.reason AS refundReason
                 FROM Bookings b
                 INNER JOIN Trains t ON b.trainId = t.id
                 LEFT JOIN TrainClasses tc ON b.trainId = tc.trainId AND b.classCode = tc.classCode
+                ${BOOKING_DETAIL_JOINS}
                 LEFT JOIN Refunds r ON b.id = r.bookingId
                 WHERE b.userId = @userId
                 ORDER BY b.bookingDate DESC`);
@@ -106,14 +190,16 @@ const findByUserId = async (userId) => {
 const findAll = async () => {
     const pool = await getPool();
     const bookings = await pool.request().query(`SELECT b.*, 
-            t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime, t.journeyDate,
+            t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime,
             u.id AS user_id, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
             tc.className,
+            ${BOOKING_DETAIL_SELECT},
             r.refundAmount, r.refundPercent, r.cancellationCharge, r.reason AS refundReason
         FROM Bookings b
         INNER JOIN Trains t ON b.trainId = t.id
         INNER JOIN Users u ON b.userId = u.id
         LEFT JOIN TrainClasses tc ON b.trainId = tc.trainId AND b.classCode = tc.classCode
+        ${BOOKING_DETAIL_JOINS}
         LEFT JOIN Refunds r ON b.id = r.bookingId
         ORDER BY b.bookingDate DESC`);
 
@@ -130,14 +216,16 @@ const findById = async (id) => {
     const result = await pool.request()
         .input('id', 'Int', id)
         .query(`SELECT b.*, 
-                t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime, t.journeyDate,
+                t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime,
                 u.id AS user_id, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
                 tc.className,
+                ${BOOKING_DETAIL_SELECT},
                 r.refundAmount, r.refundPercent, r.cancellationCharge, r.reason AS refundReason
             FROM Bookings b
             INNER JOIN Trains t ON b.trainId = t.id
             INNER JOIN Users u ON b.userId = u.id
             LEFT JOIN TrainClasses tc ON b.trainId = tc.trainId AND b.classCode = tc.classCode
+            ${BOOKING_DETAIL_JOINS}
             LEFT JOIN Refunds r ON b.id = r.bookingId
             WHERE b.id = @id`);
 
@@ -213,7 +301,9 @@ const createBooking = async ({
     fromStopSequence,
     toStopSequence,
     fromStationId,
-    toStationId
+    toStationId,
+    paymentBreakdown,
+    grandTotal
 }) => {
     const txResult = await withTransaction(async ({ query }) => {
         const trains = await query('SELECT * FROM Trains WITH (UPDLOCK, ROWLOCK) WHERE id = ?', [trainId]);
@@ -264,13 +354,21 @@ const createBooking = async ({
                     const listStatus = joinRac ? 'RAC' : 'Waitlisted';
                     const waitlistPosition = await getNextWaitlistPosition(query, trainId, classCode, journeyDate, listStatus);
                     const inserted = await query(
-                        `INSERT INTO Bookings (userId, trainId, totalPrice, seatNumbers, journeyDate, pnrNumber, status, classCode, bookingType, paymentStatus, waitlistPosition, quota, fromStationId, toStationId)
+                        `INSERT INTO Bookings (userId, trainId, totalPrice, grandTotal, paymentBreakdown, seatNumbers, journeyDate, pnrNumber, status, classCode, bookingType, paymentStatus, waitlistPosition, quota, fromStationId, toStationId)
                          OUTPUT INSERTED.*
-                         VALUES (?, ?, ?, '[]', ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?)`,
-                        [userId, trainId, totalPrice, journeyDate, pnrNumber, listStatus, classCode, bookingType, waitlistPosition, quota, fromStationId || null, toStationId || null]
+                         VALUES (?, ?, ?, ?, ?, '[]', ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?)`,
+                        [userId, trainId, totalPrice, grandTotal, paymentBreakdown, journeyDate, pnrNumber, listStatus, classCode, bookingType, waitlistPosition, quota, fromStationId || null, toStationId || null]
                     );
                     booking = inserted[0];
                 } else {
+                    await seatRepository.ensureSeatsForClass(
+                        query,
+                        trainId,
+                        classCode,
+                        seatRepository.resolveClassSeatCapacity(classRow),
+                        journeyDate
+                    );
+
                     if (!seatNumbers || seatNumbers.length !== passengers.length) {
                         const pickedSeats = await seatRepository.pickAvailableSeats(
                             query,
@@ -281,18 +379,16 @@ const createBooking = async ({
                         );
                         if (pickedSeats.length === passengers.length) {
                             seatNumbers = pickedSeats;
-                        } else if (pickedSeats.length === 0) {
-                            seatNumbers = [];
                         } else {
                             return { error: 'Not enough seats available. Join waitlist/RAC or pick different seats.', status: 400 };
                         }
                     }
 
                     const inserted = await query(
-                        `INSERT INTO Bookings (userId, trainId, totalPrice, seatNumbers, journeyDate, pnrNumber, status, classCode, bookingType, paymentStatus, quota, fromStationId, toStationId)
+                        `INSERT INTO Bookings (userId, trainId, totalPrice, grandTotal, paymentBreakdown, seatNumbers, journeyDate, pnrNumber, status, classCode, bookingType, paymentStatus, quota, fromStationId, toStationId)
                          OUTPUT INSERTED.*
-                         VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, 'Pending', ?, ?, ?)`,
-                        [userId, trainId, totalPrice, JSON.stringify(seatNumbers), journeyDate, pnrNumber, classCode, bookingType, quota, fromStationId || null, toStationId || null]
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, 'Pending', ?, ?, ?)`,
+                        [userId, trainId, totalPrice, grandTotal, paymentBreakdown, JSON.stringify(seatNumbers), journeyDate, pnrNumber, classCode, bookingType, quota, fromStationId || null, toStationId || null]
                     );
                     booking = inserted[0];
 
@@ -346,6 +442,13 @@ const createBooking = async ({
             });
         }
 
+        if (!['Waitlisted', 'RAC'].includes(booking.status)) {
+            const assignedSeats = parseSeatNumbers(booking.seatNumbers);
+            if (assignedSeats.length !== passengers.length) {
+                return { error: 'Seat assignment failed. Please try again.', status: 500 };
+            }
+        }
+
         return { bookingId: booking.id };
     });
 
@@ -353,22 +456,138 @@ const createBooking = async ({
     return { booking: await findById(txResult.bookingId) };
 };
 
-const confirmBooking = async (bookingId) => {
-    const pool = await getPool();
-    await pool.request()
-        .input('id', 'Int', bookingId)
-        .query(`UPDATE Bookings SET status = 'Confirmed', paymentStatus = 'Paid', updatedAt = SYSUTCDATETIME() WHERE id = @id`);
+const assignSeatsIfMissing = async (bookingId, { strict = false } = {}) => {
+    const result = await withTransaction(async ({ query }) => {
+        const rows = await query(
+            'SELECT * FROM Bookings WITH (UPDLOCK, ROWLOCK) WHERE id = ?',
+            [bookingId]
+        );
+        const booking = rows[0];
+        if (!booking || ['Waitlisted', 'RAC', 'Cancelled'].includes(booking.status)) {
+            return { ok: true, skipped: true };
+        }
 
-    const booking = await findById(bookingId);
-    if (booking?.user?.email) {
-        sendBookingConfirmationEmail({
-            to: booking.user.email,
-            booking,
-            ticketUrl: `${process.env.APP_URL || 'http://localhost:5000'}/api/bookings/${bookingId}/ticket`
-        }).catch(() => {});
+        const currentSeats = parseSeatNumbers(booking.seatNumbers);
+        const passengerRows = await query(
+            'SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?',
+            [bookingId]
+        );
+        const needed = passengerRows[0]?.count || 0;
+        if (!needed) {
+            return { ok: false, error: 'No passengers found for booking' };
+        }
+        if (currentSeats.length >= needed && currentSeats.every(Boolean)) {
+            return { ok: true, seatNumbers: currentSeats };
+        }
+
+        const classRows = await query(
+            'SELECT * FROM TrainClasses WHERE trainId = ? AND classCode = ?',
+            [booking.trainId, booking.classCode]
+        );
+        const classRow = classRows[0];
+        const capacity = seatRepository.resolveClassSeatCapacity(classRow);
+        if (!classRow || !capacity) {
+            return { ok: false, error: 'Seat capacity not configured for this train class' };
+        }
+
+        await seatRepository.ensureSeatsForClass(
+            query,
+            booking.trainId,
+            booking.classCode,
+            capacity,
+            booking.journeyDate
+        );
+
+        const pickedSeats = await seatRepository.pickAvailableSeats(
+            query,
+            booking.trainId,
+            booking.classCode,
+            booking.journeyDate,
+            needed
+        );
+        if (pickedSeats.length < needed) {
+            return { ok: false, error: 'Not enough seats available to assign' };
+        }
+
+        const seatResult = await seatRepository.validateAndLockSeats(query, {
+            trainId: booking.trainId,
+            classCode: booking.classCode,
+            journeyDate: booking.journeyDate,
+            seatNumbers: pickedSeats,
+            bookingId: booking.id
+        });
+        if (seatResult.error) {
+            return { ok: false, error: seatResult.error };
+        }
+
+        await query(
+            'UPDATE Bookings SET seatNumbers = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?',
+            [JSON.stringify(pickedSeats), bookingId]
+        );
+
+        return { ok: true, seatNumbers: pickedSeats };
+    });
+
+    if (strict && !result.ok) {
+        throw new Error(result.error || 'Could not assign seats for confirmed booking');
     }
 
-    return booking;
+    return result;
+};
+
+const ensureConfirmedBookingHasSeats = async (bookingId) => {
+    return assignSeatsIfMissing(bookingId, { strict: true });
+};
+
+const confirmBooking = async (bookingId) => {
+    const existing = await findById(bookingId);
+    if (!existing) {
+        throw new Error('Booking not found');
+    }
+
+    const pool = await getPool();
+
+    if (existing.status === 'Pending') {
+        await ensureConfirmedBookingHasSeats(bookingId);
+        await pool.request()
+            .input('id', 'Int', bookingId)
+            .query(`UPDATE Bookings SET status = 'Confirmed', paymentStatus = 'Paid', updatedAt = SYSUTCDATETIME() WHERE id = @id`);
+
+        const booking = await findById(bookingId);
+        if (booking?.status === 'Confirmed') {
+            const seats = parseSeatNumbers(booking.seatNumbers);
+            const needed = booking.passengers?.length || 0;
+            if (seats.length < needed || seats.some((seat) => !seat)) {
+                throw new Error('Confirmed booking is missing seat numbers');
+            }
+        }
+        if (booking?.user?.email) {
+            sendBookingConfirmationEmail({
+                to: booking.user.email,
+                booking,
+                ticketUrl: `${process.env.APP_URL || 'http://localhost:5000'}/api/bookings/${bookingId}/ticket`
+            }).catch(() => {});
+        }
+        return booking;
+    }
+
+    if (['Waitlisted', 'RAC'].includes(existing.status)) {
+        await pool.request()
+            .input('id', 'Int', bookingId)
+            .query(`UPDATE Bookings SET paymentStatus = 'Paid', updatedAt = SYSUTCDATETIME() WHERE id = @id`);
+
+        const booking = await findById(bookingId);
+        if (booking?.user?.email) {
+            sendBookingConfirmationEmail({
+                to: booking.user.email,
+                booking,
+                ticketUrl: `${process.env.APP_URL || 'http://localhost:5000'}/api/bookings/${bookingId}/ticket`
+            }).catch(() => {});
+        }
+        return booking;
+    }
+
+    throw new Error('Booking is not awaiting payment confirmation');
 };
 
 const getRefundPreview = async (id, userId, isAdmin) => {
@@ -379,7 +598,7 @@ const getRefundPreview = async (id, userId, isAdmin) => {
     }
 
     const refund = calculateRefund({
-        totalPrice: booking.totalPrice,
+        totalPrice: booking.grandTotal || booking.totalPrice,
         journeyDate: booking.journeyDate,
         paymentStatus: booking.paymentStatus,
         bookingStatus: booking.status,
@@ -395,9 +614,11 @@ const failBooking = async (bookingId) => {
         const booking = rows[0];
         if (!booking) return null;
 
-        await seatRepository.releaseSeatsForBooking(query, bookingId);
-        const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [bookingId]);
-        await restoreAvailability(query, booking.trainId, booking.classCode, passengerRows[0].count);
+        if (booking.status === 'Pending' && booking.paymentStatus === 'Pending') {
+            await seatRepository.releaseSeatsForBooking(query, bookingId);
+            const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [bookingId]);
+            await restoreAvailability(query, booking.trainId, booking.classCode, passengerRows[0].count);
+        }
 
         await query(
             `UPDATE Bookings SET status = 'Cancelled', paymentStatus = 'Failed', updatedAt = SYSUTCDATETIME() WHERE id = ?`,
@@ -408,6 +629,33 @@ const failBooking = async (bookingId) => {
 
     if (!txResult?.bookingId) return null;
     return findById(txResult.bookingId);
+};
+
+const deletePendingBooking = async (bookingId, userId, isAdmin) => {
+    const txResult = await withTransaction(async ({ query }) => {
+        const rows = await query(
+            'SELECT * FROM Bookings WITH (UPDLOCK, ROWLOCK) WHERE id = ?',
+            [bookingId]
+        );
+        const booking = rows[0];
+        if (!booking) return { error: 'Booking not found', status: 404 };
+        if (booking.userId !== userId && !isAdmin) {
+            return { error: 'Not authorized to remove this booking', status: 403 };
+        }
+        if (booking.status !== 'Pending' || booking.paymentStatus !== 'Pending') {
+            return { error: 'Only unpaid pending bookings can be removed', status: 400 };
+        }
+
+        await seatRepository.releaseSeatsForBooking(query, bookingId);
+        const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [bookingId]);
+        await restoreAvailability(query, booking.trainId, booking.classCode, passengerRows[0].count);
+        await query('DELETE FROM Passengers WHERE bookingId = ?', [bookingId]);
+        await query('DELETE FROM Bookings WHERE id = ?', [bookingId]);
+        return { ok: true };
+    });
+
+    if (txResult.error) return txResult;
+    return { ok: true };
 };
 
 const promoteWaitlist = async (query, trainId, classCode, journeyDate) => {
@@ -423,6 +671,15 @@ const promoteWaitlist = async (query, trainId, classCode, journeyDate) => {
 
     const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [booking.id]);
     const needed = passengerRows[0].count;
+
+    const classRows = await query('SELECT * FROM TrainClasses WHERE trainId = ? AND classCode = ?', [trainId, classCode]);
+    await seatRepository.ensureSeatsForClass(
+        query,
+        trainId,
+        classCode,
+        seatRepository.resolveClassSeatCapacity(classRows[0]),
+        journeyDate
+    );
 
     const availableSeats = await query(
         `SELECT TOP (${needed}) seatNumber FROM Seats
@@ -443,18 +700,85 @@ const promoteWaitlist = async (query, trainId, classCode, journeyDate) => {
     });
 
     const trains = await query('SELECT * FROM Trains WHERE id = ?', [trainId]);
+    await decrementAvailability(query, trains[0], classRows[0], needed);
+
+    const newStatus = booking.paymentStatus === 'Paid' ? 'Confirmed' : 'Pending';
+    await query(
+        `UPDATE Bookings SET status = ?, waitlistPosition = NULL, seatNumbers = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?`,
+        [newStatus, JSON.stringify(seatNumbers), booking.id]
+    );
+
+    if (newStatus === 'Confirmed') {
+        await query(
+            `UPDATE Passengers SET passengerStatus = 'Confirmed' WHERE bookingId = ?`,
+            [booking.id]
+        );
+    }
+
+    return booking.id;
+};
+
+const promoteRac = async (query, trainId, classCode, journeyDate) => {
+    const racBookings = await query(
+        `SELECT TOP 1 * FROM Bookings WITH (UPDLOCK, ROWLOCK)
+         WHERE trainId = ? AND classCode = ? AND journeyDate = ? AND status = 'RAC' AND paymentStatus = 'Paid'
+         ORDER BY waitlistPosition ASC, bookingDate ASC`,
+        [trainId, classCode, journeyDate]
+    );
+
+    const booking = racBookings[0];
+    if (!booking) return null;
+
+    const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [booking.id]);
+    const needed = passengerRows[0].count;
+
     const classRows = await query('SELECT * FROM TrainClasses WHERE trainId = ? AND classCode = ?', [trainId, classCode]);
+    await seatRepository.ensureSeatsForClass(
+        query,
+        trainId,
+        classCode,
+        seatRepository.resolveClassSeatCapacity(classRows[0]),
+        journeyDate
+    );
+
+    const availableSeats = await query(
+        `SELECT TOP (${needed}) seatNumber FROM Seats
+         WHERE trainId = ? AND classCode = ? AND journeyDate = ? AND status = 'Available'
+         ORDER BY seatNumber ASC`,
+        [trainId, classCode, journeyDate]
+    );
+
+    if (availableSeats.length < needed) return null;
+
+    const seatNumbers = availableSeats.map((s) => s.seatNumber);
+    await seatRepository.validateAndLockSeats(query, {
+        trainId,
+        classCode,
+        journeyDate,
+        seatNumbers,
+        bookingId: booking.id
+    });
+
+    const trains = await query('SELECT * FROM Trains WHERE id = ?', [trainId]);
     await decrementAvailability(query, trains[0], classRows[0], needed);
 
     await query(
-        `UPDATE Bookings SET status = 'Pending', waitlistPosition = NULL, seatNumbers = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?`,
+        `UPDATE Bookings SET status = 'Confirmed', waitlistPosition = NULL, seatNumbers = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?`,
         [JSON.stringify(seatNumbers), booking.id]
+    );
+    await query(
+        `UPDATE Passengers SET passengerStatus = 'Confirmed' WHERE bookingId = ?`,
+        [booking.id]
     );
 
     return booking.id;
 };
 
 const updateStatus = async (id, status, userId, isAdmin) => {
+    if (status === 'Confirmed') {
+        await ensureConfirmedBookingHasSeats(id);
+    }
+
     const txResult = await withTransaction(async ({ query }) => {
         const rows = await query(
             `SELECT b.*, t.id AS train_id
@@ -473,16 +797,15 @@ const updateStatus = async (id, status, userId, isAdmin) => {
         if (status === 'Cancelled') {
             const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [booking.id]);
             const passengerCount = passengerRows[0].count;
+            const payableAmount = booking.grandTotal || booking.totalPrice;
 
             if (['Confirmed', 'Pending'].includes(booking.status)) {
                 await seatRepository.releaseSeatsForBooking(query, booking.id);
-                if (booking.status === 'Confirmed' || booking.status === 'Pending') {
-                    await restoreAvailability(query, booking.trainId, booking.classCode, passengerCount);
-                }
+                await restoreAvailability(query, booking.trainId, booking.classCode, passengerCount);
             }
 
             const refundCalc = calculateRefund({
-                totalPrice: booking.totalPrice,
+                totalPrice: payableAmount,
                 journeyDate: booking.journeyDate,
                 paymentStatus: booking.paymentStatus,
                 bookingStatus: booking.status,
@@ -507,9 +830,10 @@ const updateStatus = async (id, status, userId, isAdmin) => {
 
             if (booking.status === 'Confirmed') {
                 await promoteWaitlist(query, booking.trainId, booking.classCode, booking.journeyDate);
+                await promoteRac(query, booking.trainId, booking.classCode, booking.journeyDate);
             }
 
-            return { bookingId: id, refund: refundCalc };
+            return { bookingId: id, refund: refundCalc, paymentStatus: booking.paymentStatus };
         }
 
         await query('UPDATE Bookings SET status = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?', [status, id]);
@@ -517,6 +841,20 @@ const updateStatus = async (id, status, userId, isAdmin) => {
     });
 
     if (txResult.error) return txResult;
+
+    if (status === 'Cancelled' && txResult.refund?.refundAmount > 0 && txResult.paymentStatus === 'Paid') {
+        const paymentRepository = require('./paymentRepository');
+        const razorpayService = require('../services/razorpayService');
+        const payment = await paymentRepository.findByBookingId(txResult.bookingId);
+        if (payment?.razorpayPaymentId) {
+            await razorpayService.processRefund({
+                paymentId: payment.razorpayPaymentId,
+                amount: txResult.refund.refundAmount
+            }).catch(() => {});
+        }
+        await paymentRepository.markRefunded(txResult.bookingId);
+    }
+
     return {
         booking: await findById(txResult.bookingId),
         refund: txResult.refund || null
@@ -573,6 +911,11 @@ const promoteWaitlistManually = async (trainId, classCode, journeyDate) => withT
     return bookingId ? findById(bookingId) : null;
 });
 
+const promoteRacManually = async (trainId, classCode, journeyDate) => withTransaction(async ({ query }) => {
+    const bookingId = await promoteRac(query, trainId, classCode, journeyDate);
+    return bookingId ? findById(bookingId) : null;
+});
+
 module.exports = {
     findByUserId,
     findAll,
@@ -581,8 +924,12 @@ module.exports = {
     findByPnr: findByPnrDirect,
     createBooking,
     confirmBooking,
+    assignSeatsIfMissing,
+    ensureConfirmedBookingHasSeats,
     failBooking,
+    deletePendingBooking,
     updateStatus,
     promoteWaitlistManually,
+    promoteRacManually,
     getRefundPreview
 };

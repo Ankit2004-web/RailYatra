@@ -95,8 +95,42 @@ const getSeatMap = async (trainId, classCode, journeyDate) => {
     return buildRakeSeatMap(trainId, classCode);
 };
 
+const resolveClassSeatCapacity = (classRow) => {
+    if (!classRow) return 0;
+    return Number(classRow.totalSeats || classRow.availableSeats || 0);
+};
+
+const insertSeatsForClass = async (query, trainId, classCode, totalSeats, journeyDate) => {
+    for (let seatNumber = 1; seatNumber <= totalSeats; seatNumber += 1) {
+        const berthType = getBerthType(seatNumber, classCode);
+        await query(
+            `INSERT INTO Seats (trainId, classCode, seatNumber, berthType, journeyDate, status)
+             VALUES (?, ?, ?, ?, ?, 'Available')`,
+            [trainId, classCode, seatNumber, berthType, journeyDate]
+        );
+    }
+};
+
+const ensureSeatsForClass = async (query, trainId, classCode, totalSeats, journeyDate) => {
+    const rows = await query(
+        'SELECT COUNT(*) AS count FROM Seats WHERE trainId = ? AND classCode = ? AND journeyDate = ?',
+        [trainId, classCode, journeyDate]
+    );
+    if (rows[0]?.count > 0) return;
+    if (!totalSeats) return;
+    await insertSeatsForClass(query, trainId, classCode, totalSeats, journeyDate);
+};
+
 const seedSeatsForClass = async (trainId, classCode, totalSeats, journeyDate) => {
     const pool = await getPool();
+    const existing = await pool.request()
+        .input('trainId', 'Int', trainId)
+        .input('classCode', 'NVarChar', classCode)
+        .input('journeyDate', 'Date', journeyDate)
+        .query(`SELECT COUNT(*) AS count FROM Seats
+                WHERE trainId = @trainId AND classCode = @classCode AND journeyDate = @journeyDate`);
+
+    if (existing.recordset[0]?.count > 0) return;
 
     for (let seatNumber = 1; seatNumber <= totalSeats; seatNumber += 1) {
         const berthType = getBerthType(seatNumber, classCode);
@@ -122,13 +156,17 @@ const pickAvailableSeats = async (query, trainId, classCode, journeyDate, count)
 };
 
 const validateAndLockSeats = async (query, { trainId, classCode, journeyDate, seatNumbers, bookingId }) => {
+    if (!seatNumbers?.length) {
+        return { error: 'Seat numbers are required for confirmed bookings', status: 400 };
+    }
+
     const totalRows = await query(
         'SELECT COUNT(*) AS count FROM Seats WHERE trainId = ? AND classCode = ? AND journeyDate = ?',
         [trainId, classCode, journeyDate]
     );
 
     if (!totalRows[0]?.count) {
-        return { ok: true, legacyMode: true };
+        return { error: 'Seat inventory not initialized for this journey', status: 500 };
     }
 
     for (const seatNumber of seatNumbers) {
@@ -189,6 +227,8 @@ module.exports = {
     getBerthType,
     getSeatMap,
     buildRakeSeatMap,
+    ensureSeatsForClass,
+    resolveClassSeatCapacity,
     seedSeatsForClass,
     validateAndLockSeats,
     releaseSeatsForBooking,

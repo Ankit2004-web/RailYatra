@@ -1,16 +1,26 @@
 const { requireFromBackend } = require('./bootstrap');
 
-let msnodesql;
-try {
-    msnodesql = requireFromBackend('msnodesqlv8');
-} catch (error) {
-    console.error('\n*** SQL Server driver (msnodesqlv8) is missing or broken ***');
-    console.error('Fix: stop the server, then run:');
-    console.error('  cd backend');
-    console.error('  npm install msnodesqlv8');
-    console.error('If that fails, install Visual Studio "Desktop development with C++" and retry.\n');
-    throw error;
-}
+let msnodesql = null;
+let driverLoadError = null;
+
+const loadDriver = () => {
+    if (driverLoadError) throw driverLoadError;
+    if (msnodesql) return msnodesql;
+
+    try {
+        msnodesql = requireFromBackend('msnodesqlv8');
+        return msnodesql;
+    } catch (error) {
+        driverLoadError = error;
+        console.error('\n*** SQL Server driver (msnodesqlv8) is missing or broken ***');
+        console.error('Fix: stop the server, then run:');
+        console.error('  cd backend');
+        console.error('  npm install msnodesqlv8');
+        console.error('If that fails, install Visual Studio "Desktop development with C++" and retry.');
+        console.error('Recommended Node.js version: 20.x or 22.x LTS.\n');
+        throw error;
+    }
+};
 
 const dbServer = process.env.DB_SERVER || '(localdb)\\MSSQLLocalDB';
 const dbName = process.env.DB_NAME || 'RailwayReservation';
@@ -26,7 +36,15 @@ const buildConnectionString = (database = dbName) => {
 };
 
 const withConnection = (database, fn) => new Promise((resolve, reject) => {
-    msnodesql.open(buildConnectionString(database), (err, connection) => {
+    let driver;
+    try {
+        driver = loadDriver();
+    } catch (error) {
+        reject(error);
+        return;
+    }
+
+    driver.open(buildConnectionString(database), (err, connection) => {
         if (err) return reject(err);
 
         Promise.resolve(fn(connection))
@@ -113,5 +131,6 @@ module.exports = {
     buildConnectionString,
     dbName,
     runQuery,
-    withTransaction
+    withTransaction,
+    loadDriver
 };

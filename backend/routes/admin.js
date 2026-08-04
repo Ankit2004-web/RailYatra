@@ -330,4 +330,23 @@ router.post('/waitlist/promote', async (req, res) => {
     }
 });
 
+router.post('/rac/promote', async (req, res) => {
+    const { trainId, classCode, journeyDate } = req.body;
+
+    if (!trainId || !classCode || !journeyDate) {
+        return res.status(400).json({ msg: 'trainId, classCode, and journeyDate are required' });
+    }
+
+    try {
+        const booking = await bookingRepository.promoteRacManually(trainId, classCode, journeyDate);
+        if (!booking) {
+            return res.status(404).json({ msg: 'No RAC booking could be promoted (no seats or RAC queue empty)' });
+        }
+        res.json({ msg: 'RAC booking promoted to confirmed', booking });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 module.exports = router;

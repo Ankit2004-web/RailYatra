@@ -12,7 +12,7 @@ export default function EmptyState({ hasFilters, onClearFilters }) {
         We couldn&apos;t find trains matching your current search or filters.
       </p>
       <div className="state-actions">
-        <Link to="/" className="btn btn-primary">Modify Search</Link>
+        <Link to="/home" className="btn btn-primary">Modify Search</Link>
         {hasFilters && (
           <button type="button" className="btn btn-outline" onClick={onClearFilters}>
             Clear Filters

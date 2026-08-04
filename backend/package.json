@@ -19,7 +19,10 @@
         "import:datameet": "node scripts/run.js ../database/import/run-datameet-import.js",
         "download:railway": "powershell -ExecutionPolicy Bypass -File scripts/download-railway-data.ps1 -Target datameet",
         "fix:driver": "npm install msnodesqlv8",
-        "test": "node scripts/run.js tests/api.test.js && node scripts/run.js tests/refund.test.js && node scripts/run.js tests/runningDay.test.js && node scripts/run.js tests/trainSearchLogic.test.js && node scripts/run.js tests/csvParser.test.js && node scripts/run.js tests/fare.test.js && node scripts/run.js tests/coachCapacity.test.js"
+        "test": "node --test tests/*.test.js"
+    },
+    "engines": {
+        "node": ">=20 <=22"
     },
     "dependencies": {
         "bcryptjs": "^2.4.3",
@@ -35,6 +38,7 @@
         "nodemailer": "^6.10.0",
         "odbc": "^2.5.0",
         "pdfkit": "^0.16.0",
+        "qrcode": "^1.5.4",
         "razorpay": "^2.9.8",
         "winston": "^3.17.0"
     },

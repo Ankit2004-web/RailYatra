@@ -22,7 +22,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register({ ...form, ...captcha });
-      navigate('/');
+      navigate('/home');
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {

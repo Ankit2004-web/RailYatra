@@ -20,6 +20,7 @@ const adminRoutes = require('./routes/admin');
 const captchaRoutes = require('./routes/captcha');
 const fareRoutes = require('./routes/fares');
 const availabilityRoutes = require('./routes/availability');
+const passengerRoutes = require('./routes/passengers');
 const trainCoachRoutes = require('./routes/trainCoach');
 const { UPLOAD_DIR: AVATAR_UPLOAD_DIR } = require('./services/avatarService');
 
@@ -57,6 +58,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/captcha', captchaRoutes);
 app.use('/api/fares', fareRoutes);
 app.use('/api/availability', availabilityRoutes);
+app.use('/api/passengers', passengerRoutes);
 
 app.get('/api/health', async (req, res) => {
     res.json({
@@ -141,6 +143,13 @@ const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
     try {
+        if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 16) {
+            if (process.env.NODE_ENV === 'production') {
+                throw new Error('JWT_SECRET must be set to a secure value (min 16 chars) in production');
+            }
+            console.warn('Warning: JWT_SECRET is missing or weak. Set a strong secret before deploying.');
+        }
+
         await syncDatabase();
         await seedDatabase();
 

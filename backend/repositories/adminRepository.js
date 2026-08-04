@@ -14,7 +14,7 @@ const getDashboardStats = async () => {
             (SELECT COUNT(*) FROM Bookings WHERE status = 'Pending') AS pendingBookings,
             (SELECT COUNT(*) FROM Bookings WHERE status = 'Waitlisted') AS waitlistedBookings,
             (SELECT COUNT(*) FROM Bookings WHERE status = 'Cancelled') AS cancelledBookings,
-            (SELECT ISNULL(SUM(totalPrice), 0) FROM Bookings WHERE status = 'Confirmed' AND paymentStatus = 'Paid') AS totalRevenue,
+            (SELECT ISNULL(SUM(ISNULL(grandTotal, totalPrice)), 0) FROM Bookings WHERE status = 'Confirmed' AND paymentStatus = 'Paid') AS totalRevenue,
             (SELECT COUNT(*) FROM Bookings WHERE CAST(bookingDate AS DATE) = CAST(SYSUTCDATETIME() AS DATE)) AS todayBookings
     `);
 
@@ -27,7 +27,7 @@ const getRevenueReport = async (fromDate, toDate) => {
     let query = `
         SELECT CAST(bookingDate AS DATE) AS date,
                COUNT(*) AS bookingCount,
-               SUM(totalPrice) AS revenue
+               SUM(ISNULL(grandTotal, totalPrice)) AS revenue
         FROM Bookings
         WHERE status = 'Confirmed' AND paymentStatus = 'Paid'
     `;
@@ -76,7 +76,7 @@ const getCancellationReport = async (fromDate, toDate) => {
     let query = `
         SELECT CAST(updatedAt AS DATE) AS date,
                COUNT(*) AS cancellationCount,
-               SUM(totalPrice) AS lostRevenue
+               SUM(ISNULL(grandTotal, totalPrice)) AS lostRevenue
         FROM Bookings
         WHERE status = 'Cancelled'
     `;
@@ -103,7 +103,8 @@ const getRecentBookings = async (limit = 10) => {
     const pool = await getPool();
     const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 50);
     const result = await pool.request().query(`
-        SELECT TOP (${safeLimit}) b.id, b.pnrNumber, b.status, b.totalPrice, b.bookingDate,
+        SELECT TOP (${safeLimit}) b.id, b.pnrNumber, b.status,
+               ISNULL(b.grandTotal, b.totalPrice) AS totalPrice, b.bookingDate,
                t.trainNumber, t.trainName, u.name AS userName
         FROM Bookings b
         INNER JOIN Trains t ON b.trainId = t.id

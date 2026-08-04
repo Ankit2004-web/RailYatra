@@ -21,6 +21,8 @@ const bookingRules = [
     body('toStopSequence').optional().isInt({ min: 1 }).withMessage('toStopSequence must be a positive integer'),
     body('fromStationId').optional().isInt({ min: 1 }).withMessage('fromStationId must be a positive integer'),
     body('toStationId').optional().isInt({ min: 1 }).withMessage('toStationId must be a positive integer'),
+    body('fromStationCode').optional().trim().notEmpty().withMessage('fromStationCode cannot be empty'),
+    body('toStationCode').optional().trim().notEmpty().withMessage('toStationCode cannot be empty'),
     body('captchaId').notEmpty().withMessage('Captcha is required'),
     body('captchaAnswer').notEmpty().withMessage('Captcha answer is required')
 ];

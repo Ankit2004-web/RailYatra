@@ -10,17 +10,24 @@ const bookingRepository = require('../repositories/bookingRepository');
 const trainRepository = require('../repositories/trainRepository');
 const trainClassRepository = require('../repositories/trainClassRepository');
 const seatRepository = require('../repositories/seatRepository');
+const stationRepository = require('../repositories/stationRepository');
 const { isTatkalEligible, getTatkalPrice } = require('../utils/tatkal');
-const { generateTicketPdf } = require('../services/ticketService');
 const { calculateBookingFare } = require('../utils/fare');
+const { calculatePaymentBreakdown } = require('../utils/paymentBreakdown');
 const { VALID_QUOTAS } = require('../utils/quota');
+const { generateTicketPdf } = require('../services/ticketService');
 
 router.get('/pnr/:pnr', async (req, res) => {
     try {
-        const booking = await bookingRepository.findByPnr(req.params.pnr.trim());
+        let booking = await bookingRepository.findByPnr(req.params.pnr.trim());
 
         if (!booking) {
             return res.status(404).json({ msg: 'No booking found for this PNR' });
+        }
+
+        if (booking.status === 'Confirmed') {
+            await bookingRepository.ensureConfirmedBookingHasSeats(booking.id);
+            booking = await bookingRepository.findByPnr(req.params.pnr.trim());
         }
 
         res.json({
@@ -35,10 +42,18 @@ router.get('/pnr/:pnr', async (req, res) => {
             waitlistPosition: booking.waitlistPosition,
             quota: booking.quota,
             totalPrice: booking.totalPrice,
+            grandTotal: booking.grandTotal,
+            paymentBreakdown: booking.paymentBreakdown,
+            boarding: booking.boarding,
+            alighting: booking.alighting,
             seatNumbers: booking.seatNumbers,
             train: booking.train,
-            passengers: booking.passengers,
-            bookedBy: booking.user.name
+            passengers: (booking.passengers || []).map((p) => ({
+                name: p.name,
+                age: p.age,
+                gender: p.gender,
+                passengerStatus: p.passengerStatus || p.status
+            }))
         });
     } catch (err) {
         console.error(err.message);
@@ -101,12 +116,18 @@ router.get('/:id/ticket', auth, async (req, res) => {
             return res.status(400).json({ msg: 'E-ticket is available only for confirmed bookings' });
         }
 
-        const pdfBuffer = await generateTicketPdf(booking);
+        await bookingRepository.ensureConfirmedBookingHasSeats(booking.id);
+        const ticketBooking = await bookingRepository.findById(booking.id);
+
+        const pdfBuffer = await generateTicketPdf(ticketBooking);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="ticket-${booking.pnrNumber}.pdf"`);
         res.send(pdfBuffer);
     } catch (err) {
         console.error(err.message);
+        if (err.message?.includes('seat')) {
+            return res.status(400).json({ msg: err.message });
+        }
         res.status(500).json({ msg: 'Server error generating ticket' });
     }
 });
@@ -144,13 +165,28 @@ router.post('/', auth, bookingLimiter, bookingRules, validate, validateCaptcha, 
         fromStopSequence,
         toStopSequence,
         fromStationId,
-        toStationId
+        toStationId,
+        fromStationCode,
+        toStationCode
     } = req.body;
 
     try {
         const train = await trainRepository.findById(trainId);
         if (!train) {
             return res.status(404).json({ msg: 'Train not found' });
+        }
+
+        let resolvedFromStationId = fromStationId ? Number(fromStationId) : null;
+        let resolvedToStationId = toStationId ? Number(toStationId) : null;
+
+        if (!resolvedFromStationId && fromStationCode) {
+            const fromStation = await stationRepository.findByCode(String(fromStationCode).trim().toUpperCase());
+            resolvedFromStationId = fromStation?.id || null;
+        }
+
+        if (!resolvedToStationId && toStationCode) {
+            const toStation = await stationRepository.findByCode(String(toStationCode).trim().toUpperCase());
+            resolvedToStationId = toStation?.id || null;
         }
 
         const trainClass = await trainClassRepository.findByTrainAndCode(trainId, classCode);
@@ -178,14 +214,20 @@ router.post('/', auth, bookingLimiter, bookingRules, validate, validateCaptcha, 
             return res.status(fareResult.status).json({ msg: fareResult.error });
         }
 
-        const totalPrice = fareResult.totalPrice;
+        const ticketFare = fareResult.totalPrice;
+        const paymentBreakdown = calculatePaymentBreakdown({
+            ticketFare,
+            passengerCount: passengers.length
+        });
 
         const result = await bookingRepository.createBooking({
             userId: req.user.id,
             trainId,
             passengers,
             journeyDate,
-            totalPrice,
+            totalPrice: ticketFare,
+            paymentBreakdown: JSON.stringify(paymentBreakdown),
+            grandTotal: paymentBreakdown.totalFare,
             seatNumbers: seatNumbers || [],
             classCode,
             bookingType,
@@ -194,8 +236,8 @@ router.post('/', auth, bookingLimiter, bookingRules, validate, validateCaptcha, 
             quota,
             fromStopSequence: fromStopSequence ? Number(fromStopSequence) : undefined,
             toStopSequence: toStopSequence ? Number(toStopSequence) : undefined,
-            fromStationId: fromStationId ? Number(fromStationId) : undefined,
-            toStationId: toStationId ? Number(toStationId) : undefined
+            fromStationId: resolvedFromStationId || undefined,
+            toStationId: resolvedToStationId || undefined
         });
 
         if (result.error) {
@@ -206,6 +248,25 @@ router.post('/', auth, bookingLimiter, bookingRules, validate, validateCaptcha, 
     } catch (err) {
         console.error('Booking creation error:', err);
         res.status(500).json({ msg: 'Server error while creating booking' });
+    }
+});
+
+router.delete('/:id/pending', auth, async (req, res) => {
+    try {
+        const result = await bookingRepository.deletePendingBooking(
+            req.params.id,
+            req.user.id,
+            req.user.isAdmin
+        );
+
+        if (result.error) {
+            return res.status(result.status).json({ msg: result.error });
+        }
+
+        res.json({ msg: 'Pending booking removed' });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server error' });
     }
 });
 

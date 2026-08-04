@@ -6,6 +6,7 @@ const { body } = require('express-validator');
 const bookingRepository = require('../repositories/bookingRepository');
 const paymentRepository = require('../repositories/paymentRepository');
 const razorpayService = require('../services/razorpayService');
+const { isAwaitingPayment } = require('../utils/bookingStatus');
 
 const paymentRules = [
     body('bookingId').isInt({ min: 1 }).withMessage('Valid booking ID is required')
@@ -15,7 +16,7 @@ const verifyRules = [
     body('bookingId').isInt({ min: 1 }).withMessage('Valid booking ID is required'),
     body('razorpay_order_id').notEmpty().withMessage('Order ID is required'),
     body('razorpay_payment_id').notEmpty().withMessage('Payment ID is required'),
-    body('razorpay_signature').optional()
+    body('razorpay_signature').if(() => razorpayService.isConfigured()).notEmpty().withMessage('Payment signature is required')
 ];
 
 router.get('/config', (req, res) => {
@@ -38,15 +39,16 @@ router.post('/create-order', auth, paymentRules, validate, async (req, res) => {
             return res.status(403).json({ msg: 'Not authorized' });
         }
 
-        if (booking.status !== 'Pending') {
+        if (!isAwaitingPayment(booking)) {
             return res.status(400).json({ msg: 'Booking is not awaiting payment' });
         }
 
-        const order = await razorpayService.createOrder(booking.totalPrice, booking.id);
+        const payableAmount = booking.grandTotal || booking.paymentBreakdown?.totalFare || booking.totalPrice;
+        const order = await razorpayService.createOrder(payableAmount, booking.id);
         await paymentRepository.create({
             bookingId: booking.id,
             razorpayOrderId: order.id,
-            amount: booking.totalPrice
+            amount: payableAmount
         });
 
         res.json({
@@ -75,6 +77,10 @@ router.post('/verify', auth, verifyRules, validate, async (req, res) => {
 
         if (booking.user.id !== req.user.id) {
             return res.status(403).json({ msg: 'Not authorized' });
+        }
+
+        if (!isAwaitingPayment(booking)) {
+            return res.status(400).json({ msg: 'Booking is not awaiting payment' });
         }
 
         const isValid = razorpayService.verifyPayment({
@@ -115,15 +121,16 @@ router.post('/dev-confirm', auth, paymentRules, validate, async (req, res) => {
             return res.status(403).json({ msg: 'Not authorized' });
         }
 
-        if (booking.status !== 'Pending') {
+        if (!isAwaitingPayment(booking)) {
             return res.status(400).json({ msg: 'Booking is not awaiting payment' });
         }
 
-        const order = await razorpayService.createOrder(booking.totalPrice, booking.id);
+        const payableAmount = booking.grandTotal || booking.paymentBreakdown?.totalFare || booking.totalPrice;
+        const order = await razorpayService.createOrder(payableAmount, booking.id);
         await paymentRepository.create({
             bookingId: booking.id,
             razorpayOrderId: order.id,
-            amount: booking.totalPrice
+            amount: payableAmount
         });
         await paymentRepository.markPaid(booking.id, `dev_pay_${booking.id}`);
         const confirmed = await bookingRepository.confirmBooking(booking.id);

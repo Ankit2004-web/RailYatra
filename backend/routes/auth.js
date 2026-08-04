@@ -13,14 +13,15 @@ const { sendPasswordResetEmail } = require('../services/emailService');
 const { saveAvatar, removeAvatarFiles } = require('../services/avatarService');
 const logger = require('../utils/logger');
 
-const signToken = (user) => {
+const signToken = (user, rememberMe = false) => {
     const payload = {
         user: {
             id: user.id,
             isAdmin: !!user.isAdmin
         }
     };
-    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const expiresIn = rememberMe ? '30d' : '24h';
+    return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 
 router.post('/register', authLimiter, registerRules, validate, validateCaptcha, async (req, res) => {
@@ -42,7 +43,7 @@ router.post('/register', authLimiter, registerRules, validate, validateCaptcha, 
 });
 
 router.post('/login', authLimiter, loginRules, validate, validateCaptcha, async (req, res) => {
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
 
     try {
         const user = await userRepository.findByEmail(email);
@@ -60,7 +61,7 @@ router.post('/login', authLimiter, loginRules, validate, validateCaptcha, async 
         }
 
         logger.info('User logged in', { userId: user.id });
-        res.json({ token: signToken(user) });
+        res.json({ token: signToken(user, Boolean(rememberMe)) });
     } catch (err) {
         logger.error('Login failed', { error: err.message });
         res.status(500).json({ msg: 'Server error' });

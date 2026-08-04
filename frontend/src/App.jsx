@@ -2,6 +2,8 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Layout from './components/Layout';
+import AuthGuard from './components/AuthGuard';
+import ErrorBoundary from './components/ErrorBoundary';
 import HomePage from './pages/HomePage';
 import SearchResultsPage from './pages/SearchResultsPage';
 import LoginPage from './pages/LoginPage';
@@ -22,33 +24,40 @@ import ProfilePage from './pages/ProfilePage';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ThemeProvider>
-        <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route index element={<HomePage />} />
-            <Route path="search" element={<SearchResultsPage />} />
-            <Route path="pnr" element={<PnrPage />} />
-            <Route path="bookings" element={<BookingsPage />} />
-            <Route path="profile" element={<ProfilePage />} />
-            <Route path="book" element={<BookingPage />} />
-            <Route path="about" element={<AboutPage />} />
-            <Route path="privacy" element={<PrivacyPage />} />
-            <Route path="terms" element={<TermsPage />} />
-            <Route path="contact" element={<ContactPage />} />
-            <Route path="offers" element={<OffersPage />} />
-          </Route>
-          <Route path="login" element={<LoginPage />} />
-          <Route path="register" element={<RegisterPage />} />
-          <Route path="forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="reset-password" element={<ResetPasswordPage />} />
-          <Route path="admin/login" element={<AdminLoginPage />} />
-          <Route path="admin" element={<AdminDashboardPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
-      </ThemeProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <ThemeProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route index element={<Navigate to="/login" replace />} />
+              <Route element={<Layout />}>
+                <Route path="home" element={<HomePage />} />
+                <Route path="search" element={<SearchResultsPage />} />
+                <Route path="pnr" element={<PnrPage />} />
+                <Route element={<AuthGuard />}>
+                  <Route path="bookings" element={<BookingsPage />} />
+                  <Route path="profile" element={<ProfilePage />} />
+                  <Route path="book" element={<BookingPage />} />
+                </Route>
+                <Route path="about" element={<AboutPage />} />
+                <Route path="privacy" element={<PrivacyPage />} />
+                <Route path="terms" element={<TermsPage />} />
+                <Route path="contact" element={<ContactPage />} />
+                <Route path="offers" element={<OffersPage />} />
+              </Route>
+              <Route path="login" element={<LoginPage />} />
+              <Route path="register" element={<RegisterPage />} />
+              <Route path="forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="reset-password" element={<ResetPasswordPage />} />
+              <Route path="admin/login" element={<AdminLoginPage />} />
+              <Route element={<AuthGuard adminOnly />}>
+                <Route path="admin" element={<AdminDashboardPage />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+          </BrowserRouter>
+        </ThemeProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
