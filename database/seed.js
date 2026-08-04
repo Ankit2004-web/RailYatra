@@ -126,9 +126,22 @@ async function seedDatabase() {
 
         const demoEmails = ['demo@railway.com', 'admin@railway.com'];
         for (const demoEmail of demoEmails) {
-            await pool.request()
-                .input('email', 'NVarChar', demoEmail)
-                .query('DELETE FROM Users WHERE email = @email');
+            try {
+                const linked = await pool.request()
+                    .input('email', 'NVarChar', demoEmail)
+                    .query(`SELECT TOP 1 b.id FROM Bookings b
+                            INNER JOIN Users u ON u.id = b.userId
+                            WHERE u.email = @email`);
+                if (linked.recordset.length > 0) {
+                    console.log(`Skipped removing demo user ${demoEmail} (has bookings).`);
+                    continue;
+                }
+                await pool.request()
+                    .input('email', 'NVarChar', demoEmail)
+                    .query('DELETE FROM Users WHERE email = @email');
+            } catch (err) {
+                console.log(`Skipped removing demo user ${demoEmail}: ${err.message}`);
+            }
         }
 
         const adminEmail = process.env.ADMIN_EMAIL?.trim();
@@ -156,13 +169,14 @@ async function seedDatabase() {
                 .input('password', 'NVarChar', hashedPassword)
                 .input('phone', 'NVarChar', '9999999999')
                 .input('isAdmin', 'Bit', true)
-                .query('INSERT INTO Users (name, email, password, phone, isAdmin) VALUES (@name, @email, @password, @phone, @isAdmin)');
+                .input('role', 'NVarChar', 'admin')
+                .query('INSERT INTO Users (name, email, password, phone, isAdmin, role) VALUES (@name, @email, @password, @phone, @isAdmin, @role)');
 
             console.log(`Admin user created: ${adminEmail}`);
         } else if (!adminResult.recordset[0].isAdmin) {
             await pool.request()
                 .input('email', 'NVarChar', adminEmail)
-                .query('UPDATE Users SET isAdmin = 1 WHERE email = @email');
+                .query('UPDATE Users SET isAdmin = 1, role = \'admin\' WHERE email = @email');
             console.log(`Existing user promoted to admin: ${adminEmail}`);
         } else {
             console.log('Admin user already exists.');

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, Lock, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { User, Phone, Lock, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import CaptchaField from '../components/CaptchaField';
 import AuthShell from '../components/AuthShell';
@@ -8,7 +8,7 @@ import AuthShell from '../components/AuthShell';
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [form, setForm] = useState({ name: '', phone: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
@@ -51,15 +51,7 @@ export default function RegisterPage() {
         </div>
 
         <div className="field auth-field">
-          <label htmlFor="email">Email address</label>
-          <div className="auth-input-wrap">
-            <Mail size={18} className="auth-input-icon" aria-hidden="true" />
-            <input id="email" type="email" className="input auth-input" value={form.email} onChange={set('email')} placeholder="you@example.com" required />
-          </div>
-        </div>
-
-        <div className="field auth-field">
-          <label htmlFor="phone">Phone number</label>
+          <label htmlFor="phone">Mobile number</label>
           <div className="auth-input-wrap">
             <Phone size={18} className="auth-input-icon" aria-hidden="true" />
             <input id="phone" className="input auth-input" value={form.phone} onChange={set('phone')} placeholder="10-digit mobile" required />

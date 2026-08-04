@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Shield, LayoutDashboard, TrainFront, Users, Ticket } from 'lucide-react';
 import { api } from '../api/client';
 import { formatDisplayDate } from '../utils/trainMapper';
 
@@ -8,8 +9,11 @@ const TABS = [
   { id: 'bookings', label: 'Bookings' },
   { id: 'users', label: 'Users' },
   { id: 'trains', label: 'Trains' },
+  { id: 'stations', label: 'Stations' },
   { id: 'reports', label: 'Reports' },
   { id: 'waitlist', label: 'Waitlist' },
+  { id: 'audit', label: 'Audit Logs' },
+  { id: 'reconciliation', label: 'Reconciliation' },
   { id: 'master', label: 'Master Data' }
 ];
 
@@ -43,6 +47,10 @@ export default function AdminDashboardPage() {
   const [trains, setTrains] = useState(null);
   const [masterData, setMasterData] = useState(null);
   const [reports, setReports] = useState(null);
+  const [stations, setStations] = useState(null);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [reconciliation, setReconciliation] = useState(null);
+  const [reconciliationLogs, setReconciliationLogs] = useState([]);
 
   const [trainSearch, setTrainSearch] = useState('');
   const [bookingFilter, setBookingFilter] = useState({ status: '', pnr: '' });
@@ -67,6 +75,20 @@ export default function AdminDashboardPage() {
       if (tab === 'trains') {
         setTrains(await api.get(`/admin/trains?page=1&pageSize=25&search=${encodeURIComponent(trainSearch)}`));
       }
+      if (tab === 'stations') {
+        setStations(await api.get('/admin/stations?page=1&pageSize=50'));
+      }
+      if (tab === 'audit') {
+        setAuditLogs(await api.get('/admin/audit-logs?limit=100'));
+      }
+      if (tab === 'reconciliation') {
+        const [logs, latest] = await Promise.all([
+          api.get('/admin/reconciliation/logs?limit=20'),
+          api.get('/admin/reconciliation').catch(() => null)
+        ]);
+        setReconciliationLogs(logs);
+        setReconciliation(latest);
+      }
       if (tab === 'reports') {
         const [revenue, occupancy, cancellations] = await Promise.all([
           api.get('/admin/reports/revenue'),
@@ -88,6 +110,12 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     loadTab();
   }, [tab]);
+
+  useEffect(() => {
+    api.get('/admin/dashboard')
+      .then(setDashboard)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -146,17 +174,45 @@ export default function AdminDashboardPage() {
     };
   }, [reports]);
 
-  return (
-    <div className="admin-page">
-      <div className="container">
-        <div className="admin-head">
-          <div>
-            <h1>Admin Dashboard</h1>
-            <p className="muted">Manage trains, bookings, users, and reports</p>
-          </div>
-          <Link to="/home" className="btn btn-outline btn-sm">← Main site</Link>
-        </div>
+  const heroStats = useMemo(() => {
+    const s = dashboard?.stats;
+    if (!s) return [];
+    return [
+      { label: 'Bookings', value: s.totalBookings ?? 0, icon: Ticket },
+      { label: 'Confirmed', value: s.confirmedBookings ?? 0, icon: LayoutDashboard },
+      { label: 'Users', value: s.totalUsers ?? 0, icon: Users },
+      { label: 'Trains', value: s.totalTrains ?? 0, icon: TrainFront }
+    ];
+  }, [dashboard]);
 
+  return (
+    <div className="admin-page page-shell">
+      <section className="admin-hero page-hero">
+        <div className="admin-hero-inner page-hero-inner page-hero-split">
+          <div className="page-hero-copy">
+            <span className="page-hero-badge">
+              <Shield size={14} aria-hidden="true" /> Admin Portal
+            </span>
+            <h1 className="page-hero-title">Admin Dashboard</h1>
+            <p className="page-hero-subtitle">
+              Manage trains, bookings, users, stations, and revenue reports from one place.
+            </p>
+          </div>
+          {heroStats.length > 0 && (
+            <div className="admin-hero-stats">
+              {heroStats.map(({ label, value, icon: Icon }) => (
+                <div key={label} className="admin-hero-stat">
+                  <Icon size={16} aria-hidden="true" />
+                  <strong>{value}</strong>
+                  <span>{label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <div className="admin-body page-body">
         {toast && <div className="admin-toast" role="status">{toast}</div>}
         {error && <div className="alert alert-error">{error}</div>}
 
@@ -333,6 +389,80 @@ export default function AdminDashboardPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && tab === 'stations' && stations && (
+          <div className="card admin-panel">
+            <h3>Stations ({stations.totalItems})</h3>
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead><tr><th>Code</th><th>Name</th><th>City</th><th>State</th></tr></thead>
+                <tbody>
+                  {(stations.items || []).map((s) => (
+                    <tr key={s.id}>
+                      <td><Link to={`/stations/${s.code}`}>{s.code}</Link></td>
+                      <td>{s.name}</td>
+                      <td>{s.city}</td>
+                      <td>{s.state}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && tab === 'audit' && (
+          <div className="card admin-panel">
+            <h3>Audit logs</h3>
+            <div className="admin-table-wrap">
+              <table className="admin-table">
+                <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Resource</th></tr></thead>
+                <tbody>
+                  {auditLogs.map((log) => (
+                    <tr key={log.id}>
+                      <td>{formatDisplayDate(log.createdAt)}</td>
+                      <td>{log.userName || log.userEmail || '—'}</td>
+                      <td>{log.action}</td>
+                      <td>{log.resource || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && tab === 'reconciliation' && (
+          <div className="admin-stack">
+            {reconciliation && (
+              <StatGrid stats={{
+                paidUnconfirmedFixed: reconciliation.paidUnconfirmed?.fixed ?? 0,
+                stuckPaymentsMarked: reconciliation.stuckPayments?.marked ?? 0,
+                refundsRetried: reconciliation.failedRefunds?.retried ?? 0
+              }} limit={3} />
+            )}
+            <div className="card admin-panel">
+              <h3>Reconciliation runs</h3>
+              <p className="admin-hint">Auto-runs every 15 minutes. Latest manual run shown above when tab loads.</p>
+              <div className="admin-table-wrap">
+                <table className="admin-table">
+                  <thead><tr><th>Time</th><th>Type</th><th>Matched</th><th>Mismatch</th><th>Auto-fixed</th></tr></thead>
+                  <tbody>
+                    {reconciliationLogs.map((log) => (
+                      <tr key={log.id}>
+                        <td>{formatDisplayDate(log.createdAt)}</td>
+                        <td>{log.runType}</td>
+                        <td>{log.matchedCount}</td>
+                        <td>{log.mismatchCount}</td>
+                        <td>{log.autoFixedCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         )}

@@ -5,6 +5,9 @@ const admin = require('../middleware/admin');
 const validate = require('../middleware/validate');
 const validateCaptcha = require('../middleware/captcha');
 const { bookingLimiter } = require('../middleware/rateLimit');
+const idempotencyMiddleware = require('../middleware/idempotency');
+const auditLogger = require('../middleware/auditLogger');
+const { tatkalGate } = require('../middleware/tatkalGate');
 const { bookingRules, updateBookingRules } = require('../validators/bookingValidator');
 const bookingRepository = require('../repositories/bookingRepository');
 const trainRepository = require('../repositories/trainRepository');
@@ -15,7 +18,7 @@ const { isTatkalEligible, getTatkalPrice } = require('../utils/tatkal');
 const { calculateBookingFare } = require('../utils/fare');
 const { calculatePaymentBreakdown } = require('../utils/paymentBreakdown');
 const { VALID_QUOTAS } = require('../utils/quota');
-const { generateTicketPdf } = require('../services/ticketService');
+const { generateTicketPdf, mapPassengerPnrFields } = require('../services/ticketService');
 
 router.get('/pnr/:pnr', async (req, res) => {
     try {
@@ -48,11 +51,13 @@ router.get('/pnr/:pnr', async (req, res) => {
             alighting: booking.alighting,
             seatNumbers: booking.seatNumbers,
             train: booking.train,
-            passengers: (booking.passengers || []).map((p) => ({
+            passengers: (booking.passengers || []).map((p, index) => ({
                 name: p.name,
                 age: p.age,
                 gender: p.gender,
-                passengerStatus: p.passengerStatus || p.status
+                berthPreference: p.berthPreference || null,
+                passengerStatus: p.passengerStatus || p.status,
+                ...mapPassengerPnrFields(booking, p, index)
             }))
         });
     } catch (err) {
@@ -132,6 +137,26 @@ router.get('/:id/ticket', auth, async (req, res) => {
     }
 });
 
+router.get('/:id/status', auth, async (req, res) => {
+    try {
+        const booking = await bookingRepository.findById(req.params.id);
+        if (!booking) return res.status(404).json({ msg: 'Booking not found' });
+        if (booking.user.id !== req.user.id && !req.user.isAdmin) {
+            return res.status(403).json({ msg: 'Not authorized' });
+        }
+        res.json({
+            id: booking.id,
+            status: booking.status,
+            paymentStatus: booking.paymentStatus,
+            pnrNumber: booking.pnrNumber,
+            paymentHoldExpiresAt: booking.paymentHoldExpiresAt
+        });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 router.get('/:id', auth, async (req, res) => {
     try {
         const booking = await bookingRepository.findById(req.params.id);
@@ -151,7 +176,7 @@ router.get('/:id', auth, async (req, res) => {
     }
 });
 
-router.post('/', auth, bookingLimiter, bookingRules, validate, validateCaptcha, async (req, res) => {
+router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), tatkalGate, bookingRules, validate, validateCaptcha, auditLogger('booking.create', 'booking'), async (req, res) => {
     const {
         trainId,
         passengers,
@@ -251,6 +276,23 @@ router.post('/', auth, bookingLimiter, bookingRules, validate, validateCaptcha, 
     }
 });
 
+router.delete('/:id/passengers/:passengerId', auth, auditLogger('booking.partial_cancel', 'booking'), async (req, res) => {
+    try {
+        const result = await bookingRepository.cancelPassenger(
+            req.params.id,
+            req.params.passengerId,
+            req.user.id,
+            req.user.isAdmin
+        );
+        if (result.error) return res.status(result.status).json({ msg: result.error });
+        const booking = await bookingRepository.findById(req.params.id);
+        res.json({ msg: 'Passenger removed from booking', booking });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 router.delete('/:id/pending', auth, async (req, res) => {
     try {
         const result = await bookingRepository.deletePendingBooking(
@@ -270,7 +312,7 @@ router.delete('/:id/pending', auth, async (req, res) => {
     }
 });
 
-router.put('/:id', auth, updateBookingRules, validate, async (req, res) => {
+router.put('/:id', auth, auditLogger('booking.update', 'booking'), updateBookingRules, validate, async (req, res) => {
     const { status } = req.body;
 
     try {

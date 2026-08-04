@@ -18,6 +18,15 @@ function statusLabel(status) {
   return status;
 }
 
+function passengerStatusClass(status) {
+  const key = String(status || '').toLowerCase();
+  if (key === 'confirmed') return 'status-confirmed';
+  if (key === 'waitlisted') return 'status-waitlisted';
+  if (key === 'rac') return 'status-rac';
+  if (key === 'cancelled') return 'status-cancelled';
+  return 'status-pending';
+}
+
 export default function PnrPage() {
   const location = useLocation();
   const [pnr, setPnr] = useState(() => location.state?.pnr?.replace(/\D/g, '').slice(0, 10) || '');
@@ -273,6 +282,8 @@ export default function PnrPage() {
                       <th>Name</th>
                       <th>Age</th>
                       <th>Gender</th>
+                      <th>Ticket No.</th>
+                      <th>Status</th>
                       <th>Berth Pref.</th>
                     </tr>
                   </thead>
@@ -283,6 +294,17 @@ export default function PnrPage() {
                         <td>{p.name}</td>
                         <td>{p.age}</td>
                         <td>{p.gender}</td>
+                        <td className="pnr-ticket-no-cell">
+                          <code className="pnr-passenger-ticket-no">{p.ticketNumber || '—'}</code>
+                        </td>
+                        <td>
+                          <span className={`pnr-passenger-status ${passengerStatusClass(p.confirmationStatus)}`}>
+                            {p.confirmationStatus || '—'}
+                          </span>
+                          {p.currentStatus && (
+                            <span className="pnr-current-status">{p.currentStatus}</span>
+                          )}
+                        </td>
                         <td>{p.berthPreference || '—'}</td>
                       </tr>
                     ))}

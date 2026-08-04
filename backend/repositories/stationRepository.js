@@ -153,4 +153,50 @@ const findPaginated = async ({ page = 1, pageSize = 50, search = '' }) => {
     };
 };
 
-module.exports = { findAll, search, findById, findByCode, create, update, remove, createMany, findPaginated };
+const parseAmenities = (raw) => {
+    if (!raw) return { parking: false, food: false, waitingRoom: false, lounge: false, wifi: false };
+    try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return {
+            parking: !!parsed.parking,
+            food: !!parsed.food,
+            waitingRoom: !!parsed.waitingRoom,
+            lounge: !!parsed.lounge,
+            wifi: !!parsed.wifi
+        };
+    } catch {
+        return { parking: false, food: false, waitingRoom: false, lounge: false, wifi: false };
+    }
+};
+
+const findDetailByCode = async (code) => {
+    const station = await findByCode(code);
+    if (!station) return null;
+    const amenities = parseAmenities(station.amenities);
+    return {
+        ...station,
+        amenities,
+        platforms: station.platformCount ? Array.from({ length: station.platformCount }, (_, i) => ({
+            number: i + 1,
+            label: `Platform ${i + 1}`
+        })) : [{ number: 1, label: 'Platform 1' }]
+    };
+};
+
+const findNearby = async (code, limit = 8) => {
+    const station = await findByCode(code);
+    if (!station) return [];
+    const pool = await getPool();
+    const safeLimit = Math.min(limit, 20);
+    const result = await pool.request()
+        .input('code', 'NVarChar', code.toUpperCase())
+        .input('state', 'NVarChar', station.state)
+        .input('city', 'NVarChar', station.city)
+        .query(`SELECT TOP (${safeLimit}) * FROM Stations
+                WHERE isActive = 1 AND code <> @code
+                  AND (state = @state OR city = @city)
+                ORDER BY name ASC`);
+    return result.recordset;
+};
+
+module.exports = { findAll, search, findById, findByCode, create, update, remove, createMany, findPaginated, findDetailByCode, findNearby };

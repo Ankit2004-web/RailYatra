@@ -1,18 +1,38 @@
 const bcrypt = require('bcryptjs');
 const { getPool } = require('../../database/connection');
+const { resolveRole } = require('../constants/roles');
+const { normalizeEmail } = require('../utils/email');
 
 const toSafeUser = (user) => {
     if (!user) return null;
     const { password, ...safe } = user;
-    return { ...safe, isAdmin: !!safe.isAdmin, isBlocked: !!safe.isBlocked };
+    const role = resolveRole(safe);
+    return {
+        ...safe,
+        role,
+        isAdmin: role === 'admin' || !!safe.isAdmin,
+        isBlocked: !!safe.isBlocked
+    };
 };
 
 const findByEmail = async (email) => {
     const pool = await getPool();
-    const result = await pool.request()
-        .input('email', 'NVarChar', email)
-        .query('SELECT * FROM Users WHERE email = @email');
-    return result.recordset[0] || null;
+    const input = String(email || '').trim().toLowerCase();
+    const needle = normalizeEmail(input);
+
+    const exact = await pool.request()
+        .input('email', 'NVarChar', input)
+        .query('SELECT TOP 1 * FROM Users WHERE LOWER(LTRIM(RTRIM(email))) = @email');
+    if (exact.recordset[0]) return exact.recordset[0];
+
+    const candidates = await pool.request()
+        .input('gmail', 'NVarChar', '%@gmail.com')
+        .input('googlemail', 'NVarChar', '%@googlemail.com')
+        .query(`SELECT * FROM Users WHERE email IS NOT NULL AND (
+            LOWER(email) LIKE @gmail OR LOWER(email) LIKE @googlemail
+        )`);
+
+    return candidates.recordset.find((user) => normalizeEmail(user.email) === needle) || null;
 };
 
 const findById = async (id) => {
@@ -23,20 +43,31 @@ const findById = async (id) => {
     return result.recordset[0] || null;
 };
 
-const create = async ({ name, email, password, phone, isAdmin = false }) => {
+const findByPhone = async (phone) => {
+    const normalized = String(phone || '').replace(/\D/g, '').slice(-10);
+    const pool = await getPool();
+    const result = await pool.request()
+        .input('phone', 'NVarChar', `%${normalized}`)
+        .query('SELECT TOP 1 * FROM Users WHERE phone LIKE @phone ORDER BY id ASC');
+    return result.recordset[0] || null;
+};
+
+const create = async ({ name, email, password, phone, isAdmin = false, role = 'passenger' }) => {
     const pool = await getPool();
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
+    const resolvedRole = isAdmin ? 'admin' : role;
 
     const result = await pool.request()
         .input('name', 'NVarChar', name)
         .input('email', 'NVarChar', email)
         .input('password', 'NVarChar', hashedPassword)
         .input('phone', 'NVarChar', phone)
-        .input('isAdmin', 'Bit', isAdmin)
-        .query(`INSERT INTO Users (name, email, password, phone, isAdmin)
+        .input('isAdmin', 'Bit', resolvedRole === 'admin')
+        .input('role', 'NVarChar', resolvedRole)
+        .query(`INSERT INTO Users (name, email, password, phone, isAdmin, role)
                 OUTPUT INSERTED.*
-                VALUES (@name, @email, @password, @phone, @isAdmin)`);
+                VALUES (@name, @email, @password, @phone, @isAdmin, @role)`);
 
     return result.recordset[0];
 };
@@ -46,14 +77,14 @@ const comparePassword = async (user, password) => bcrypt.compare(password, user.
 const findAll = async () => {
     const pool = await getPool();
     const result = await pool.request().query(`
-        SELECT id, name, email, phone, isAdmin, isBlocked, createdAt
+        SELECT id, name, email, phone, isAdmin, isBlocked, role, createdAt
         FROM Users
         ORDER BY createdAt DESC
     `);
     return result.recordset.map((user) => toSafeUser(user));
 };
 
-const updateUser = async (id, { isAdmin, isBlocked }) => {
+const updateUser = async (id, { isAdmin, isBlocked, role }) => {
     const pool = await getPool();
     const updates = [];
     const request = pool.request().input('id', 'Int', id);
@@ -61,10 +92,17 @@ const updateUser = async (id, { isAdmin, isBlocked }) => {
     if (typeof isAdmin === 'boolean') {
         updates.push('isAdmin = @isAdmin');
         request.input('isAdmin', 'Bit', isAdmin);
+        if (isAdmin) {
+            updates.push("role = 'admin'");
+        }
     }
     if (typeof isBlocked === 'boolean') {
         updates.push('isBlocked = @isBlocked');
         request.input('isBlocked', 'Bit', isBlocked);
+    }
+    if (role) {
+        updates.push('role = @role');
+        request.input('role', 'NVarChar', role);
     }
 
     if (!updates.length) return findById(id);
@@ -153,8 +191,44 @@ const getBookingStats = async (userId) => {
     };
 };
 
+const registerDevice = async (userId, { deviceLabel, userAgent }) => {
+    const pool = await getPool();
+    const result = await pool.request()
+        .input('userId', 'Int', userId)
+        .input('deviceLabel', 'NVarChar', deviceLabel)
+        .input('userAgent', 'NVarChar', userAgent)
+        .query(`INSERT INTO UserDevices (userId, deviceLabel, userAgent)
+                OUTPUT INSERTED.* VALUES (@userId, @deviceLabel, @userAgent)`);
+    return result.recordset[0];
+};
+
+const listDevices = async (userId) => {
+    const pool = await getPool();
+    const result = await pool.request()
+        .input('userId', 'Int', userId)
+        .query('SELECT * FROM UserDevices WHERE userId = @userId ORDER BY lastSeenAt DESC');
+    return result.recordset;
+};
+
+const setMfaSecret = async (userId, secret) => {
+    const pool = await getPool();
+    await pool.request()
+        .input('id', 'Int', userId)
+        .input('secret', 'NVarChar', secret)
+        .query('UPDATE Users SET mfaSecret = @secret, updatedAt = SYSUTCDATETIME() WHERE id = @id');
+};
+
+const setMfaEnabled = async (userId, enabled) => {
+    const pool = await getPool();
+    await pool.request()
+        .input('id', 'Int', userId)
+        .input('enabled', 'Bit', enabled ? 1 : 0)
+        .query('UPDATE Users SET mfaEnabled = @enabled, updatedAt = SYSUTCDATETIME() WHERE id = @id');
+};
+
 module.exports = {
     findByEmail,
+    findByPhone,
     findById,
     create,
     comparePassword,
@@ -165,5 +239,9 @@ module.exports = {
     updateProfile,
     updateAvatar,
     clearAvatar,
-    getBookingStats
+    getBookingStats,
+    registerDevice,
+    listDevices,
+    setMfaSecret,
+    setMfaEnabled
 };

@@ -355,3 +355,368 @@ BEGIN
     ADD CONSTRAINT FK_SavedPassengers_Users FOREIGN KEY (userId) REFERENCES dbo.Users(id) ON DELETE CASCADE;
 END
 GO
+
+IF COL_LENGTH('dbo.Users', 'role') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD role NVARCHAR(30) NOT NULL DEFAULT 'passenger';
+END
+GO
+
+IF COL_LENGTH('dbo.Users', 'mfaEnabled') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD mfaEnabled BIT NOT NULL DEFAULT 0;
+END
+GO
+
+IF COL_LENGTH('dbo.Users', 'isBlocked') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD isBlocked BIT NOT NULL DEFAULT 0;
+END
+GO
+
+UPDATE dbo.Users SET role = 'admin' WHERE isAdmin = 1 AND (role IS NULL OR role = 'passenger');
+GO
+
+IF COL_LENGTH('dbo.Bookings', 'paymentHoldExpiresAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.Bookings ADD paymentHoldExpiresAt DATETIME2 NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'nationality') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD nationality NVARCHAR(50) NULL DEFAULT 'Indian';
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'mobile') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD mobile NVARCHAR(15) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'email') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD email NVARCHAR(150) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'idType') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD idType NVARCHAR(30) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'idNumber') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD idNumber NVARCHAR(50) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'foodPreference') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD foodPreference NVARCHAR(30) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'insuranceOptIn') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD insuranceOptIn BIT NOT NULL DEFAULT 0;
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'isSeniorCitizen') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD isSeniorCitizen BIT NOT NULL DEFAULT 0;
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'isDivyang') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD isDivyang BIT NOT NULL DEFAULT 0;
+END
+GO
+
+IF COL_LENGTH('dbo.Stations', 'platformCount') IS NULL
+BEGIN
+    ALTER TABLE dbo.Stations ADD platformCount INT NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Stations', 'amenities') IS NULL
+BEGIN
+    ALTER TABLE dbo.Stations ADD amenities NVARCHAR(MAX) NULL;
+END
+GO
+
+IF OBJECT_ID('dbo.Notifications', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.Notifications (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NOT NULL,
+        type NVARCHAR(40) NOT NULL,
+        title NVARCHAR(150) NOT NULL,
+        message NVARCHAR(500) NOT NULL,
+        meta NVARCHAR(MAX) NULL,
+        isRead BIT NOT NULL DEFAULT 0,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.SupportTickets', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SupportTickets (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NULL,
+        subject NVARCHAR(200) NOT NULL,
+        category NVARCHAR(50) NOT NULL,
+        message NVARCHAR(MAX) NOT NULL,
+        status NVARCHAR(20) NOT NULL DEFAULT 'Open',
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.AuditLogs', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.AuditLogs (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NULL,
+        action NVARCHAR(100) NOT NULL,
+        resource NVARCHAR(100) NULL,
+        details NVARCHAR(MAX) NULL,
+        ipAddress NVARCHAR(45) NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.FavoriteRoutes', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.FavoriteRoutes (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NOT NULL,
+        sourceCode NVARCHAR(10) NOT NULL,
+        destinationCode NVARCHAR(10) NOT NULL,
+        label NVARCHAR(100) NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.UserPreferences', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.UserPreferences (
+        userId INT PRIMARY KEY,
+        notifyBooking BIT NOT NULL DEFAULT 1,
+        notifyRefund BIT NOT NULL DEFAULT 1,
+        notifyDelay BIT NOT NULL DEFAULT 1,
+        notifyChart BIT NOT NULL DEFAULT 1,
+        gstNumber NVARCHAR(20) NULL,
+        gstBusinessName NVARCHAR(150) NULL,
+        updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.UserDevices', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.UserDevices (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NOT NULL,
+        deviceLabel NVARCHAR(100) NOT NULL,
+        userAgent NVARCHAR(300) NULL,
+        lastSeenAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+-- Extended IRCTC schema
+IF COL_LENGTH('dbo.Users', 'mfaSecret') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD mfaSecret NVARCHAR(64) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Bookings', 'chartPrepared') IS NULL
+BEGIN
+    ALTER TABLE dbo.Bookings ADD chartPrepared BIT NOT NULL DEFAULT 0;
+END
+GO
+
+IF COL_LENGTH('dbo.Stations', 'latitude') IS NULL
+BEGIN
+    ALTER TABLE dbo.Stations ADD latitude DECIMAL(9,6) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Stations', 'longitude') IS NULL
+BEGIN
+    ALTER TABLE dbo.Stations ADD longitude DECIMAL(9,6) NULL;
+END
+GO
+
+IF OBJECT_ID('dbo.OAuthAccounts', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OAuthAccounts (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NOT NULL,
+        provider NVARCHAR(20) NOT NULL,
+        providerUserId NVARCHAR(100) NOT NULL,
+        email NVARCHAR(150) NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_OAuthAccounts_Provider_User UNIQUE (provider, providerUserId)
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.OtpCodes', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OtpCodes (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        phone NVARCHAR(15) NOT NULL,
+        otpHash NVARCHAR(128) NOT NULL,
+        expiresAt DATETIME2 NOT NULL,
+        used BIT NOT NULL DEFAULT 0,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.UserLoyalty', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.UserLoyalty (
+        userId INT PRIMARY KEY,
+        points INT NOT NULL DEFAULT 0,
+        tier NVARCHAR(20) NOT NULL DEFAULT 'Silver',
+        lifetimePoints INT NOT NULL DEFAULT 0,
+        updatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.SavedPaymentMethods', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SavedPaymentMethods (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NOT NULL,
+        type NVARCHAR(20) NOT NULL,
+        label NVARCHAR(100) NOT NULL,
+        last4 NVARCHAR(4) NULL,
+        isDefault BIT NOT NULL DEFAULT 0,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.SupportChatMessages', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SupportChatMessages (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NULL,
+        sessionId NVARCHAR(64) NOT NULL,
+        sender NVARCHAR(20) NOT NULL,
+        message NVARCHAR(MAX) NOT NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.SearchCache', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SearchCache (
+        cacheKey NVARCHAR(200) PRIMARY KEY,
+        payload NVARCHAR(MAX) NOT NULL,
+        expiresAt DATETIME2 NOT NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.IdempotencyKeys', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.IdempotencyKeys (
+        idempotencyKey NVARCHAR(64) NOT NULL,
+        userId INT NULL,
+        route NVARCHAR(120) NOT NULL,
+        statusCode INT NOT NULL,
+        responseBody NVARCHAR(MAX) NOT NULL,
+        expiresAt DATETIME2 NOT NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT PK_IdempotencyKeys PRIMARY KEY (idempotencyKey, route)
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.OutboxEvents', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.OutboxEvents (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        aggregateType NVARCHAR(40) NOT NULL,
+        aggregateId INT NOT NULL,
+        eventType NVARCHAR(60) NOT NULL,
+        payload NVARCHAR(MAX) NOT NULL,
+        status NVARCHAR(20) NOT NULL DEFAULT 'Pending',
+        attempts INT NOT NULL DEFAULT 0,
+        lastError NVARCHAR(500) NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        processedAt DATETIME2 NULL
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.WebhookEvents', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.WebhookEvents (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        provider NVARCHAR(30) NOT NULL,
+        eventId NVARCHAR(100) NOT NULL,
+        eventType NVARCHAR(60) NOT NULL,
+        payload NVARCHAR(MAX) NULL,
+        processedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT UQ_WebhookEvents_Provider_Event UNIQUE (provider, eventId)
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.ReconciliationLog', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.ReconciliationLog (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        runType NVARCHAR(40) NOT NULL,
+        matchedCount INT NOT NULL DEFAULT 0,
+        mismatchCount INT NOT NULL DEFAULT 0,
+        autoFixedCount INT NOT NULL DEFAULT 0,
+        details NVARCHAR(MAX) NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF COL_LENGTH('dbo.Bookings', 'idempotencyKey') IS NULL
+BEGIN
+    ALTER TABLE dbo.Bookings ADD idempotencyKey NVARCHAR(64) NULL;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Bookings_JourneyDate')
+BEGIN
+    CREATE INDEX IX_Bookings_JourneyDate ON dbo.Bookings(journeyDate);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Bookings_Status_Payment')
+BEGIN
+    CREATE INDEX IX_Bookings_Status_Payment ON dbo.Bookings(status, paymentStatus);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_OutboxEvents_Status')
+BEGIN
+    CREATE INDEX IX_OutboxEvents_Status ON dbo.OutboxEvents(status, createdAt);
+END
+GO

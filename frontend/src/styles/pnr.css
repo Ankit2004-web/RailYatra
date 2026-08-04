@@ -444,6 +444,41 @@
   background: rgba(18, 184, 184, 0.04);
 }
 
+.pnr-ticket-no-cell {
+  min-width: 168px;
+}
+
+.pnr-passenger-ticket-no {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--muted-bg);
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--brand-deep);
+  white-space: nowrap;
+}
+
+.pnr-passenger-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.pnr-current-status {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--brand-dark);
+  font-family: ui-monospace, 'Cascadia Code', Consolas, monospace;
+}
+
 .pnr-ticket-foot {
   display: flex;
   align-items: center;

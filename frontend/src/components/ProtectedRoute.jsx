@@ -1,7 +1,8 @@
 import { Link, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { isStaffRole, resolveRole } from '../constants/roles';
 
-export default function ProtectedRoute({ children, adminOnly = false }) {
+export default function ProtectedRoute({ children, adminOnly = false, staffOnly = false }) {
   const { user, loading, blockedMessage } = useAuth();
   const location = useLocation();
 
@@ -24,10 +25,16 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
   }
 
   if (!user) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    const loginPath = adminOnly ? '/admin/login' : '/login';
+    return <Navigate to={loginPath} state={{ from: location.pathname }} replace />;
   }
 
   if (adminOnly && !user.isAdmin) {
+    return <Navigate to="/home" replace />;
+  }
+
+  const role = resolveRole(user);
+  if (staffOnly && !isStaffRole(role)) {
     return <Navigate to="/home" replace />;
   }
 

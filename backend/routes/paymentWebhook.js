@@ -1,6 +1,7 @@
 const bookingRepository = require('../repositories/bookingRepository');
 const paymentRepository = require('../repositories/paymentRepository');
 const razorpayService = require('../services/razorpayService');
+const webhookEventRepository = require('../repositories/webhookEventRepository');
 const { isAwaitingPayment } = require('../utils/bookingStatus');
 
 const handlePaymentWebhook = async (req, res) => {
@@ -18,6 +19,20 @@ const handlePaymentWebhook = async (req, res) => {
 
         const payload = JSON.parse(rawBody.toString('utf8'));
         const event = payload.event;
+        const eventId = payload.payload?.payment?.entity?.id
+            || payload.payload?.refund?.entity?.id
+            || `${event}-${payload.created_at || Date.now()}`;
+
+        const isNew = await webhookEventRepository.markProcessed({
+            provider: 'razorpay',
+            eventId: String(eventId),
+            eventType: event,
+            payload: { event }
+        });
+
+        if (!isNew) {
+            return res.json({ status: 'duplicate_ignored' });
+        }
 
         if (event === 'payment.captured') {
             const paymentEntity = payload.payload?.payment?.entity;

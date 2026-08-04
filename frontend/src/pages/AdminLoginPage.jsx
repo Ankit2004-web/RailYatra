@@ -40,6 +40,7 @@ export default function AdminLoginPage() {
 
   return (
     <AuthShell
+      variant="enterprise"
       title="Admin login"
       subtitle="Sign in to manage trains, bookings, stations, and reports."
       sideTitle="Operations dashboard"
@@ -72,7 +73,7 @@ export default function AdminLoginPage() {
         </button>
       </form>
       <p className="auth-switch">
-        <Link to="/login">← Passenger login</Link> · <Link to="/home">Home</Link>
+        <Link to="/login">← Passenger login</Link>
       </p>
     </AuthShell>
   );

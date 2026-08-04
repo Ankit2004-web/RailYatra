@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeftRight, Search, TrainFront, MapPin, ShieldCheck,
-  Route, Ticket, ArrowUpRight, Calendar
+  Route, Ticket, ArrowUpRight, Calendar, Radio, Headphones, Tag, XCircle, Bell
 } from 'lucide-react';
 import StationAutocomplete from '../components/StationAutocomplete';
 import Modal from '../components/Modal';
+import VoiceSearchButton from '../components/VoiceSearchButton';
+import { useAuth } from '../context/AuthContext';
+import { api } from '../api/client';
 
 const CLASS_OPTIONS = [
   { value: '', label: 'All Classes' },
@@ -39,15 +42,31 @@ function saveRecent(entry) {
 export default function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const today = new Date().toISOString().split('T')[0];
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
   const [date, setDate] = useState(today);
+  const [flexDays, setFlexDays] = useState(0);
   const [classCode, setClassCode] = useState('');
   const [routeAware, setRouteAware] = useState(true);
   const [recent, setRecent] = useState([]);
   const [routeModalOpen, setRouteModalOpen] = useState(false);
   const [searchHighlight, setSearchHighlight] = useState(false);
+  const [upcoming, setUpcoming] = useState(null);
+
+  useEffect(() => {
+    if (!user) return;
+    api.get('/bookings')
+      .then((bookings) => {
+        const next = (bookings || [])
+          .filter((b) => ['Confirmed', 'RAC', 'Waitlisted', 'Pending'].includes(b.status))
+          .filter((b) => String(b.journeyDate || '').slice(0, 10) >= today)
+          .sort((a, b) => String(a.journeyDate).localeCompare(String(b.journeyDate)))[0];
+        setUpcoming(next || null);
+      })
+      .catch(() => {});
+  }, [user, today]);
 
   useEffect(() => {
     setRecent(loadRecent());
@@ -86,6 +105,7 @@ export default function HomePage() {
     const params = new URLSearchParams({ source: src, destination: dest, date: dt });
     if (cls) params.set('class', cls);
     if (routeAware) params.set('routeAware', '1');
+    if (flexDays > 0) params.set('flexDays', String(flexDays));
     saveRecent({ source: src, destination: dest, date: dt });
     setRecent(loadRecent());
     navigate(`/search?${params}`);
@@ -186,6 +206,15 @@ export default function HomePage() {
                   ))}
                 </select>
               </div>
+              <div className="field">
+                <label htmlFor="flex">Flexible ± days</label>
+                <select id="flex" className="input" value={flexDays} onChange={(e) => setFlexDays(Number(e.target.value))}>
+                  <option value={0}>Exact date</option>
+                  <option value={1}>± 1 day</option>
+                  <option value={2}>± 2 days</option>
+                  <option value={3}>± 3 days</option>
+                </select>
+              </div>
             </div>
 
             <label className="route-aware-toggle">
@@ -195,8 +224,14 @@ export default function HomePage() {
                 onChange={(e) => setRouteAware(e.target.checked)}
               />
               <span className="toggle-track" aria-hidden="true" />
-              <span>Search with boarding &amp; alighting stations (Route-aware)</span>
+              <span>Direct trains only (route-aware search)</span>
             </label>
+
+            <VoiceSearchButton onResult={(text) => {
+              const parts = text.split(/ to | से | towards /i);
+              if (parts[0]) setSource(parts[0].trim().toUpperCase().slice(0, 10));
+              if (parts[1]) setDestination(parts[1].trim().toUpperCase().slice(0, 10));
+            }} />
 
             <button type="submit" className="btn btn-primary btn-block btn-search-trains">
               <Search size={18} aria-hidden="true" /> Search Trains
@@ -223,6 +258,56 @@ export default function HomePage() {
               </div>
             )}
           </form>
+        </div>
+      </section>
+
+      <section className="home-dashboard container">
+        <h2 className="home-dashboard-title">Quick actions</h2>
+        <div className="home-dashboard-grid">
+          <button type="button" className="home-dash-card card" onClick={() => document.getElementById('plan-journey')?.scrollIntoView({ behavior: 'smooth' })}>
+            <Search size={20} /><span>Search Train</span>
+          </button>
+          <Link to="/pnr" className="home-dash-card card"><Ticket size={20} /><span>PNR Status</span></Link>
+          <Link to="/live-trains" className="home-dash-card card"><Radio size={20} /><span>Live Train Status</span></Link>
+          <Link to="/book" className="home-dash-card card"><TrainFront size={20} /><span>Book Ticket</span></Link>
+          <Link to="/bookings" className="home-dash-card card"><XCircle size={20} /><span>Cancel Ticket</span></Link>
+          <Link to="/offers" className="home-dash-card card"><Tag size={20} /><span>Offers</span></Link>
+          <Link to="/support" className="home-dash-card card"><Headphones size={20} /><span>Support</span></Link>
+          <Link to="/bookings" className="home-dash-card card"><Bell size={20} /><span>Notifications</span></Link>
+        </div>
+
+        {upcoming && (
+          <div className="home-upcoming card">
+            <h3>Upcoming journey</h3>
+            <p>
+              <strong>{upcoming.train?.trainNumber || upcoming.trainNumber}</strong>
+              {' · '}{upcoming.source} → {upcoming.destination}
+              {' · '}{String(upcoming.journeyDate).slice(0, 10)}
+              {' · '}PNR {upcoming.pnr}
+            </p>
+            <Link to="/bookings" className="btn btn-outline btn-sm">View booking</Link>
+          </div>
+        )}
+
+        <div className="home-popular-routes card">
+          <h3>Popular routes</h3>
+          <div className="recent-chips">
+            {[
+              { source: 'NDLS', destination: 'BCT', label: 'Delhi → Mumbai' },
+              { source: 'NDLS', destination: 'HWH', label: 'Delhi → Kolkata' },
+              { source: 'BCT', destination: 'SBC', label: 'Mumbai → Bengaluru' },
+              { source: 'MAS', destination: 'HYB', label: 'Chennai → Hyderabad' }
+            ].map((r) => (
+              <button
+                key={r.label}
+                type="button"
+                className="recent-chip"
+                onClick={() => runSearch(r.source, r.destination, date, classCode)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
 

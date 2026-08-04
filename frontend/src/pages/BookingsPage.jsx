@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { completeBookingPayment } from '../utils/paymentFlow';
 import { formatDisplayDate, formatJourneyDay, formatBoardingTime, normalizeDateInput } from '../utils/trainMapper';
 import { isAwaitingPayment, bookingFareAmount } from '../utils/bookingStatus';
+import PartialCancelModal from '../components/PartialCancelModal';
 
 const FILTERS = [
   { id: 'all', label: 'All' },
@@ -50,7 +51,7 @@ async function downloadTicket(bookingId, pnrNumber) {
   URL.revokeObjectURL(url);
 }
 
-function BookingCard({ booking, onCancel, onDownload, onPay, downloading, payingId }) {
+function BookingCard({ booking, onCancel, onPartialCancel, onDownload, onPay, downloading, payingId }) {
   const passengerCount = booking.passengers?.length || 0;
   const boardingTime = formatBoardingTime(
     booking.boarding?.departureTime || booking.train?.departureTime
@@ -164,13 +165,20 @@ function BookingCard({ booking, onCancel, onDownload, onPay, downloading, paying
           </button>
         )}
         {['Confirmed', 'Pending', 'Waitlisted', 'RAC'].includes(booking.status) && (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm my-booking-cancel"
-            onClick={() => onCancel(booking.id)}
-          >
-            <XCircle size={14} aria-hidden="true" /> Cancel
-          </button>
+          <>
+            {(booking.passengers?.length || 0) > 1 && (
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => onPartialCancel(booking)}>
+                <Users size={14} aria-hidden="true" /> Partial cancel
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm my-booking-cancel"
+              onClick={() => onCancel(booking.id)}
+            >
+              <XCircle size={14} aria-hidden="true" /> Cancel all
+            </button>
+          </>
         )}
       </div>
 
@@ -191,6 +199,7 @@ function BookingsContent() {
   const [downloadingId, setDownloadingId] = useState(null);
   const [payingId, setPayingId] = useState(null);
   const [actionError, setActionError] = useState('');
+  const [partialBooking, setPartialBooking] = useState(null);
 
   useEffect(() => {
     api.get('/bookings')
@@ -366,6 +375,7 @@ function BookingsContent() {
                 key={b.id}
                 booking={b}
                 onCancel={cancel}
+                onPartialCancel={setPartialBooking}
                 onDownload={handleDownload}
                 onPay={handlePay}
                 downloading={downloadingId === b.id}
@@ -374,6 +384,13 @@ function BookingsContent() {
             ))}
           </div>
         )}
+
+        <PartialCancelModal
+          booking={partialBooking}
+          open={!!partialBooking}
+          onClose={() => setPartialBooking(null)}
+          onDone={() => api.get('/bookings').then(setBookings)}
+        />
 
         {bookings.length > 0 && (
           <div className="my-bookings-help card">

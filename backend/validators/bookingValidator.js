@@ -1,4 +1,5 @@
 const { body } = require('express-validator');
+const { VALID_QUOTAS } = require('../utils/quota');
 
 const VALID_CLASS_CODES = ['SL', '2S', '3A', '2A', '1A', 'CC', 'EC'];
 
@@ -7,7 +8,7 @@ const bookingRules = [
     body('journeyDate').isISO8601().withMessage('Valid journey date is required'),
     body('classCode').isIn(VALID_CLASS_CODES).withMessage('Valid class code is required'),
     body('bookingType').optional().isIn(['General', 'Tatkal']).withMessage('Booking type must be General or Tatkal'),
-    body('quota').optional().isIn(['General', 'Ladies', 'SeniorCitizen']).withMessage('Invalid quota'),
+    body('quota').optional().isIn(VALID_QUOTAS).withMessage('Invalid quota'),
     body('joinWaitlist').optional().isBoolean().withMessage('joinWaitlist must be boolean'),
     body('joinRac').optional().isBoolean().withMessage('joinRac must be boolean'),
     body('seatNumbers').optional().isArray().withMessage('seatNumbers must be an array'),

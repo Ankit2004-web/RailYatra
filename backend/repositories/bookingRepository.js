@@ -6,10 +6,24 @@ const { calculateRefund } = require('../utils/refund');
 const { parsePaymentBreakdown } = require('../utils/paymentBreakdown');
 const { sendBookingConfirmationEmail } = require('../services/emailService');
 const runningDayService = require('../services/runningDayService');
+const notificationRepository = require('./notificationRepository');
+const outboxRepository = require('./outboxRepository');
+
+async function notifyUser(userId, type, title, message, meta) {
+    if (!userId) return;
+    try {
+        await notificationRepository.create({ userId, type, title, message, meta });
+    } catch (_) { /* notifications table may not exist in older DBs */ }
+}
 
 const parseSeatNumbers = (value) => {
+    if (Array.isArray(value)) return value;
+    if (value == null || value === '') return [];
+    if (typeof value === 'number') return [value];
     try {
-        return JSON.parse(value || '[]');
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) return parsed;
+        return parsed != null && parsed !== '' ? [parsed] : [];
     } catch {
         return [];
     }
@@ -385,9 +399,9 @@ const createBooking = async ({
                     }
 
                     const inserted = await query(
-                        `INSERT INTO Bookings (userId, trainId, totalPrice, grandTotal, paymentBreakdown, seatNumbers, journeyDate, pnrNumber, status, classCode, bookingType, paymentStatus, quota, fromStationId, toStationId)
+                        `INSERT INTO Bookings (userId, trainId, totalPrice, grandTotal, paymentBreakdown, seatNumbers, journeyDate, pnrNumber, status, classCode, bookingType, paymentStatus, quota, fromStationId, toStationId, paymentHoldExpiresAt)
                          OUTPUT INSERTED.*
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, 'Pending', ?, ?, ?)`,
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, 'Pending', ?, ?, ?, DATEADD(MINUTE, 10, SYSUTCDATETIME()))`,
                         [userId, trainId, totalPrice, grandTotal, paymentBreakdown, JSON.stringify(seatNumbers), journeyDate, pnrNumber, classCode, bookingType, quota, fromStationId || null, toStationId || null]
                     );
                     booking = inserted[0];
@@ -416,14 +430,25 @@ const createBooking = async ({
         for (const passenger of passengers) {
             const passengerStatus = booking.status === 'RAC' ? 'RAC' : booking.status === 'Waitlisted' ? 'Waitlisted' : 'Confirmed';
             await query(
-                'INSERT INTO Passengers (bookingId, name, age, gender, berthPreference, passengerStatus) VALUES (?, ?, ?, ?, ?, ?)',
+                `INSERT INTO Passengers (bookingId, name, age, gender, berthPreference, passengerStatus,
+                 nationality, mobile, email, idType, idNumber, foodPreference, insuranceOptIn, isSeniorCitizen, isDivyang)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     booking.id,
                     passenger.name,
                     passenger.age,
                     passenger.gender,
                     passenger.berthPreference || null,
-                    passengerStatus
+                    passengerStatus,
+                    passenger.nationality || 'Indian',
+                    passenger.mobile || null,
+                    passenger.email || null,
+                    passenger.idType || null,
+                    passenger.idNumber || null,
+                    passenger.foodPreference || null,
+                    passenger.insuranceOptIn ? 1 : 0,
+                    passenger.isSeniorCitizen || Number(passenger.age) >= 60 ? 1 : 0,
+                    passenger.isDivyang ? 1 : 0
                 ]
             );
         }
@@ -568,6 +593,19 @@ const confirmBooking = async (bookingId) => {
                 ticketUrl: `${process.env.APP_URL || 'http://localhost:5000'}/api/bookings/${bookingId}/ticket`
             }).catch(() => {});
         }
+        if (booking?.userId) {
+            await outboxRepository.enqueue({
+                aggregateType: 'booking',
+                aggregateId: bookingId,
+                eventType: 'booking.confirmed',
+                payload: {
+                    userId: booking.userId,
+                    pnr: booking.pnrNumber || booking.pnr,
+                    bookingId,
+                    points: Math.max(10, Math.floor(Number(booking.grandTotal || booking.totalPrice) / 100))
+                }
+            }).catch(() => {});
+        }
         return booking;
     }
 
@@ -583,6 +621,15 @@ const confirmBooking = async (bookingId) => {
                 booking,
                 ticketUrl: `${process.env.APP_URL || 'http://localhost:5000'}/api/bookings/${bookingId}/ticket`
             }).catch(() => {});
+        }
+        if (booking?.userId) {
+            await notifyUser(
+                booking.userId,
+                'payment_received',
+                'Payment received',
+                `Payment for PNR ${booking.pnr || bookingId} (${booking.status}) is recorded.`,
+                { bookingId, pnr: booking.pnr, status: booking.status }
+            );
         }
         return booking;
     }
@@ -855,6 +902,22 @@ const updateStatus = async (id, status, userId, isAdmin) => {
         await paymentRepository.markRefunded(txResult.bookingId);
     }
 
+    if (status === 'Cancelled') {
+        const cancelled = await findById(txResult.bookingId);
+        if (cancelled?.userId) {
+            const refundMsg = txResult.refund?.refundAmount > 0
+                ? ` Refund of ₹${txResult.refund.refundAmount} initiated.`
+                : '';
+            await notifyUser(
+                cancelled.userId,
+                'booking_cancelled',
+                'Booking cancelled',
+                `PNR ${cancelled.pnr || cancelled.id} has been cancelled.${refundMsg}`,
+                { bookingId: cancelled.id, refund: txResult.refund }
+            );
+        }
+    }
+
     return {
         booking: await findById(txResult.bookingId),
         refund: txResult.refund || null
@@ -916,6 +979,59 @@ const promoteRacManually = async (trainId, classCode, journeyDate) => withTransa
     return bookingId ? findById(bookingId) : null;
 });
 
+const releaseExpiredPaymentHolds = async () => withTransaction(async ({ query }) => {
+    const expired = await query(
+        `SELECT id FROM Bookings WITH (UPDLOCK, ROWLOCK)
+         WHERE status = 'Pending' AND paymentStatus = 'Pending'
+           AND paymentHoldExpiresAt IS NOT NULL AND paymentHoldExpiresAt < SYSUTCDATETIME()`
+    );
+    for (const row of expired) {
+        await seatRepository.releaseSeatsForBooking(query, row.id);
+        const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [row.id]);
+        const bookingRows = await query('SELECT trainId, classCode FROM Bookings WHERE id = ?', [row.id]);
+        if (bookingRows[0]) {
+            await restoreAvailability(query, bookingRows[0].trainId, bookingRows[0].classCode, passengerRows[0].count);
+        }
+        await query(
+            `UPDATE Bookings SET status = 'Cancelled', paymentStatus = 'Failed', updatedAt = SYSUTCDATETIME() WHERE id = ?`,
+            [row.id]
+        );
+    }
+    return expired.length;
+});
+
+const cancelPassenger = async (bookingId, passengerId, userId, isAdmin) => withTransaction(async ({ query }) => {
+    const bookingRows = await query('SELECT * FROM Bookings WHERE id = ?', [bookingId]);
+    const booking = bookingRows[0];
+    if (!booking) return { error: 'Booking not found', status: 404 };
+    if (booking.userId !== userId && !isAdmin) return { error: 'Not authorized', status: 403 };
+    if (!['Confirmed', 'Pending', 'RAC', 'Waitlisted'].includes(booking.status)) {
+        return { error: 'Booking cannot be partially cancelled', status: 400 };
+    }
+
+    const passengerRows = await query('SELECT * FROM Passengers WHERE id = ? AND bookingId = ?', [passengerId, bookingId]);
+    if (!passengerRows[0]) return { error: 'Passenger not found', status: 404 };
+
+    const allPassengers = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [bookingId]);
+    if (allPassengers[0].count <= 1) {
+        return { error: 'Use full cancellation when only one passenger remains', status: 400 };
+    }
+
+    const originalCount = allPassengers[0].count;
+    await query('DELETE FROM Passengers WHERE id = ?', [passengerId]);
+    const remaining = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [bookingId]);
+    const ratio = remaining[0].count / originalCount;
+    const newTotal = Math.round(Number(booking.totalPrice) * ratio);
+    const newGrand = booking.grandTotal ? Math.round(Number(booking.grandTotal) * ratio) : null;
+
+    await query(
+        'UPDATE Bookings SET totalPrice = ?, grandTotal = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?',
+        [newTotal, newGrand, bookingId]
+    );
+
+    return { bookingId, remainingPassengers: remaining[0].count };
+});
+
 module.exports = {
     findByUserId,
     findAll,
@@ -931,5 +1047,7 @@ module.exports = {
     updateStatus,
     promoteWaitlistManually,
     promoteRacManually,
+    releaseExpiredPaymentHolds,
+    cancelPassenger,
     getRefundPreview
 };

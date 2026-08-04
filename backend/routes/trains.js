@@ -41,19 +41,20 @@ router.get('/autocomplete', async (req, res) => {
 });
 
 router.get('/search', async (req, res) => {
-    const { source, destination, from, to, date, class: classCode, quota } = req.query;
+    const { source, destination, from, to, date, class: classCode, quota, flexDays } = req.query;
 
     try {
-        const trains = await trainSearchService.search({
+        const result = await trainSearchService.search({
             source: source || from,
             destination: destination || to,
             from,
             to,
             date,
             classCode,
-            quota
+            quota,
+            flexDays: flexDays ? Number(flexDays) : 0
         });
-        res.json(trains);
+        res.json(result);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ msg: 'Server error' });

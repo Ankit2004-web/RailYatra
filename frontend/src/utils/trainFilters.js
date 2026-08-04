@@ -46,42 +46,45 @@ function matchesBucket(minutesInDayValue, bucket) {
   return minutesInDayValue >= bucket.from && minutesInDayValue <= bucket.to;
 }
 
-export function applyTrainFilters(trains, filters, sortBy, journeyDate) {
-  let list = trains.map((t) => mapTrainApiResponseToViewModel(t, journeyDate));
+export function applyTrainFilters(trains, filters, sortBy, journeyDate, searchContext = {}) {
+  let list = trains.map((raw) => ({
+    raw,
+    vm: mapTrainApiResponseToViewModel(raw, journeyDate, searchContext)
+  }));
 
   if (filters.classes.length) {
-    list = list.filter((t) =>
-      t.classes.some((c) => filters.classes.includes(c.classCode))
+    list = list.filter(({ vm }) =>
+      vm.classes.some((c) => filters.classes.includes(c.classCode))
     );
   }
 
   if (filters.departureBuckets.length) {
     const buckets = DEPARTURE_BUCKETS.filter((b) => filters.departureBuckets.includes(b.id));
-    list = list.filter((t) => {
-      const mins = minutesInDay(t.from.time);
+    list = list.filter(({ vm }) => {
+      const mins = minutesInDay(vm.from.time);
       return buckets.some((b) => matchesBucket(mins, b));
     });
   }
 
   if (filters.arrivalBuckets.length) {
     const buckets = ARRIVAL_BUCKETS.filter((b) => filters.arrivalBuckets.includes(b.id));
-    list = list.filter((t) => {
-      const mins = minutesInDay(t.to.time);
+    list = list.filter(({ vm }) => {
+      const mins = minutesInDay(vm.to.time);
       return buckets.some((b) => matchesBucket(mins, b));
     });
   }
 
   if (filters.durations.length) {
     const tests = DURATION_BUCKETS.filter((b) => filters.durations.includes(b.id));
-    list = list.filter((t) => tests.some((b) => b.test(t.durationMinutes)));
+    list = list.filter(({ vm }) => tests.some((b) => b.test(vm.durationMinutes)));
   }
 
   if (filters.trainTypes.length) {
-    list = list.filter((t) => t.trainTypeCode && filters.trainTypes.includes(t.trainTypeCode));
+    list = list.filter(({ vm }) => vm.trainTypeCode && filters.trainTypes.includes(vm.trainTypeCode));
   }
 
-  list.sort((a, b) => compareTrains(a, b, sortBy));
-  return list;
+  list.sort((a, b) => compareTrains(a.vm, b.vm, sortBy));
+  return list.map(({ raw }) => raw);
 }
 
 function compareTrains(a, b, sortBy) {

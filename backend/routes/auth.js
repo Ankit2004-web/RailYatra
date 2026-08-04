@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const auth = require('../middleware/auth');
 const validate = require('../middleware/validate');
 const validateCaptcha = require('../middleware/captcha');
+const normalizeLoginBody = require('../middleware/normalizeLoginBody');
 const { authLimiter } = require('../middleware/rateLimit');
 const { registerRules, loginRules, forgotPasswordRules, resetPasswordRules, profileRules, changePasswordRules, avatarRules } = require('../validators/authValidator');
 const userRepository = require('../repositories/userRepository');
@@ -12,12 +13,16 @@ const passwordResetRepository = require('../repositories/passwordResetRepository
 const { sendPasswordResetEmail } = require('../services/emailService');
 const { saveAvatar, removeAvatarFiles } = require('../services/avatarService');
 const logger = require('../utils/logger');
+const auditRepository = require('../repositories/auditRepository');
+const { resolveRole } = require('../constants/roles');
+const { normalizeEmail } = require('../utils/email');
 
 const signToken = (user, rememberMe = false) => {
     const payload = {
         user: {
             id: user.id,
-            isAdmin: !!user.isAdmin
+            isAdmin: resolveRole(user) === 'admin' || !!user.isAdmin,
+            role: resolveRole(user)
         }
     };
     const expiresIn = rememberMe ? '30d' : '24h';
@@ -26,15 +31,31 @@ const signToken = (user, rememberMe = false) => {
 
 router.post('/register', authLimiter, registerRules, validate, validateCaptcha, async (req, res) => {
     const { name, email, password, phone } = req.body;
+    const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
+    const resolvedEmail = email?.trim()
+        ? normalizeEmail(email.trim())
+        : `${normalizedPhone}@railyatra.local`;
 
     try {
-        const existingUser = await userRepository.findByEmail(email);
+        const existingUser = await userRepository.findByEmail(resolvedEmail);
         if (existingUser) {
             return res.status(400).json({ msg: 'User already exists' });
         }
 
-        const user = await userRepository.create({ name, email, password, phone });
+        const existingPhone = await userRepository.findByPhone(normalizedPhone);
+        if (existingPhone) {
+            return res.status(400).json({ msg: 'Mobile number already registered' });
+        }
+
+        const user = await userRepository.create({ name, email: resolvedEmail, password, phone: normalizedPhone });
         logger.info('User registered', { userId: user.id, email });
+        auditRepository.log({
+            userId: user.id,
+            action: 'auth.register',
+            resource: `user:${user.id}`,
+            details: { email },
+            ipAddress: req.ip
+        }).catch(() => {});
         res.json({ token: signToken(user) });
     } catch (err) {
         logger.error('Register failed', { error: err.message });
@@ -42,11 +63,14 @@ router.post('/register', authLimiter, registerRules, validate, validateCaptcha, 
     }
 });
 
-router.post('/login', authLimiter, loginRules, validate, validateCaptcha, async (req, res) => {
-    const { email, password, rememberMe } = req.body;
+router.post('/login', authLimiter, normalizeLoginBody, loginRules, validate, validateCaptcha, async (req, res) => {
+    const { phone, password, rememberMe } = req.body;
+    const loginId = String(phone || '').trim();
 
     try {
-        const user = await userRepository.findByEmail(email);
+        const user = loginId.includes('@')
+            ? await userRepository.findByEmail(loginId)
+            : await userRepository.findByPhone(loginId);
         if (!user) {
             return res.status(400).json({ msg: 'Invalid credentials' });
         }
@@ -60,7 +84,30 @@ router.post('/login', authLimiter, loginRules, validate, validateCaptcha, async 
             return res.status(403).json({ msg: 'Your account has been blocked. Contact admin.' });
         }
 
+        if (user.mfaEnabled && user.mfaSecret) {
+            const pendingToken = jwt.sign(
+                { mfaPending: true, user: { id: user.id } },
+                process.env.JWT_SECRET,
+                { expiresIn: '5m' }
+            );
+            return res.json({ mfaRequired: true, pendingToken });
+        }
+
+        try {
+            await userRepository.registerDevice(user.id, {
+                deviceLabel: req.body.deviceLabel || 'Web browser',
+                userAgent: req.headers['user-agent'] || null
+            });
+        } catch (_) { /* devices table may not exist */ }
+
         logger.info('User logged in', { userId: user.id });
+        auditRepository.log({
+            userId: user.id,
+            action: 'auth.login',
+            resource: `user:${user.id}`,
+            details: { rememberMe: Boolean(rememberMe) },
+            ipAddress: req.ip
+        }).catch(() => {});
         res.json({ token: signToken(user, Boolean(rememberMe)) });
     } catch (err) {
         logger.error('Login failed', { error: err.message });
@@ -68,13 +115,15 @@ router.post('/login', authLimiter, loginRules, validate, validateCaptcha, async 
     }
 });
 
-router.post('/forgot-password', authLimiter, forgotPasswordRules, validate, validateCaptcha, async (req, res) => {
-    const { email } = req.body;
+router.post('/forgot-password', authLimiter, normalizeLoginBody, forgotPasswordRules, validate, validateCaptcha, async (req, res) => {
+    const loginId = String(req.body.phone || req.body.email || '').trim();
 
     try {
-        const user = await userRepository.findByEmail(email);
+        const user = loginId.includes('@')
+            ? await userRepository.findByEmail(loginId)
+            : await userRepository.findByPhone(loginId);
         if (!user) {
-            return res.json({ msg: 'If that email exists, a reset link has been sent.' });
+            return res.json({ msg: 'If an account exists, a reset link has been sent.' });
         }
 
         const resetRecord = await passwordResetRepository.createToken(user.id);
@@ -83,7 +132,7 @@ router.post('/forgot-password', authLimiter, forgotPasswordRules, validate, vali
 
         const emailResult = await sendPasswordResetEmail({ to: user.email, resetUrl });
 
-        const response = { msg: 'If that email exists, a reset link has been sent.' };
+        const response = { msg: 'If an account exists, a reset link has been sent.' };
         if (!emailResult.sent && process.env.NODE_ENV !== 'production') {
             response.devResetUrl = resetUrl;
         }

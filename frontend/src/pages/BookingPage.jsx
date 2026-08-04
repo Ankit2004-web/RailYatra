@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, ArrowRight, Armchair, CreditCard, Users, UserPlus, Trash2, LayoutGrid
@@ -25,7 +25,8 @@ import {
 const STEPS = [
   { num: 1, label: 'Class' },
   { num: 2, label: 'Passengers' },
-  { num: 3, label: 'Pay' }
+  { num: 3, label: 'Review' },
+  { num: 4, label: 'Pay' }
 ];
 
 const BERTH_OPTIONS = [
@@ -72,11 +73,13 @@ function BookingContent() {
   const [train, setTrain] = useState(location.state?.train || null);
   const [classCode, setClassCode] = useState(location.state?.classCode || '');
   const [passengers, setPassengers] = useState([
-    { name: '', age: '', gender: 'Male', berthPreference: 'No Preference' }
+    { name: '', age: '', gender: 'Male', berthPreference: 'No Preference', nationality: 'Indian', mobile: '', email: '', idType: 'Aadhaar', idNumber: '', foodPreference: 'Veg', insuranceOptIn: false, isSeniorCitizen: false, isDivyang: false }
   ]);
   const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
+  const bookingIdempotencyKey = useRef(null);
   const [step, setStep] = useState(1);
   const [chartOpen, setChartOpen] = useState(false);
   const [promoCode, setPromoCode] = useState(() => localStorage.getItem('railyatra_promo') || '');
@@ -104,7 +107,7 @@ function BookingContent() {
   }, [location.state?.classCode]);
 
   useEffect(() => {
-    if (step !== 3) return;
+    if (step !== 4) return;
     api.get('/payments/config')
       .then(setPaymentConfig)
       .catch(() => setPaymentConfig({ devMode: true }));
@@ -164,12 +167,19 @@ function BookingContent() {
   const payAndConfirm = async (booking) => completeBookingPayment(booking, user, {
     trainNumber: train.trainNumber,
     description: `${train.trainName} (${train.trainNumber}) · ${classCode}`
-  });
+  }, { idempotencyKey: bookingIdempotencyKey.current });
 
   const submit = async (e) => {
     e.preventDefault();
+    if (submittingRef.current || loading) return;
+    submittingRef.current = true;
     setError('');
     setLoading(true);
+    if (!bookingIdempotencyKey.current) {
+      bookingIdempotencyKey.current = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `book-${Date.now()}`;
+    }
     try {
       if (soldOut && !joinWaitlist && !joinRac) {
         setError('Not enough seats available. Join waitlist or RAC to continue.');
@@ -200,8 +210,9 @@ function BookingContent() {
       payload.fromStationCode = source || train?.from?.stationCode || train?.sourceStation?.code;
       payload.toStationCode = destination || train?.to?.stationCode || train?.destinationStation?.code;
 
-      const booking = await api.post('/bookings', payload);
+      const booking = await api.post('/bookings', payload, { idempotencyKey: bookingIdempotencyKey.current });
       const final = await payAndConfirm(booking);
+      bookingIdempotencyKey.current = null;
       navigate('/bookings', { state: { message: `Booked! PNR ${final.pnrNumber}` } });
     } catch (err) {
       const message = err.message || 'Booking failed';
@@ -211,6 +222,7 @@ function BookingContent() {
         setError(message);
       }
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
@@ -395,6 +407,30 @@ function BookingContent() {
                           <option>Other</option>
                         </select>
                       </div>
+                      <div className="field">
+                        <label htmlFor={`pnationality-${i}`}>Nationality</label>
+                        <input id={`pnationality-${i}`} className="input" value={p.nationality || 'Indian'} onChange={(e) => updatePassenger(i, 'nationality', e.target.value)} />
+                      </div>
+                      <div className="field">
+                        <label htmlFor={`pfood-${i}`}>Food preference</label>
+                        <select id={`pfood-${i}`} className="input" value={p.foodPreference || 'Veg'} onChange={(e) => updatePassenger(i, 'foodPreference', e.target.value)}>
+                          <option>Veg</option><option>Non-Veg</option><option>Jain</option><option>None</option>
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label htmlFor={`pidtype-${i}`}>ID type</label>
+                        <select id={`pidtype-${i}`} className="input" value={p.idType || 'Aadhaar'} onChange={(e) => updatePassenger(i, 'idType', e.target.value)}>
+                          <option>Aadhaar</option><option>PAN</option><option>Passport</option><option>Voter ID</option>
+                        </select>
+                      </div>
+                      <div className="field">
+                        <label htmlFor={`pidnum-${i}`}>ID number</label>
+                        <input id={`pidnum-${i}`} className="input" value={p.idNumber || ''} onChange={(e) => updatePassenger(i, 'idNumber', e.target.value)} />
+                      </div>
+                      <label className="route-aware-toggle field-full">
+                        <input type="checkbox" checked={!!p.insuranceOptIn} onChange={(e) => updatePassenger(i, 'insuranceOptIn', e.target.checked)} />
+                        Travel insurance (₹0.45/person)
+                      </label>
                       <div className="field field-full">
                         <label htmlFor={`pberth-${i}`}>Berth preference</label>
                         <select
@@ -491,7 +527,7 @@ function BookingContent() {
                   <ArrowLeft size={16} aria-hidden="true" /> Back
                 </button>
                 <button type="button" className="booking-btn-primary" onClick={() => setStep(3)}>
-                  Continue to Payment <ArrowRight size={18} aria-hidden="true" />
+                  Continue to Review <ArrowRight size={18} aria-hidden="true" />
                 </button>
               </div>
             </>
@@ -500,12 +536,32 @@ function BookingContent() {
           {step === 3 && (
             <>
               <div className="booking-card-head">
+                <div className="booking-card-icon" aria-hidden="true"><Users size={22} /></div>
+                <div><h2>Review booking</h2><p>Verify passengers and journey details</p></div>
+              </div>
+              <div className="booking-summary">
+                <div className="booking-summary-row"><span>Train</span><span>{train.trainName}</span></div>
+                <div className="booking-summary-row"><span>Passengers</span><span>{passengers.length}</span></div>
+                {passengers.map((p, i) => (
+                  <div key={i} className="booking-summary-row"><span>Passenger {i + 1}</span><span>{p.name} · {p.foodPreference || 'Veg'}</span></div>
+                ))}
+              </div>
+              <div className="booking-btn-row">
+                <button type="button" className="booking-btn-back" onClick={() => setStep(2)}><ArrowLeft size={16} /> Back</button>
+                <button type="button" className="booking-btn-primary" onClick={() => setStep(4)}>Proceed to Payment <ArrowRight size={18} /></button>
+              </div>
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <div className="booking-card-head">
                 <div className="booking-card-icon" aria-hidden="true">
                   <CreditCard size={22} />
                 </div>
                 <div>
-                  <h2>Review &amp; pay</h2>
-                  <p>Confirm your booking details before payment</p>
+                  <h2>Payment</h2>
+                  <p>Complete secure checkout</p>
                 </div>
               </div>
 
@@ -597,7 +653,7 @@ function BookingContent() {
               {error && <div className="alert alert-error" style={{ marginTop: 16 }}>{error}</div>}
 
               <div className="booking-btn-row" style={{ marginTop: 24 }}>
-                <button type="button" className="booking-btn-back" onClick={() => setStep(2)}>
+                <button type="button" className="booking-btn-back" onClick={() => setStep(3)}>
                   <ArrowLeft size={16} aria-hidden="true" /> Back
                 </button>
                 <button type="submit" className="booking-btn-primary" disabled={loading}>

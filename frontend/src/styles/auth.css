@@ -301,6 +301,50 @@
   font-size: 0.8125rem;
 }
 
+.auth-mode-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.auth-mode-tabs button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 0.8125rem;
+}
+
+.auth-mode-tabs button.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.auth-social-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+
+.auth-social-row .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.auth-dev-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.75rem;
+}
+
 @media (max-width: 900px) {
   .auth-shell {
     grid-template-columns: 1fr;

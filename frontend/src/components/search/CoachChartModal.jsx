@@ -9,7 +9,7 @@ const CLASS_COLORS = {
   '2A': '#2563eb',
   '3A': '#0891b2',
   '3E': '#0d9488',
-  SL: '#ca8a04',
+  SL: '#0AA6A6',
   '2S': '#65a30d',
   CC: '#dc2626',
   EC: '#ea580c',

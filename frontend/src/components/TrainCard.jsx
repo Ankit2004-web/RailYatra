@@ -37,13 +37,14 @@ function formatAvailability(seats) {
 export default function TrainCard({
   train: rawTrain,
   journeyDate,
+  searchContext,
   onBook,
   onRoute,
   onChart,
   selectedClass,
   onClassSelect
 }) {
-  const vm = mapTrainApiResponseToViewModel(rawTrain, journeyDate);
+  const vm = mapTrainApiResponseToViewModel(rawTrain, journeyDate, searchContext);
   const dayCircles = runningDayCircles(rawTrain);
   const [liked, setLiked] = useState(false);
 
@@ -90,9 +91,14 @@ export default function TrainCard({
       <div className="train-card-body">
         <div className="train-journey">
           <div className="journey-point departure">
-            <span className="j-time">{vm.from.time || '—'}</span>
-            <span className="j-station">{vm.from.code}</span>
+            <span className="j-point-label">Boarding</span>
+            <span className="j-time">
+              {vm.from.time || '—'}
+              {vm.from.dayOffset > 0 && <span className="j-day-offset">+{vm.from.dayOffset}</span>}
+            </span>
+            <span className="j-station">{vm.from.code || vm.from.name || '—'}</span>
             <span className="j-location">{vm.from.name}</span>
+            {vm.from.dateLabel && <span className="j-date-badge">{vm.from.dateLabel}</span>}
           </div>
 
           <div className="journey-track">
@@ -107,16 +113,21 @@ export default function TrainCard({
           </div>
 
           <div className="journey-point arrival">
-            <span className="j-time">{vm.to.time || '—'}</span>
-            <span className="j-station">{vm.to.code}</span>
+            <span className="j-point-label">Drop</span>
+            <span className="j-time">
+              {vm.to.time || '—'}
+              {vm.to.dayOffset > 0 && <span className="j-day-offset">+{vm.to.dayOffset}</span>}
+            </span>
+            <span className="j-station">{vm.to.code || vm.to.name || '—'}</span>
             <span className="j-location">{vm.to.name}</span>
+            {vm.to.dateLabel && vm.to.dayOffset > 0 && <span className="j-date-badge">{vm.to.dateLabel}</span>}
           </div>
         </div>
 
         <div className="train-meta-panel">
           <div className="side-route">
             <MapPin size={14} aria-hidden="true" />
-            <span>{vm.from.code} → {vm.to.code}</span>
+            <span>{vm.from.code || vm.from.name} → {vm.to.code || vm.to.name}</span>
           </div>
           {vm.avgSpeedKmh != null && (
             <div className="side-speed">

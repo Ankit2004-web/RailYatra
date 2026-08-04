@@ -1,7 +1,20 @@
-const VALID_QUOTAS = ['General', 'Ladies', 'SeniorCitizen'];
+const VALID_QUOTAS = [
+    'General',
+    'Ladies',
+    'SeniorCitizen',
+    'Tatkal',
+    'PremiumTatkal',
+    'Defence',
+    'ForeignTourist',
+    'Parliament',
+    'LowerBerth',
+    'Divyang',
+    'DutyPass'
+];
 
 const SENIOR_AGE = 60;
 const SENIOR_DISCOUNT = 0.4;
+const DIVYANG_DISCOUNT = 0.5;
 
 const validateQuota = (quota, passengers) => {
     if (!VALID_QUOTAS.includes(quota)) {
@@ -22,14 +35,29 @@ const validateQuota = (quota, passengers) => {
         }
     }
 
+    if (quota === 'Divyang') {
+        const invalid = passengers.some((p) => !p.isDivyang);
+        if (invalid) {
+            return { error: 'Divyang quota requires divyang certificate for all passengers', status: 400 };
+        }
+    }
+
     return { ok: true };
 };
 
 const getPassengerFare = (basePrice, quota, passenger) => {
     let fare = basePrice;
 
-    if (quota === 'SeniorCitizen' && Number(passenger.age) >= SENIOR_AGE) {
+    if ((quota === 'SeniorCitizen' || passenger.isSeniorCitizen) && Number(passenger.age) >= SENIOR_AGE) {
         fare = Math.round(fare * (1 - SENIOR_DISCOUNT));
+    }
+
+    if (quota === 'Divyang' || passenger.isDivyang) {
+        fare = Math.round(fare * (1 - DIVYANG_DISCOUNT));
+    }
+
+    if (quota === 'ForeignTourist') {
+        fare = Math.round(fare * 1.25);
     }
 
     return fare;

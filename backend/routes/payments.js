@@ -7,6 +7,8 @@ const bookingRepository = require('../repositories/bookingRepository');
 const paymentRepository = require('../repositories/paymentRepository');
 const razorpayService = require('../services/razorpayService');
 const { isAwaitingPayment } = require('../utils/bookingStatus');
+const idempotencyMiddleware = require('../middleware/idempotency');
+const auditLogger = require('../middleware/auditLogger');
 
 const paymentRules = [
     body('bookingId').isInt({ min: 1 }).withMessage('Valid booking ID is required')
@@ -27,7 +29,7 @@ router.get('/config', (req, res) => {
     });
 });
 
-router.post('/create-order', auth, paymentRules, validate, async (req, res) => {
+router.post('/create-order', auth, idempotencyMiddleware('/api/payments/create-order'), paymentRules, validate, async (req, res) => {
     try {
         const booking = await bookingRepository.findById(req.body.bookingId);
 
@@ -65,7 +67,7 @@ router.post('/create-order', auth, paymentRules, validate, async (req, res) => {
     }
 });
 
-router.post('/verify', auth, verifyRules, validate, async (req, res) => {
+router.post('/verify', auth, idempotencyMiddleware('/api/payments/verify'), verifyRules, validate, auditLogger('payment.verify', 'payment'), async (req, res) => {
     const { bookingId, razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
 
     try {

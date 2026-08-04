@@ -9,6 +9,11 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import UserAvatar from '../components/UserAvatar';
 import SavedPassengersPanel from '../components/SavedPassengersPanel';
+import FavoriteRoutesPanel from '../components/FavoriteRoutesPanel';
+import GstSettingsPanel from '../components/GstSettingsPanel';
+import LoyaltyPanel from '../components/LoyaltyPanel';
+import DeviceManagementPanel from '../components/DeviceManagementPanel';
+import MfaSetupPanel from '../components/MfaSetupPanel';
 import { compressImageForAvatar, isSupportedAvatarFile } from '../utils/avatarImage';
 
 const THEME_OPTIONS = [
@@ -339,6 +344,12 @@ function ProfileContent() {
           </section>
 
           <SavedPassengersPanel />
+
+          <FavoriteRoutesPanel />
+          <LoyaltyPanel />
+          <GstSettingsPanel />
+          <DeviceManagementPanel />
+          <MfaSetupPanel />
 
           <section className="profile-card card">
             <div className="profile-card-head">

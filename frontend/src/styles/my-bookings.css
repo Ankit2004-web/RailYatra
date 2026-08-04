@@ -252,8 +252,9 @@
   margin: 0 20px 12px;
   padding: 10px 14px;
   border-radius: 10px;
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  border: 1px solid var(--warning-border);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -369,4 +370,12 @@
     flex: 1;
     min-width: calc(50% - 4px);
   }
+}
+
+.my-booking-seats {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--muted-bg);
+  border-radius: 8px;
+  font-size: 0.875rem;
 }

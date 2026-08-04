@@ -19,9 +19,16 @@ export default function CaptchaField({ onChange }) {
   return (
     <div className="field captcha-field">
       <label htmlFor="captcha-answer">Security check</label>
-      <div className="captcha-row">
+      <div className="captcha-challenge">
         <span className="captcha-question">{challenge?.question || 'Loading…'}</span>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={refresh}>↻</button>
+        <button
+          type="button"
+          className="captcha-refresh"
+          onClick={refresh}
+          aria-label="Refresh security check"
+        >
+          ↻
+        </button>
       </div>
       <input
         id="captcha-answer"

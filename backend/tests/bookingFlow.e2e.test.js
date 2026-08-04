@@ -35,6 +35,7 @@ test('E2E booking → dev payment → ticket download', { skip: dbReady ? false 
 
     const agent = request(app);
     const email = `e2e_${Date.now()}@railyatra.test`;
+    const phone = `9${String(Date.now()).slice(-9)}`;
     const password = 'Test@123456';
     const captcha = await fetchCaptcha(agent);
 
@@ -43,7 +44,7 @@ test('E2E booking → dev payment → ticket download', { skip: dbReady ? false 
         .send({
             name: 'E2E Traveller',
             email,
-            phone: '9876543210',
+            phone,
             password,
             ...captcha
         });
@@ -58,8 +59,12 @@ test('E2E booking → dev payment → ticket download', { skip: dbReady ? false 
     assert.ok(trainsResponse.body.length > 0, 'Seed trains required for E2E test');
 
     const train = trainsResponse.body[0];
-    const journeyDate = train.journeyDate?.split?.('T')?.[0]
-        || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const trainDetail = await agent.get(`/api/trains/${train.id}`).set(authHeader);
+    assert.equal(trainDetail.status, 200);
+    assert.ok(trainDetail.body.classes?.length, 'Train must have at least one class');
+
+    const classCode = trainDetail.body.classes[0].classCode;
+    const journeyDate = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
 
     const bookingCaptcha = await fetchCaptcha(agent);
     const bookingResponse = await agent
@@ -68,7 +73,7 @@ test('E2E booking → dev payment → ticket download', { skip: dbReady ? false 
         .send({
             trainId: train.id,
             journeyDate,
-            classCode: 'SL',
+            classCode,
             passengers: [{ name: 'E2E Passenger', age: 28, gender: 'Male', berthPreference: 'Lower' }],
             bookingType: 'General',
             quota: 'General',
@@ -76,7 +81,7 @@ test('E2E booking → dev payment → ticket download', { skip: dbReady ? false 
             ...bookingCaptcha
         });
 
-    assert.equal(bookingResponse.status, 201);
+    assert.equal(bookingResponse.status, 201, bookingResponse.body?.msg || 'booking failed');
     assert.equal(bookingResponse.body.status, 'Pending');
     const bookingId = bookingResponse.body.id;
 

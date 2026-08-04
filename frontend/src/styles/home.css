@@ -544,18 +544,7 @@ button.home-feature-link {
   opacity: 0.7;
 }
 
-/* Nav badge */
-.nav-badge {
-  font-size: 0.625rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: #dcfce7;
-  color: #166534;
-  margin-left: 2px;
-}
-
-/* Footer — matches header height & layout */
+/* Nav badge — base in header.css */
 .footer-links {
   display: flex;
   flex-wrap: wrap;
@@ -663,6 +652,49 @@ button.home-feature-link {
   .home-search-meta {
     grid-template-columns: 1fr;
   }
+}
+
+/* Dashboard quick actions */
+.home-dashboard {
+  padding: 2rem 1rem 0;
+}
+
+.home-dashboard-title {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+}
+
+.home-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.home-dash-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  text-align: center;
+  text-decoration: none;
+  color: inherit;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.home-upcoming,
+.home-popular-routes {
+  margin-bottom: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.home-upcoming h3,
+.home-popular-routes h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
 }
 
 @media (max-width: 600px) {

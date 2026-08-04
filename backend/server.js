@@ -22,7 +22,17 @@ const fareRoutes = require('./routes/fares');
 const availabilityRoutes = require('./routes/availability');
 const passengerRoutes = require('./routes/passengers');
 const handlePaymentWebhook = require('./routes/paymentWebhook');
+const otpRoutes = require('./routes/otp');
+const notificationRoutes = require('./routes/notifications');
+const supportRoutes = require('./routes/support');
+const liveTrainRoutes = require('./routes/liveTrain');
 const trainCoachRoutes = require('./routes/trainCoach');
+const profileRoutes = require('./routes/profile');
+const mfaRoutes = require('./routes/mfa');
+const oauthRoutes = require('./routes/oauth');
+const recommendationRoutes = require('./routes/recommendations');
+const { startBackgroundJobs } = require('./services/jobScheduler');
+const { errorHandler } = require('./middleware/errorHandler');
 const { UPLOAD_DIR: AVATAR_UPLOAD_DIR } = require('./services/avatarService');
 
 const app = express();
@@ -61,6 +71,14 @@ app.use('/api/captcha', captchaRoutes);
 app.use('/api/fares', fareRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/passengers', passengerRoutes);
+app.use('/api/otp', otpRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/support', supportRoutes);
+app.use('/api/live-trains', liveTrainRoutes);
+app.use('/api/profile', profileRoutes);
+app.use('/api/mfa', mfaRoutes);
+app.use('/api/oauth', oauthRoutes);
+app.use('/api/recommendations', recommendationRoutes);
 
 app.get('/api/health', async (req, res) => {
     res.json({
@@ -68,6 +86,25 @@ app.get('/api/health', async (req, res) => {
         database: 'Microsoft SQL Server',
         timestamp: new Date().toISOString()
     });
+});
+
+app.get('/api/health/ready', async (req, res) => {
+    try {
+        const { getPool } = require('../database/connection');
+        const pool = await getPool();
+        await pool.request().query('SELECT 1 AS ok');
+        res.json({
+            status: 'ready',
+            database: 'connected',
+            timestamp: new Date().toISOString()
+        });
+    } catch (err) {
+        res.status(503).json({
+            status: 'not_ready',
+            database: 'disconnected',
+            detail: err.message
+        });
+    }
 });
 
 app.get('/api/openapi.yaml', (req, res) => {
@@ -135,10 +172,14 @@ app.use('/api', (req, res) => {
 
 app.use((err, req, res, next) => {
     if (err.type === 'entity.too.large') {
-        return res.status(413).json({ msg: 'Image is too large. Try a smaller photo.' });
+        return res.status(413).json({
+            type: 'about:blank',
+            title: 'Payload Too Large',
+            status: 413,
+            detail: 'Image is too large. Try a smaller photo.'
+        });
     }
-    logger.error('Unhandled error', { error: err.message, stack: err.stack, path: req.path });
-    res.status(500).json({ msg: 'Internal server error' });
+    errorHandler(err, req, res, next);
 });
 
 const PORT = process.env.PORT || 5000;
@@ -164,6 +205,8 @@ const startServer = async () => {
             console.log(`Server running on port ${PORT}`);
             console.log(`http://localhost:${PORT}`);
             console.log('Database: Microsoft SQL Server');
+
+            startBackgroundJobs();
         });
     } catch (error) {
         logger.error('Failed to start server', { error: error.message });

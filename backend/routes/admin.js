@@ -9,6 +9,8 @@ const { updateUserRules } = require('../validators/userValidator');
 const adminRepository = require('../repositories/adminRepository');
 const userRepository = require('../repositories/userRepository');
 const bookingRepository = require('../repositories/bookingRepository');
+const auditRepository = require('../repositories/auditRepository');
+const reconciliationService = require('../services/reconciliationService');
 
 const refundRepository = require('../repositories/refundRepository');
 const trainRepository = require('../repositories/trainRepository');
@@ -343,6 +345,43 @@ router.post('/rac/promote', async (req, res) => {
             return res.status(404).json({ msg: 'No RAC booking could be promoted (no seats or RAC queue empty)' });
         }
         res.json({ msg: 'RAC booking promoted to confirmed', booking });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.get('/audit-logs', async (req, res) => {
+    try {
+        const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 100));
+        const logs = await auditRepository.findRecent(limit);
+        res.json(logs);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.get('/reconciliation', async (req, res) => {
+    try {
+        const summary = await reconciliationService.runFullReconciliation();
+        res.json(summary);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.get('/reconciliation/logs', async (req, res) => {
+    try {
+        const { getPool } = require('../../database/connection');
+        const pool = await getPool();
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+        const result = await pool.request().query(`
+            SELECT TOP (${limit}) id, runType, matchedCount, mismatchCount, autoFixedCount, details, createdAt
+            FROM ReconciliationLog
+            ORDER BY createdAt DESC`);
+        res.json(result.recordset);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ msg: 'Server error' });

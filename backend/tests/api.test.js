@@ -20,9 +20,17 @@ test('GET /api/captcha returns a challenge', async () => {
 test('POST /api/auth/login rejects missing captcha', async () => {
     const response = await request(app)
         .post('/api/auth/login')
-        .send({ email: 'test@example.com', password: 'secret123' });
+        .send({ phone: '9876543210', password: 'secret123' });
 
     assert.equal(response.status, 400);
+});
+
+test('POST /api/auth/login maps legacy email field to phone', async () => {
+    const response = await request(app)
+        .post('/api/auth/login')
+        .send({ email: 'admin@railway.com', password: 'secret123', captchaId: 'x', captchaAnswer: '1' });
+
+    assert.notEqual(response.body.errors?.some((e) => e.message === 'Mobile number or email is required'), true);
 });
 
 test('GET /api/admin/dashboard requires auth', async () => {

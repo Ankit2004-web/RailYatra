@@ -147,7 +147,15 @@ export function formatJourneyDay(dateStr) {
 
 export function formatBoardingTime(timeStr) {
   if (!timeStr) return '';
+  if (timeStr instanceof Date && !Number.isNaN(timeStr.getTime())) {
+    return `${String(timeStr.getHours()).padStart(2, '0')}:${String(timeStr.getMinutes()).padStart(2, '0')}`;
+  }
   const normalized = String(timeStr).trim();
+  if (!normalized) return '';
+  const isoMatch = normalized.match(/T(\d{2}):(\d{2})/);
+  if (isoMatch) return `${isoMatch[1]}:${isoMatch[2]}`;
+  const hmMatch = normalized.match(/(\d{1,2}):(\d{2})/);
+  if (hmMatch) return `${String(hmMatch[1]).padStart(2, '0')}:${hmMatch[2]}`;
   return normalized.length >= 5 ? normalized.slice(0, 5) : normalized;
 }
 
@@ -157,10 +165,41 @@ export function parseTimeToMinutes(timeStr, dayOffset = 0) {
   return dayOffset * 1440 + (h || 0) * 60 + (m || 0);
 }
 
-export function mapTrainApiResponseToViewModel(train, journeyDate) {
-  const fromDayOffset = train.from?.dayOffset || 0;
-  const toDayOffset = train.to?.dayOffset || 0;
+export function mapTrainApiResponseToViewModel(train, journeyDate, searchContext = {}) {
   const date = journeyDate || train.date;
+
+  const boarding = train.boarding || train.from || {};
+  const drop = train.drop || train.to || {};
+  const fromDayOffset = boarding.dayOffset ?? train.from?.dayOffset ?? 0;
+  const toDayOffset = drop.dayOffset ?? train.to?.dayOffset ?? 0;
+
+  const fromTime = formatBoardingTime(
+    boarding.departureTime
+      || boarding.arrivalTime
+      || boarding.time
+      || train.from?.departureTime
+      || train.from?.arrivalTime
+      || train.from?.time
+      || train.fromDepartureTime
+      || train.departureTime
+      || ''
+  );
+  const toTime = formatBoardingTime(
+    drop.arrivalTime
+      || drop.departureTime
+      || drop.time
+      || train.to?.arrivalTime
+      || train.to?.departureTime
+      || train.to?.time
+      || train.toArrivalTime
+      || train.arrivalTime
+      || ''
+  );
+
+  const fromCode = boarding.stationCode || train.from?.stationCode || train.fromStationCode || searchContext.fromCode || '';
+  const fromName = boarding.stationName || train.from?.stationName || train.fromStationName || train.source || searchContext.fromName || '';
+  const toCode = drop.stationCode || train.to?.stationCode || train.toStationCode || searchContext.toCode || '';
+  const toName = drop.stationName || train.to?.stationName || train.toStationName || train.destination || searchContext.toName || '';
 
   return {
     raw: train,
@@ -169,18 +208,18 @@ export function mapTrainApiResponseToViewModel(train, journeyDate) {
     trainName: train.trainName,
     trainTypeCode: train.trainTypeCode || train.trainType || null,
     from: {
-      code: train.from?.stationCode || train.fromStationCode || '',
-      name: train.from?.stationName || train.fromStationName || train.source || '',
-      time: train.from?.departureTime || train.fromDepartureTime || train.departureTime || '',
-      dayOffset: fromDayOffset,
-      dateLabel: formatJourneyDate(date, fromDayOffset)
+      code: fromCode,
+      name: fromName,
+      time: fromTime,
+      dayOffset: boarding.dayOffset ?? train.from?.dayOffset ?? 0,
+      dateLabel: formatJourneyDate(date, boarding.dayOffset ?? train.from?.dayOffset ?? 0)
     },
     to: {
-      code: train.to?.stationCode || train.toStationCode || '',
-      name: train.to?.stationName || train.toStationName || train.destination || '',
-      time: train.to?.arrivalTime || train.toArrivalTime || train.arrivalTime || '',
-      dayOffset: toDayOffset,
-      dateLabel: formatJourneyDate(date, toDayOffset)
+      code: toCode,
+      name: toName,
+      time: toTime,
+      dayOffset: drop.dayOffset ?? train.to?.dayOffset ?? 0,
+      dateLabel: formatJourneyDate(date, drop.dayOffset ?? train.to?.dayOffset ?? 0)
     },
     duration: train.duration || '',
     durationMinutes: train.durationMinutes || 0,
@@ -202,14 +241,8 @@ export function mapTrainApiResponseToViewModel(train, journeyDate) {
       train.trainTypeCode || train.trainType,
       train.trainName
     ),
-    depMinutes: parseTimeToMinutes(
-      train.from?.departureTime || train.departureTime,
-      fromDayOffset
-    ),
-    arrMinutes: parseTimeToMinutes(
-      train.to?.arrivalTime || train.arrivalTime,
-      toDayOffset
-    ),
+    depMinutes: parseTimeToMinutes(fromTime, fromDayOffset),
+    arrMinutes: parseTimeToMinutes(toTime, toDayOffset),
     lowestPrice: train.lowestPrice ?? (
       train.classes?.length
         ? Math.min(...train.classes.map((c) => Number(c.price)).filter((p) => !Number.isNaN(p)))

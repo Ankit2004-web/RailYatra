@@ -1,11 +1,12 @@
-import { api } from '../api/client';
+import { api, pollBookingStatus } from '../api/client';
 import { openRazorpayCheckout } from './razorpay';
 
-export async function completeBookingPayment(booking, user, trainMeta = {}) {
-  const order = await api.post('/payments/create-order', { bookingId: booking.id });
+export async function completeBookingPayment(booking, user, trainMeta = {}, { idempotencyKey } = {}) {
+  const payHeaders = idempotencyKey ? { idempotencyKey } : {};
+  const order = await api.post('/payments/create-order', { bookingId: booking.id }, payHeaders);
 
   if (order.devMode) {
-    const confirmed = await api.post('/payments/dev-confirm', { bookingId: booking.id });
+    const confirmed = await api.post('/payments/dev-confirm', { bookingId: booking.id }, payHeaders);
     return confirmed.booking;
   }
 
@@ -26,12 +27,20 @@ export async function completeBookingPayment(booking, user, trainMeta = {}) {
     }
   });
 
+  const verifyKey = idempotencyKey ? `${idempotencyKey}-verify` : undefined;
   const verified = await api.post('/payments/verify', {
     bookingId: booking.id,
     razorpay_order_id: payment.razorpay_order_id,
     razorpay_payment_id: payment.razorpay_payment_id,
     razorpay_signature: payment.razorpay_signature
-  });
+  }, verifyKey ? { idempotencyKey: verifyKey } : {});
+
+  if (verified.booking) return verified.booking;
+
+  const polled = await pollBookingStatus(booking.id);
+  if (polled?.status === 'Confirmed') {
+    return api.get(`/bookings/${booking.id}`);
+  }
 
   return verified.booking;
 }

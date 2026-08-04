@@ -47,6 +47,14 @@ export default function SearchResultsPage() {
   const [pageSize, setPageSize] = useState(10);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedClasses, setSelectedClasses] = useState({});
+  const [searchMeta, setSearchMeta] = useState(null);
+
+  const searchContext = useMemo(() => ({
+    fromCode: searchMeta?.from?.code || '',
+    fromName: searchMeta?.from?.name || source,
+    toCode: searchMeta?.to?.code || '',
+    toName: searchMeta?.to?.name || destination
+  }), [searchMeta, source, destination]);
 
   const weekday = date
     ? new Date(`${date}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'long' })
@@ -62,7 +70,15 @@ export default function SearchResultsPage() {
     if (urlClass) q.set('class', urlClass);
 
     api.get(`/trains/search?${q}`)
-      .then(setTrains)
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setTrains(data);
+          setSearchMeta(null);
+        } else {
+          setTrains(data.trains || []);
+          setSearchMeta(data.searchMeta || null);
+        }
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, [source, destination, date, urlClass]);
@@ -84,8 +100,8 @@ export default function SearchResultsPage() {
   }, [trains, date]);
 
   const filtered = useMemo(
-    () => applyTrainFilters(trains, appliedFilters, sortBy, date),
-    [trains, appliedFilters, sortBy, date]
+    () => applyTrainFilters(trains, appliedFilters, sortBy, date, searchContext),
+    [trains, appliedFilters, sortBy, date, searchContext]
   );
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -241,6 +257,7 @@ export default function SearchResultsPage() {
                     key={id}
                     train={train}
                     journeyDate={date}
+                    searchContext={searchContext}
                     selectedClass={selectedClasses[id]}
                     onClassSelect={handleClassSelect}
                     onBook={handleBook}

@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, UserRound } from 'lucide-react';
 import { api } from '../api/client';
 import CaptchaField from '../components/CaptchaField';
 import AuthShell from '../components/AuthShell';
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -20,8 +20,8 @@ export default function ForgotPasswordPage() {
     setDevResetUrl('');
     setLoading(true);
     try {
-      const data = await api.post('/auth/forgot-password', { email, ...captcha });
-      setMessage(data.msg || 'If that email exists, a reset link has been sent.');
+      const data = await api.post('/auth/forgot-password', { phone: identifier, ...captcha });
+      setMessage(data.msg || 'If an account exists, a reset link has been sent.');
       if (data.devResetUrl) setDevResetUrl(data.devResetUrl);
     } catch (err) {
       setError(err.message || 'Request failed');
@@ -34,7 +34,7 @@ export default function ForgotPasswordPage() {
     <AuthShell
       variant="enterprise"
       title="Forgot password?"
-      subtitle="Enter your email and we'll send you a link to reset your password."
+      subtitle="Enter your mobile number or email and we'll send you a link to reset your password."
       sideTitle="Book smarter with RailYatra"
       sidePoints={[
         'Search trains across thousands of stations',
@@ -44,17 +44,17 @@ export default function ForgotPasswordPage() {
     >
       <form className="auth-form" onSubmit={submit}>
         <div className="field auth-field">
-          <label htmlFor="email">Email address</label>
+          <label htmlFor="identifier">Mobile number or email</label>
           <div className="auth-input-wrap">
-            <Mail size={18} className="auth-input-icon" aria-hidden="true" />
+            <UserRound size={18} className="auth-input-icon" aria-hidden="true" />
             <input
-              id="email"
-              type="email"
+              id="identifier"
+              type="text"
               className="input auth-input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              autoComplete="email"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="10-digit mobile or email@example.com"
+              autoComplete="username"
               required
             />
           </div>

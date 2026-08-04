@@ -13,6 +13,10 @@
   --border: #243040;
   --muted-bg: #1a2430;
   --shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+  --warning: #5ecfcf;
+  --warning-bg: rgba(18, 184, 184, 0.15);
+  --warning-border: rgba(18, 184, 184, 0.35);
+  --warning-text: #7ddfe1;
 }
 
 [data-theme="ocean"] {
@@ -36,9 +40,34 @@
   background: var(--surface);
 }
 
-[data-theme="dark"] .app-header,
+[data-theme="dark"] .app-header {
+  border-bottom-color: var(--brand);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
 [data-theme="dark"] .app-footer {
   background: var(--surface);
+}
+
+[data-theme="dark"] .main-nav.open,
+[data-theme="dark"] .main-nav {
+  background: linear-gradient(180deg, #0c2340 0%, #102a43 100%);
+}
+
+[data-theme="dark"] .notification-badge {
+  border-color: #102a43;
+}
+
+[data-theme="dark"] .user-menu-dropdown,
+[data-theme="dark"] .notification-panel,
+[data-theme="dark"] .nav-mega-panel {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .user-menu-dropdown .danger:hover {
+  background: rgba(239, 68, 68, 0.12);
 }
 
 [data-theme="ocean"] .profile-hero {

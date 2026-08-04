@@ -3,14 +3,16 @@ const fs = require('fs');
 const path = require('path');
 const { assertSupportedNodeVersion } = require('../utils/nodeVersion');
 
-assertSupportedNodeVersion();
-
 const projectRoot = path.join(__dirname, '..', '..');
 const portableNode = path.join(projectRoot, '.tools', 'node-v22.14.0-win-x64', 'node.exe');
 const serverEntry = path.join(projectRoot, 'backend', 'server.js');
 const frontendDist = path.join(projectRoot, 'frontend', 'dist');
 
 const nodeExecutable = fs.existsSync(portableNode) ? portableNode : process.execPath;
+
+if (nodeExecutable === process.execPath) {
+    assertSupportedNodeVersion();
+}
 
 if (!fs.existsSync(path.join(frontendDist, 'index.html'))) {
     console.log('React frontend not built — building now...');

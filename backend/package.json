@@ -37,6 +37,7 @@
         "mssql": "^11.0.1",
         "nodemailer": "^6.10.0",
         "odbc": "^2.5.0",
+        "otplib": "^13.4.1",
         "pdfkit": "^0.16.0",
         "qrcode": "^1.5.4",
         "razorpay": "^2.9.8",

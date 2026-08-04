@@ -78,6 +78,28 @@ const formatIrctcStatus = (booking, passenger, index) => {
     return `CNF/${booking.classCode || 'NA'}/${seat}/${berth}`;
 };
 
+const formatPassengerTicketNumber = (booking, index) => {
+    const seq = String(index + 1).padStart(2, '0');
+    return `RY-${booking.id || booking._id}-${booking.pnrNumber}-${seq}`;
+};
+
+const passengerConfirmationLabel = (booking, passenger) => {
+    const status = passenger?.passengerStatus || booking.status;
+    if (status === 'Cancelled') return 'Cancelled';
+    if (booking.status === 'Waitlisted' || status === 'Waitlisted') return 'Waitlisted';
+    if (booking.status === 'RAC' || status === 'RAC') return 'RAC';
+    if (booking.status === 'Confirmed' || status === 'Confirmed') return 'Confirmed';
+    if (booking.status === 'Pending' || status === 'Pending') return 'Pending';
+    return status || 'Pending';
+};
+
+const mapPassengerPnrFields = (booking, passenger, index) => ({
+    ticketNumber: formatPassengerTicketNumber(booking, index),
+    currentStatus: formatIrctcStatus(booking, passenger, index),
+    confirmationStatus: passengerConfirmationLabel(booking, passenger),
+    isConfirmed: passengerConfirmationLabel(booking, passenger) === 'Confirmed'
+});
+
 const getBoardingAlighting = (booking) => {
     const train = booking.train || {};
     return {
@@ -532,4 +554,11 @@ const generateTicketPdf = async (booking) => {
     });
 };
 
-module.exports = { generateTicketPdf, buildQrPayload };
+module.exports = {
+    generateTicketPdf,
+    buildQrPayload,
+    formatIrctcStatus,
+    formatPassengerTicketNumber,
+    passengerConfirmationLabel,
+    mapPassengerPnrFields
+};

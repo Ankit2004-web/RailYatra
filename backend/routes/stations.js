@@ -69,6 +69,35 @@ router.put('/:id', auth, admin, stationRules, validate, async (req, res) => {
     }
 });
 
+router.get('/nearby/:code', async (req, res) => {
+    try {
+        const nearby = await stationRepository.findNearby(req.params.code);
+        res.json(nearby);
+    } catch (err) {
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.get('/detail/:code', async (req, res) => {
+    try {
+        const station = await stationRepository.findDetailByCode(req.params.code);
+        if (!station) return res.status(404).json({ msg: 'Station not found' });
+        res.json(station);
+    } catch (err) {
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.get('/:code', async (req, res) => {
+    try {
+        const station = await stationRepository.findDetailByCode(req.params.code);
+        if (!station) return res.status(404).json({ msg: 'Station not found' });
+        res.json(station);
+    } catch (err) {
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
 router.delete('/:id', auth, admin, async (req, res) => {
     try {
         const deleted = await stationRepository.remove(req.params.id);
