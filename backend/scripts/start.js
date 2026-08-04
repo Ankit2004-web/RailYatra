@@ -1,6 +1,9 @@
 const { spawn, execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { assertSupportedNodeVersion } = require('../utils/nodeVersion');
+
+assertSupportedNodeVersion();
 
 const projectRoot = path.join(__dirname, '..', '..');
 const portableNode = path.join(projectRoot, '.tools', 'node-v22.14.0-win-x64', 'node.exe');

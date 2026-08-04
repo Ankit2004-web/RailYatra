@@ -132,16 +132,34 @@ Blueprint for backend integration. The passenger UI calls these endpoints throug
 ### POST `/api/payments/verify`
 - **Purpose:** Razorpay signature verification (production)
 
+### POST `/api/payments/webhook`
+- **Purpose:** Razorpay server-to-server webhook (`payment.captured`, `refund.processed`)
+- **Auth:** No (uses `x-razorpay-signature` HMAC with `RAZORPAY_WEBHOOK_SECRET`)
+- **Body:** Raw JSON from Razorpay
+
 ---
 
-## Saved Passengers (future backend)
+## Saved Passengers
 
 ### GET `/api/passengers/saved`
-### POST `/api/passengers/saved`
-### PUT `/api/passengers/saved/:id`
-### DELETE `/api/passengers/saved/:id`
+- **Purpose:** List saved passengers for the logged-in user
+- **Auth:** Yes
+- **Response:** `[{ id, name, age, gender, berthPreference }]`
 
-Currently implemented in mock via `Store` + localStorage.
+### POST `/api/passengers/saved`
+- **Purpose:** Add a saved passenger
+- **Auth:** Yes
+- **Request:** `{ name, age, gender, berthPreference? }`
+
+### PUT `/api/passengers/saved/:id`
+- **Purpose:** Update a saved passenger
+- **Auth:** Yes
+
+### DELETE `/api/passengers/saved/:id`
+- **Purpose:** Remove a saved passenger
+- **Auth:** Yes
+
+**Frontend:** `ProfilePage` (manage list), `BookingPage` (picker to autofill passenger forms)
 
 ---
 
@@ -149,18 +167,17 @@ Currently implemented in mock via `Store` + localStorage.
 
 | UI module | Service calls |
 |-----------|---------------|
-| `auth.js` | login, register, forgot-password |
-| `app.js` | search, bookings, PNR, profile, payment |
-| `dashboard.js` | bookings, profile, saved passengers (local), search |
-| `payment.js` | create-order, dev-confirm, verify |
-| `seatMap.js` | trains/:id/seats |
-| `captcha.js` | captcha |
+| `AuthContext` / auth pages | login, register, forgot-password, profile |
+| `BookingPage` | bookings, payments, passengers/saved |
+| `BookingsPage` | bookings, payments, ticket download |
+| `ProfilePage` | profile, passengers/saved |
+| `PnrPage` | bookings/pnr |
+| `paymentFlow.js` | create-order, dev-confirm, verify |
+| `AdminDashboardPage` | admin/*, waitlist/rac promote |
 
 ---
 
-## Mock persistence (`Store`)
+## Notes
 
-- `railwayStore` — users, bookings, savedPassengers
-- `token` — session
-- `railwayRecentSearches` — recent searches
-- `dashReadNotifs` — notification read state
+- Demo accounts removed — set `ADMIN_EMAIL` + `ADMIN_PASSWORD` for seed admin.
+- Requires Node.js 20.x or 22.x LTS (see `.nvmrc`).

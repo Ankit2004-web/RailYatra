@@ -47,3 +47,17 @@ test('GET /api/docs includes swaggerUi link', async () => {
     assert.equal(response.status, 200);
     assert.equal(response.body.swaggerUi, '/api/swagger');
 });
+
+test('POST /api/payments/webhook rejects missing secret configuration', async () => {
+    const previous = process.env.RAZORPAY_WEBHOOK_SECRET;
+    delete process.env.RAZORPAY_WEBHOOK_SECRET;
+
+    const response = await request(app)
+        .post('/api/payments/webhook')
+        .set('Content-Type', 'application/json')
+        .send(JSON.stringify({ event: 'payment.captured' }));
+
+    assert.equal(response.status, 503);
+
+    if (previous) process.env.RAZORPAY_WEBHOOK_SECRET = previous;
+});

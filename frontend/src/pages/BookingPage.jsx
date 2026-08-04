@@ -8,8 +8,10 @@ import { useAuth } from '../context/AuthContext';
 import { completeBookingPayment } from '../utils/paymentFlow';
 import CaptchaField from '../components/CaptchaField';
 import CoachChartModal from '../components/search/CoachChartModal';
+import { SavedPassengerPicker } from '../components/SavedPassengersPanel';
 import PaymentOffersPanel from '../components/PaymentOffersPanel';
 import { formatDisplayDate } from '../utils/trainMapper';
+import { savedPassengerToBooking } from '../utils/passengerForm';
 import { formatIrctcAvailability, irctcAvailabilityClass } from '../utils/irctcAvailability';
 import { getAppliedOfferDetails } from '../utils/offerEngine';
 import { calculatePaymentBreakdown } from '../utils/paymentBreakdown';
@@ -130,6 +132,17 @@ function BookingContent() {
 
   const routeLabel = `${source || train?.from?.stationCode || train?.source || '—'} → ${destination || train?.to?.stationCode || train?.destination || '—'}`;
   const backUrl = `/search?source=${encodeURIComponent(source)}&destination=${encodeURIComponent(destination)}&date=${date}`;
+
+  const addPassengerFromSaved = (saved) => {
+    const mapped = savedPassengerToBooking(saved);
+    const emptyIndex = passengers.findIndex((p) => !p.name.trim());
+    if (emptyIndex >= 0) {
+      setPassengers(passengers.map((p, i) => (i === emptyIndex ? mapped : p)));
+      return;
+    }
+    if (passengers.length >= 6) return;
+    setPassengers([...passengers, mapped]);
+  };
 
   const addPassenger = () => {
     if (passengers.length >= 6) return;
@@ -327,6 +340,8 @@ function BookingContent() {
                   <p>Enter details for all travellers on this booking</p>
                 </div>
               </div>
+
+              <SavedPassengerPicker onSelect={addPassengerFromSaved} />
 
               <div className="booking-passenger-list">
                 {passengers.map((p, i) => (

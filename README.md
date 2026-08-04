@@ -67,6 +67,8 @@ npm start
 
 Open **http://localhost:5000**
 
+**Node.js:** Use **20.x or 22.x LTS** (see `.nvmrc`). Node 26+ is not supported by the SQL Server native driver.
+
 ### Development (hot reload UI)
 
 Terminal 1 — API server:
@@ -148,7 +150,8 @@ ADMIN_PASSWORD=
 | GET | `/api/admin/reports/refunds` | Admin |
 | POST | `/api/payments/create-order` | Private |
 | POST | `/api/payments/verify` | Private |
-| POST | `/api/payments/dev-confirm` | Private |
+| POST | `/api/payments/webhook` | Public (signed) |
+| GET/POST/PUT/DELETE | `/api/passengers/saved` | Private |
 | POST/PUT/DELETE | `/api/trains` | Admin |
 | GET/POST | `/api/bookings` | Private |
 | GET | `/api/bookings/all` | Admin |
@@ -159,7 +162,8 @@ ADMIN_PASSWORD=
 | GET | `/api/admin/reports/revenue` | Admin |
 | GET | `/api/admin/reports/occupancy` | Admin |
 | GET | `/api/admin/reports/cancellations` | Admin |
-| POST | `/api/admin/waitlist/promote` | Admin |
+| POST | `/api/payments/dev-confirm` | Private |
+| POST | `/api/admin/rac/promote` | Admin |
 | POST/PUT/DELETE | `/api/stations` | Admin |
 
 ## Scripts

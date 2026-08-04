@@ -8,6 +8,7 @@ import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import UserAvatar from '../components/UserAvatar';
+import SavedPassengersPanel from '../components/SavedPassengersPanel';
 import { compressImageForAvatar, isSupportedAvatarFile } from '../utils/avatarImage';
 
 const THEME_OPTIONS = [
@@ -336,6 +337,8 @@ function ProfileContent() {
               </button>
             </form>
           </section>
+
+          <SavedPassengersPanel />
 
           <section className="profile-card card">
             <div className="profile-card-head">

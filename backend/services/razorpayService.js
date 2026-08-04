@@ -79,6 +79,20 @@ const verifyPayment = ({ orderId, paymentId, signature }) => {
     return expected === signature;
 };
 
+const isWebhookConfigured = () => Boolean(process.env.RAZORPAY_WEBHOOK_SECRET);
+
+const verifyWebhookSignature = (rawBody, signature) => {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret || !signature) return false;
+
+    const expected = crypto
+        .createHmac('sha256', secret)
+        .update(rawBody)
+        .digest('hex');
+
+    return expected === signature;
+};
+
 const processRefund = async ({ paymentId, amount }) => {
     if (!isConfigured() || String(paymentId).startsWith('dev_pay_')) {
         return { devMode: true, id: `dev_refund_${paymentId}_${Date.now()}` };
@@ -96,7 +110,9 @@ const processRefund = async ({ paymentId, amount }) => {
 
 module.exports = {
     isConfigured,
+    isWebhookConfigured,
     createOrder,
     verifyPayment,
+    verifyWebhookSignature,
     processRefund
 };

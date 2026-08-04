@@ -21,6 +21,7 @@ const captchaRoutes = require('./routes/captcha');
 const fareRoutes = require('./routes/fares');
 const availabilityRoutes = require('./routes/availability');
 const passengerRoutes = require('./routes/passengers');
+const handlePaymentWebhook = require('./routes/paymentWebhook');
 const trainCoachRoutes = require('./routes/trainCoach');
 const { UPLOAD_DIR: AVATAR_UPLOAD_DIR } = require('./services/avatarService');
 
@@ -43,6 +44,7 @@ app.use(helmet({
 }));
 
 app.use(cors());
+app.post('/api/payments/webhook', express.raw({ type: 'application/json' }), handlePaymentWebhook);
 app.use(express.json({ limit: '5mb' }));
 app.use('/uploads/avatars', express.static(AVATAR_UPLOAD_DIR));
 app.use(requestLogger);
@@ -171,6 +173,8 @@ const startServer = async () => {
 };
 
 if (require.main === module) {
+    const { assertSupportedNodeVersion } = require('./utils/nodeVersion');
+    assertSupportedNodeVersion();
     startServer();
 }
 

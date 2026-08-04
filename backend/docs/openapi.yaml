@@ -227,6 +227,198 @@ paths:
       responses:
         '200':
           description: Paginated stations
+  /auth/register:
+    post:
+      summary: Register passenger account
+      tags: [Auth]
+      responses:
+        '200': { description: JWT token issued }
+  /auth/login:
+    post:
+      summary: Login with captcha
+      tags: [Auth]
+      responses:
+        '200': { description: JWT token issued }
+  /auth/me:
+    get:
+      summary: Current user profile
+      tags: [Auth]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: User profile }
+  /auth/profile:
+    put:
+      summary: Update name and phone
+      tags: [Auth]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Updated profile }
+  /auth/change-password:
+    put:
+      summary: Change password
+      tags: [Auth]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Password updated }
+  /auth/forgot-password:
+    post:
+      summary: Request password reset
+      tags: [Auth]
+      responses:
+        '200': { description: Reset email sent if account exists }
+  /auth/reset-password:
+    post:
+      summary: Complete password reset
+      tags: [Auth]
+      responses:
+        '200': { description: Password reset complete }
+  /captcha:
+    get:
+      summary: Math captcha challenge
+      tags: [Auth]
+      responses:
+        '200': { description: captchaId and question }
+  /stations:
+    get:
+      summary: List all stations
+      tags: [Stations]
+      responses:
+        '200': { description: Station list }
+  /trains:
+    get:
+      summary: List all trains
+      tags: [Trains]
+      responses:
+        '200': { description: Train list }
+    post:
+      summary: Create train (admin)
+      tags: [Trains, Admin]
+      security: [{ AuthToken: [] }]
+      responses:
+        '201': { description: Train created }
+  /bookings:
+    get:
+      summary: Current user bookings
+      tags: [Bookings]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Booking list }
+    post:
+      summary: Create booking
+      tags: [Bookings]
+      security: [{ AuthToken: [] }]
+      responses:
+        '201': { description: Booking created }
+  /bookings/{id}:
+    get:
+      summary: Booking detail
+      tags: [Bookings]
+      security: [{ AuthToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Booking detail }
+    put:
+      summary: Update booking status (cancel)
+      tags: [Bookings]
+      security: [{ AuthToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Updated booking with refund preview }
+  /bookings/{id}/ticket:
+    get:
+      summary: Download e-ticket PDF
+      tags: [Bookings]
+      security: [{ AuthToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: PDF ticket }
+  /bookings/{id}/refund-preview:
+    get:
+      summary: Cancellation refund estimate
+      tags: [Bookings]
+      security: [{ AuthToken: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Refund breakdown }
+  /payments/config:
+    get:
+      summary: Razorpay public config
+      tags: [Payments]
+      responses:
+        '200': { description: devMode and keyId }
+  /payments/webhook:
+    post:
+      summary: Razorpay webhook receiver
+      tags: [Payments]
+      responses:
+        '200': { description: Event processed }
+        '400': { description: Invalid signature }
+        '503': { description: Webhook secret not configured }
+  /admin/dashboard:
+    get:
+      summary: Admin dashboard stats
+      tags: [Admin]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Dashboard metrics }
+  /admin/bookings:
+    get:
+      summary: Filtered admin booking list
+      tags: [Admin]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Bookings }
+  /admin/users:
+    get:
+      summary: Admin user list
+      tags: [Admin]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Users }
+  /admin/waitlist/promote:
+    post:
+      summary: Promote next waitlisted booking
+      tags: [Admin]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Waitlist promoted }
+  /admin/reports/revenue:
+    get:
+      summary: Revenue report
+      tags: [Admin]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Revenue by date }
+  /admin/reports/occupancy:
+    get:
+      summary: Train occupancy report
+      tags: [Admin]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Occupancy rows }
+  /admin/reports/cancellations:
+    get:
+      summary: Cancellation report
+      tags: [Admin]
+      security: [{ AuthToken: [] }]
+      responses:
+        '200': { description: Cancellations by date }
+  /docs:
+    get:
+      summary: API documentation index
+      tags: [System]
+      responses:
+        '200': { description: Documentation links }
+  /swagger:
+    get:
+      summary: Swagger UI
+      tags: [System]
+      responses:
+        '200': { description: HTML Swagger UI }
 components:
   securitySchemes:
     AuthToken:

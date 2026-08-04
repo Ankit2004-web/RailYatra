@@ -9,7 +9,10 @@ const passengerFields = [
     body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 100 }),
     body('age').isInt({ min: 1, max: 120 }).withMessage('Valid age is required'),
     body('gender').isIn(['Male', 'Female', 'Other']).withMessage('Gender must be Male, Female, or Other'),
-    body('berthPreference').optional({ nullable: true }).isIn(['Lower', 'Middle', 'Upper', 'Side Lower', 'Side Upper', 'Window', 'Aisle'])
+    body('berthPreference').optional({ nullable: true }).custom((value) => {
+        if (value == null || value === '' || value === 'No Preference') return true;
+        return ['Lower', 'Middle', 'Upper', 'Side Lower', 'Side Upper', 'Window', 'Aisle'].includes(value);
+    })
 ];
 
 router.get('/saved', auth, async (req, res) => {
