@@ -12,6 +12,10 @@ function ensureLocalDbRunning() {
 }
 
 async function syncDatabase() {
+    if ((process.env.DB_DRIVER || '').toLowerCase() === 'sqlite') {
+        return require('./sync-sqlite')();
+    }
+
     try {
         ensureLocalDbRunning();
 

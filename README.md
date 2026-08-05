@@ -37,17 +37,18 @@
 
 ---
 
-## 🌐 Live Demo
+## 🌐 Live Demo — 100% Free ($0)
 
-Deploy entirely from your **browser** — no installs on your laptop. See **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+Deploy from your **browser only** — no installs, **no payment**, **no Azure**:
 
-| Step | Service | What you get |
-|------|---------|--------------|
-| 1 | [Azure SQL](https://portal.azure.com) | Cloud database (free trial) |
-| 2 | [Render](https://dashboard.render.com) + GitHub | Full API at `*.onrender.com` |
-| 3 | [Vercel](https://vercel.com) + GitHub | Portfolio UI at `*.vercel.app` |
+| Step | Service | Cost |
+|------|---------|------|
+| 1 | [Render](https://dashboard.render.com) + GitHub | **$0** |
+| 2 | [Vercel](https://vercel.com) + GitHub (optional) | **$0** |
 
-**Repo:** [github.com/Ankit2004-web/RailYatra](https://github.com/Ankit2004-web/RailYatra)
+SQLite database is **built in** — no separate DB signup needed.
+
+**Guide:** [docs/DEPLOY.md](docs/DEPLOY.md)
 
 | Resource | URL |
 |----------|-----|
@@ -227,15 +228,14 @@ Full endpoint list in Swagger UI.
 
 ---
 
-## 🌍 Deployment
+## 🌍 Deployment — $0 / month
 
-Deploy live from your browser — **no local installs**:
+**No money needed.** Browser-only setup:
 
-1. **[Azure SQL](https://portal.azure.com)** — free cloud database  
-2. **[Render](https://dashboard.render.com)** — connect GitHub repo, uses `render.yaml`  
-3. **[Vercel](https://vercel.com)** — import `frontend/` folder, set `VITE_API_URL`
+1. **[Render](https://dashboard.render.com)** — connect GitHub → Blueprint → done (SQLite built in)
+2. **[Vercel](https://vercel.com)** (optional) — import `frontend/` for a portfolio URL
 
-Full step-by-step guide: **[docs/DEPLOY.md](docs/DEPLOY.md)**
+Full guide: **[docs/DEPLOY.md](docs/DEPLOY.md)**
 
 ---
 

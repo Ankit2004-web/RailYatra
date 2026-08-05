@@ -1,144 +1,114 @@
-# RailYatra — Deploy Live (Browser Only)
+# RailYatra — Deploy 100% FREE (No Money, Browser Only)
 
-No local installs needed. Everything is done in your **browser** via GitHub, **Render** (API), **Vercel** (UI), and **Azure SQL** (database).
-
----
-
-## Overview
-
-| Service | Role | Free tier |
-|---------|------|-----------|
-| **GitHub** | Source code | ✅ Already done |
-| **Azure SQL** | Database | ✅ 12-month free trial |
-| **Render** | Node.js API + serves built UI | ✅ Free (sleeps after 15 min idle) |
-| **Vercel** | React frontend (portfolio URL) | ✅ Free |
-
-**Recommended:** Deploy **Render first** (full app at one URL), then optionally add **Vercel** for a prettier frontend URL.
+Deploy live **without paying anything** and **without Azure SQL**. Uses free **Render** + optional free **Vercel** + built-in **SQLite** database.
 
 ---
 
-## Step 1 — Azure SQL Database (5 min, browser only)
+## Cost summary
 
-1. Go to **[portal.azure.com](https://portal.azure.com)** and sign in (free account works).
-2. **Create a resource** → **SQL Database**.
-3. Create a new **SQL server**:
-   - Server name: e.g. `railyatra-sql`
-   - Authentication: **SQL authentication**
-   - Set admin login + password (save these!)
-4. Database name: **`RailwayReservation`**
-5. Pricing: **Basic** or **Serverless** (cheapest / free trial).
-6. After creation → **Networking** → allow **Azure services** + add your IP.
-7. Note these values:
+| Service | Cost | Credit card? |
+|---------|------|--------------|
+| **GitHub** | $0 | No |
+| **Render** (API + UI) | $0 free tier | Usually no |
+| **Vercel** (optional UI) | $0 hobby tier | No |
+| **SQLite** (built-in DB) | $0 | No |
+| **Groq AI chat** | $0 free API | No |
 
-| Setting | Example |
-|---------|---------|
-| `DB_SERVER` | `railyatra-sql.database.windows.net` |
-| `DB_NAME` | `RailwayReservation` |
-| `DB_USER` | your admin login |
-| `DB_PASSWORD` | your password |
+**Total: $0/month**
+
+> Free Render apps sleep after 15 min idle — first visit may take ~30 seconds to wake up. Demo data re-seeds on each deploy (SQLite file is temporary on free tier).
 
 ---
 
-## Step 2 — Deploy API on Render (browser only)
+## Option A — One URL on Render (easiest, $0)
 
-1. Go to **[dashboard.render.com](https://dashboard.render.com)** → sign up with **GitHub**.
+### Step 1 — Deploy (browser only)
+
+1. Go to **[dashboard.render.com](https://dashboard.render.com)** → sign up with **GitHub** (free).
 2. Click **New +** → **Blueprint**.
-3. Connect repo: **`Ankit2004-web/RailYatra`**.
-4. Render reads `render.yaml` automatically.
-5. Fill in environment variables when prompted:
+3. Select repo: **`Ankit2004-web/RailYatra`**.
+4. Render reads `render.yaml` automatically — **SQLite is pre-configured**, no database signup needed.
+5. When asked, set only:
+   ```env
+   APP_URL=https://YOUR-SERVICE-NAME.onrender.com
+   GROQ_API_KEY=gsk_...    # optional — AI chat (free from console.groq.com)
+   ```
+6. Click **Apply** → wait ~5–10 min.
 
-```env
-DB_SERVER=railyatra-sql.database.windows.net
-DB_USER=your_admin
-DB_PASSWORD=your_password
-APP_URL=https://railyatra-api.onrender.com
-GROQ_API_KEY=gsk_...          # optional — AI chat
-```
+### Step 2 — Share your live link
 
-6. Click **Apply**. Wait ~5–10 min for first deploy.
-7. Open your Render URL → e.g. **`https://railyatra-api.onrender.com`**
+Your app is live at: **`https://YOUR-SERVICE-NAME.onrender.com`**
 
-> First request after idle may take 30–60 seconds (free tier wake-up).
+- Train search, booking, PNR, admin, support chat — all work on demo seed data.
+- Admin login uses `ADMIN_EMAIL` / `ADMIN_PASSWORD` from Render env (auto-generated password shown in dashboard).
 
-Verify: `https://YOUR-RENDER-URL.onrender.com/api/health/ready` → should show `"status":"ready"`.
+Verify: `https://YOUR-URL.onrender.com/api/health/ready` → `"status":"ready"`
 
 ---
 
-## Step 3 — Deploy frontend on Vercel (browser only)
+## Option B — Vercel UI + Render API ($0)
 
-1. Go to **[vercel.com](https://vercel.com)** → sign up with **GitHub**.
-2. **Add New Project** → import **`Ankit2004-web/RailYatra`**.
-3. Configure:
+Use this if you want a **`*.vercel.app`** portfolio URL.
+
+### Step 1 — Render (backend)
+
+Follow **Option A** first. Copy your Render URL.
+
+### Step 2 — Vercel (frontend)
+
+1. Go to **[vercel.com](https://vercel.com)** → sign up with **GitHub** (free).
+2. **Add New Project** → import **RailYatra**.
+3. Settings:
 
 | Setting | Value |
 |---------|-------|
-| **Root Directory** | `frontend` |
-| **Framework** | Vite |
-| **Build Command** | `npm run build` |
-| **Output Directory** | `dist` |
+| Root Directory | `frontend` |
+| Framework | Vite |
+| Build Command | `npm run build` |
+| Output Directory | `dist` |
 
-4. Add **Environment Variable**:
+4. Environment variable:
+   ```env
+   VITE_API_URL=https://YOUR-SERVICE-NAME.onrender.com
+   ```
+5. **Deploy** → live at **`https://your-app.vercel.app`**
+
+---
+
+## What runs in free mode
+
+- **Database:** SQLite file on Render (`DB_DRIVER=sqlite`) — no external DB service.
+- **Data:** Demo stations, trains, and seats seeded automatically on startup.
+- **AI chat:** Works if you add a free **Groq** key in Render env vars.
+- **Live train status:** Uses free Indian Railways NTES public API.
+- **Payments:** Dev mode (auto-confirms without Razorpay keys).
+
+---
+
+## Environment (Render — already in render.yaml)
 
 ```env
-VITE_API_URL=https://railyatra-api.onrender.com
-```
-
-(Use your actual Render URL from Step 2.)
-
-5. Click **Deploy**.
-
-Your live portfolio URL: **`https://railyatra.vercel.app`** (or similar).
-
----
-
-## Step 4 — GitHub Actions auto-deploy (optional)
-
-After Vercel first import, enable auto-deploy on every push:
-
-1. **Vercel** → Project → **Settings** → copy **Project ID** and **Org ID**.
-2. **Vercel** → Account → **Tokens** → create token.
-3. **GitHub** → repo → **Settings** → **Secrets and variables** → **Actions**:
-   - Secret `VERCEL_TOKEN` = your token
-   - Secret `VERCEL_ORG_ID` = org id
-   - Secret `VERCEL_PROJECT_ID` = project id
-4. **Variables** → add `VITE_API_URL` = your Render API URL.
-
-Every push to `main` auto-deploys the frontend via `.github/workflows/deploy-vercel.yml`.
-
-Render auto-redeploys on push when connected via Blueprint.
-
----
-
-## Render only (simplest — one URL)
-
-Skip Vercel if you want one link:
-
-1. Complete Steps 1 + 2 only.
-2. Share **`https://railyatra-api.onrender.com`** — it serves both API and React UI.
-
----
-
-## Environment reference
-
-```env
-# Cloud (Render)
-DB_DRIVER=tedious
-DB_TRUSTED_CONNECTION=false
-DB_ENCRYPT=true
-DB_TRUST_SERVER_CERT=false
-DB_SERVER=your-server.database.windows.net
-DB_NAME=RailwayReservation
-DB_USER=...
-DB_PASSWORD=...
-JWT_SECRET=long_random_string
-APP_URL=https://your-render-url.onrender.com
+DB_DRIVER=sqlite
+SQLITE_PATH=/tmp/railyatra.db
+NODE_ENV=production
 PORT=5000
-
-# Vercel frontend
-VITE_API_URL=https://your-render-url.onrender.com
+JWT_SECRET=auto-generated
+ADMIN_EMAIL=admin@railway.com
+ADMIN_PASSWORD=auto-generated
+APP_URL=https://your-app.onrender.com
+GROQ_API_KEY=optional
 ```
 
-**Never commit** `.env`, passwords, or API keys to GitHub.
+---
+
+## Local development (Windows — unchanged)
+
+```powershell
+sqllocaldb start MSSQLLocalDB
+npm start
+```
+
+Uses SQL Server LocalDB on your PC. Cloud SQLite mode is **only for free Render hosting**.
 
 ---
 
@@ -146,21 +116,14 @@ VITE_API_URL=https://your-render-url.onrender.com
 
 | Problem | Fix |
 |---------|-----|
-| Render build fails on `msnodesqlv8` | Fixed — driver is optional; cloud uses `tedious` |
-| `/api/health/ready` = not_ready | Check Azure SQL firewall + credentials |
-| Vercel UI loads but API fails | Set `VITE_API_URL` to Render URL, redeploy |
-| Slow first load | Render free tier cold start — normal |
-| Admin login fails | Set `ADMIN_EMAIL` / `ADMIN_PASSWORD` in Render env, redeploy |
+| Build fails | Check Render logs; ensure Node 22 is used |
+| Slow first load | Free tier cold start — wait 30–60 sec |
+| Admin password unknown | Render dashboard → Environment → `ADMIN_PASSWORD` |
+| Data gone after redeploy | Normal on free tier — SQLite is ephemeral |
+| Vercel UI, API errors | Set `VITE_API_URL` to Render URL, redeploy |
 
 ---
 
-## Local development (Windows)
+## Optional: Azure SQL (only if you need persistent data)
 
-Still works with LocalDB — no cloud env vars needed:
-
-```powershell
-sqllocaldb start MSSQLLocalDB
-npm start
-```
-
-Cloud variables (`DB_DRIVER=tedious`) are only used on Render/Linux.
+If you later want a permanent cloud database, see Azure SQL in the older docs — but it is **not required** for a free demo.

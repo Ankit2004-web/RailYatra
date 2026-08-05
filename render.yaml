@@ -1,10 +1,9 @@
-# Render Blueprint — RailYatra API
+# Render Blueprint — RailYatra (100% FREE — no credit card for database)
 # Connect at https://dashboard.render.com → New → Blueprint → select this repo
-# Requires Azure SQL Database (free tier — create in browser at portal.azure.com)
 
 services:
   - type: web
-    name: railyatra-api
+    name: railyatra
     runtime: node
     plan: free
     region: singapore
@@ -17,28 +16,16 @@ services:
       - key: PORT
         value: 5000
       - key: DB_DRIVER
-        value: tedious
-      - key: DB_TRUSTED_CONNECTION
-        value: false
-      - key: DB_ENCRYPT
-        value: true
-      - key: DB_TRUST_SERVER_CERT
-        value: false
-      - key: DB_NAME
-        value: RailwayReservation
+        value: sqlite
+      - key: SQLITE_PATH
+        value: /tmp/railyatra.db
       - key: JWT_SECRET
         generateValue: true
-      - key: DB_SERVER
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
       - key: APP_URL
-        sync: false
-      - key: GROQ_API_KEY
         sync: false
       - key: ADMIN_EMAIL
         value: admin@railway.com
       - key: ADMIN_PASSWORD
         generateValue: true
+      - key: GROQ_API_KEY
+        sync: false

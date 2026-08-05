@@ -36,7 +36,8 @@ coverage/
 *.ldf
 
 # Large railway raw datasets (place locally, do not commit)
-database/data/railway/raw/**
+backend/data/*.db
+backend/data/*.db-*
 database/data/railway/archive/**
 !database/data/railway/raw/.gitkeep
 !database/data/railway/archive/.gitkeep

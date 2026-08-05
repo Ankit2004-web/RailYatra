@@ -14,7 +14,9 @@ function ensureLocalDbRunning() {
 }
 
 async function seedDatabase() {
-    ensureLocalDbRunning();
+    if ((process.env.DB_DRIVER || '').toLowerCase() !== 'sqlite') {
+        ensureLocalDbRunning();
+    }
     const pool = await getPool();
 
     try {

@@ -1,9 +1,9 @@
-const useTedious = process.env.DB_DRIVER === 'tedious'
-    || process.env.RENDER
-    || process.env.RAILWAY_ENVIRONMENT
-    || process.env.VERCEL
-    || (process.platform !== 'win32' && process.env.DB_TRUSTED_CONNECTION === 'false');
+const driver = (process.env.DB_DRIVER || '').toLowerCase();
 
-module.exports = useTedious
-    ? require('./connection-tedious')
-    : require('./connection-native');
+if (driver === 'sqlite') {
+    module.exports = require('./connection-sqlite');
+} else if (driver === 'tedious' || process.env.DB_TRUSTED_CONNECTION === 'false') {
+    module.exports = require('./connection-tedious');
+} else {
+    module.exports = require('./connection-native');
+}
