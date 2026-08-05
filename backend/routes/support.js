@@ -7,6 +7,7 @@ const { requireRole } = require('../middleware/rbac');
 const { ROLES } = require('../constants/roles');
 const supportRepository = require('../repositories/supportRepository');
 const chatRepository = require('../repositories/chatRepository');
+const aiChatService = require('../services/aiChatService');
 const crypto = require('crypto');
 
 const ticketRules = [
@@ -67,13 +68,17 @@ router.put('/tickets/:id', auth, requireRole(ROLES.CUSTOMER_SUPPORT, ROLES.ADMIN
 
 router.post('/chat/session', auth, async (req, res) => {
     const sessionId = crypto.randomBytes(16).toString('hex');
+    const provider = aiChatService.resolveProvider();
+    const welcomeText = provider === 'fallback'
+        ? 'Hello! I am RailYatra support. How can I help you today?'
+        : 'Hello! I am RailYatra AI support. Ask me about bookings, PNR, refunds, cancellations, or live train status.';
     const welcome = await chatRepository.addMessage({
         userId: req.user.id,
         sessionId,
         sender: 'agent',
-        message: 'Hello! I am RailYatra support. How can I help you today?'
+        message: welcomeText
     });
-    res.json({ sessionId, welcome });
+    res.json({ sessionId, welcome, aiEnabled: provider !== 'fallback', provider });
 });
 
 router.get('/chat/:sessionId', auth, async (req, res) => {
@@ -96,12 +101,8 @@ router.post('/chat/:sessionId', auth, [
             message: req.body.message
         });
 
-        const lower = req.body.message.toLowerCase();
-        let reply = 'Thank you for your message. A support agent will follow up shortly.';
-        if (lower.includes('pnr')) reply = 'Please share your 10-digit PNR. You can also check status on the PNR page.';
-        else if (lower.includes('refund')) reply = 'Refunds follow IRCTC cancellation rules. Check My Bookings for refund status.';
-        else if (lower.includes('lost') || lower.includes('ticket')) reply = 'For lost tickets, raise a ticket with PNR and registered mobile number.';
-        else if (lower.includes('cancel')) reply = 'You can cancel from My Bookings. Partial passenger cancellation is supported for multi-passenger tickets.';
+        const history = await chatRepository.findBySession(req.params.sessionId);
+        const { reply, provider } = await aiChatService.generateSupportReply(history);
 
         const agentMsg = await chatRepository.addMessage({
             userId: req.user.id,
@@ -110,7 +111,7 @@ router.post('/chat/:sessionId', auth, [
             message: reply
         });
 
-        res.json({ userMsg, agentMsg });
+        res.json({ userMsg, agentMsg, provider });
     } catch (err) {
         res.status(500).json({ msg: 'Chat failed' });
     }

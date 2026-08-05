@@ -1,115 +1,171 @@
-# RailYatra
+<div align="center">
 
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
-[![Node.js](https://img.shields.io/badge/Node.js-Express-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
-[![SQL Server](https://img.shields.io/badge/SQL%20Server-CC2927?logo=microsoft-sql-server&logoColor=white)](https://www.microsoft.com/sql-server)
+# 🚆 RailYatra
 
-**Repository:** [github.com/Ankit2004-web/RailYatra](https://github.com/Ankit2004-web/RailYatra)
+**Your journey, simplified.** — A full-stack Indian railway reservation platform inspired by IRCTC.
 
-**Suggested GitHub topics:** `react` · `reactjs` · `vite` · `nodejs` · `express` · `sql-server` · `indian-railways`
+[![Live Demo](https://img.shields.io/badge/Live-Demo-0ea5e9?style=for-the-badge&logo=googlechrome&logoColor=white)](#-live-demo)
+[![React](https://img.shields.io/badge/React_19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js_22-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![SQL Server](https://img.shields.io/badge/SQL_Server-CC2927?style=for-the-badge&logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
-**RailYatra** (*rail journey* in Hindi) — a production-ready Indian railway reservation platform with separated **React frontend** and **Node.js backend**, powered by **Microsoft SQL Server**.
+[Live Demo](#-live-demo) · [Features](#-features) · [Quick Start](#-quick-start) · [API Docs](#-api) · [Deploy](#-deployment) · [GitHub](https://github.com/Ankit2004-web/RailYatra)
 
-> **Note:** GitHub’s language bar counts `.jsx` / `.js` files as **JavaScript** (React is a JS library, not a separate language). Use the badges and topics above to highlight React on the repo page.
+<br />
 
-## Project Structure
+<img src="frontend/public/logo.png" alt="RailYatra logo" width="120" />
+
+<br />
+
+*Search trains · Book tickets · Track PNR · Live status · AI support*
+
+</div>
+
+---
+
+## ✨ Highlights
+
+| | |
+|---|---|
+| 🔍 **Route-aware search** | Finds trains that stop at **both** boarding and destination stations |
+| 🎫 **End-to-end booking** | Seat map, Razorpay payments, e-ticket PDF, partial cancellation |
+| 📡 **Live train status** | Real-time data from Indian Railways **NTES** |
+| 🤖 **AI support chat** | Groq / Gemini powered live chat on the Support page |
+| 🛡️ **Enterprise-ready** | JWT auth, MFA, RBAC, rate limits, audit logs, Swagger API |
+| 📊 **Admin portal** | Dashboard, trains, bookings, users, reports, master data import |
+
+---
+
+## 🌐 Live Demo
+
+> Deploy the app locally, then expose it with [Cloudflare Tunnel](docs/DEPLOY.md#quick-live-demo) for a public URL — ideal for portfolios and demos.
+
+| Resource | URL |
+|----------|-----|
+| **App** | `http://localhost:5000` (local) |
+| **API / Swagger** | [localhost:5000/api/swagger](http://localhost:5000/api/swagger) |
+| **Admin login** | [localhost:5000/admin/login](http://localhost:5000/admin/login) |
+| **Support + AI chat** | [localhost:5000/support](http://localhost:5000/support) |
+
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `backend/.env` before `npm run db:seed`.
+
+---
+
+## 🏗 Architecture
+
+```mermaid
+flowchart LR
+  subgraph Client
+    UI[React 19 + Vite]
+  end
+  subgraph Server
+    API[Express API]
+    AI[AI Chat Service]
+    NTES[NTES Client]
+  end
+  subgraph Data
+    DB[(SQL Server)]
+  end
+  UI -->|REST /api| API
+  API --> DB
+  API --> AI
+  API --> NTES
+  AI -->|Groq / Gemini| LLM[Free AI APIs]
+  NTES -->|Live status| IR[Indian Railways NTES]
+```
 
 ```
-├── frontend/            # React 19 + Vite UI
-│   ├── public/          # Static assets (logo, banners)
-│   └── src/             # Pages, components, styles
-├── backend/             # Node.js + Express API
-│   ├── middleware/      # Auth, admin, validation
-│   ├── repositories/    # Data access layer
-│   ├── routes/          # API endpoints
-│   ├── services/        # Business logic
-│   ├── scripts/         # Startup & utility scripts
-│   ├── docs/            # OpenAPI spec and data docs
-│   ├── dotnet/          # Optional ASP.NET Core master-data API
-│   └── server.js
-├── database/            # SQL Server schema, seeds, imports, datasets
-│   ├── data/railway/    # Processed & raw railway master data
-│   └── import/          # ETL importers
-├── package.json
-└── README.md
+RailYatra/
+├── frontend/          React 19 + Vite UI
+├── backend/           Node.js + Express API
+│   ├── routes/        REST endpoints
+│   ├── services/      Business logic, AI chat, NTES
+│   └── repositories/  Data access layer
+├── database/          Schema, seeds, railway ETL importers
+├── docs/              Architecture & deployment guides
+└── Dockerfile         Container build (see deployment notes)
 ```
 
-## Tech Stack
+---
 
-| Layer | Technology |
-|-------|------------|
-| Frontend | **React 19** + Vite + React Router |
-| Backend | Node.js, Express.js |
-| Database | Microsoft SQL Server |
-| Driver | mssql + msnodesqlv8 |
-| Auth | JWT + bcrypt |
-| Validation | express-validator |
+## 🚀 Quick Start
 
-## Quick Start
+### Prerequisites
+
+- **Node.js 20.x or 22.x LTS** (see `.nvmrc`) — Node 26+ is not supported by the SQL Server native driver
+- **SQL Server LocalDB** (Windows) or SQL Server instance
+- **ODBC Driver 17 for SQL Server**
+
+### Install & run
 
 ```bash
 # 1. Start LocalDB (Windows)
 sqllocaldb start MSSQLLocalDB
 
-# 2. Install dependencies (backend + frontend)
+# 2. Install dependencies
 npm run install:all
 
 # 3. Configure environment
 copy backend\.env.example backend\.env
 
-# 4. Setup database
+# 4. Create database + seed data
 npm run db:setup
 
-# 5. Run application (builds React UI if needed)
+# 5. Start (builds React UI if needed)
 npm start
 ```
 
 Open **http://localhost:5000**
 
-**Node.js:** Use **20.x or 22.x LTS** (see `.nvmrc`). Node 26+ is not supported by the SQL Server native driver.
+### Development (hot reload)
 
-### Development (hot reload UI)
-
-Terminal 1 — API server:
 ```bash
+# Terminal 1 — API
 npm run dev
-```
 
-Terminal 2 — React dev server (proxies `/api` to port 5000):
-```bash
+# Terminal 2 — React dev server (proxies /api → :5000)
 npm run frontend:dev
 ```
 
 Open **http://localhost:5173**
 
-### Railway master data (optional — India-wide timetable)
+---
 
-```bash
-# Download DataMeet open dataset (~2016, CC0 — NOT official IRCTC)
-npm run download:railway
+## 🎯 Features
 
-# Bulk import stations, trains, stops (~7 minutes)
-npm run import:datameet
+### Passenger
 
-# Verify search works
-node database/verify-search.js
+- Station & train autocomplete, route-aware search, filters
+- Interactive seat map, quotas (General, Ladies, Senior Citizen)
+- PNR enquiry, e-ticket PDF, My Bookings
+- Live train status (NTES), fare estimates (IRCTC CC 11/2025)
+- Support hub — FAQ, AI live chat, raise ticket
+- MFA, OAuth dev login, saved passengers, i18n hooks
+
+### Admin
+
+- Unified dashboard with stats & teal enterprise UI
+- Train / station / booking / user management
+- Revenue, occupancy & cancellation reports
+- Master data import (DataMeet ~5k trains)
+- Audit trail, RBAC roles
+
+### AI Support Chat
+
+Add a free API key to `backend/.env`:
+
+```env
+GROQ_API_KEY=gsk_...          # https://console.groq.com/keys
+# or
+GEMINI_API_KEY=...            # https://aistudio.google.com/apikey
 ```
 
-After import you get ~8,988 stations, ~5,207 trains, and ~417k stops. See `database/data/railway/RailwayDataImportReport.json` for honest counts and limitations.
+Restart the server → **Support → Live Chat** shows **AI Support Assistant**.
 
-**API documentation:** http://localhost:5000/api/swagger
+---
 
-**Admin master data panel:** Admin Portal → Master Data
-
-To use offline mock data instead of the live API, run in browser console:
-`localStorage.setItem('railwayUseMock', 'true'); location.reload()`
-
-## Default Admin
-
-Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in your environment before running `npm run db:seed` to create the first admin user. Register a normal account first if you prefer, then promote it via the admin API.
-
-## Environment Variables
+## ⚙️ Environment
 
 ```env
 DB_SERVER=(localdb)\MSSQLLocalDB
@@ -117,126 +173,100 @@ DB_NAME=RailwayReservation
 DB_TRUSTED_CONNECTION=true
 JWT_SECRET=your_secret_key
 PORT=5000
-ADMIN_EMAIL=
+APP_URL=http://localhost:5000
+
+ADMIN_EMAIL=admin@railway.com
 ADMIN_PASSWORD=
+
+# AI support (optional — free tier)
+AI_CHAT_PROVIDER=auto
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.1-8b-instant
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.0-flash
 ```
 
-## API Endpoints
+See `backend/.env.example` for Razorpay, SMTP, and rate-limit options.
+
+---
+
+## 📡 API
+
+Interactive docs: **http://localhost:5000/api/swagger**
 
 | Method | Endpoint | Access |
 |--------|----------|--------|
-| POST | `/api/auth/register` | Public |
-| POST | `/api/auth/login` | Public |
-| GET | `/api/auth/me` | Private |
-| GET | `/api/trains` | Public |
-| GET | `/api/trains/search` | Public |
-| GET | `/api/stations` | Public |
-| GET | `/api/stations/search?q=` | Public |
-| GET | `/api/bookings/pnr/:pnr` | Public |
-| GET | `/api/trains/:id/seats?classCode=&journeyDate=` | Public |
-| POST | `/api/auth/forgot-password` | Public |
-| POST | `/api/auth/reset-password` | Public |
-| GET | `/api/captcha` | Public |
-| GET | `/api/trains/autocomplete?q=` | Public |
-| GET | `/api/trains/:id/route` | Public |
-| GET | `/api/fares/estimate` | Public |
-| GET | `/api/availability/check` | Public |
-| GET | `/api/admin/trains` | Admin |
-| GET | `/api/admin/data-import/status` | Admin |
-| GET | `/api/swagger` | Public |
-| GET | `/api/openapi.yaml` | Public |
-| GET | `/api/docs` | Public |
-| GET | `/api/bookings/:id/refund-preview` | Private |
-| GET | `/api/admin/reports/refunds` | Admin |
-| POST | `/api/payments/create-order` | Private |
-| POST | `/api/payments/verify` | Private |
-| POST | `/api/payments/webhook` | Public (signed) |
-| GET/POST/PUT/DELETE | `/api/passengers/saved` | Private |
-| POST/PUT/DELETE | `/api/trains` | Admin |
-| GET/POST | `/api/bookings` | Private |
-| GET | `/api/bookings/all` | Admin |
-| GET | `/api/admin/dashboard` | Admin |
-| GET | `/api/admin/bookings` | Admin |
-| GET | `/api/admin/users` | Admin |
-| PUT | `/api/admin/users/:id` | Admin |
-| GET | `/api/admin/reports/revenue` | Admin |
-| GET | `/api/admin/reports/occupancy` | Admin |
-| GET | `/api/admin/reports/cancellations` | Admin |
-| POST | `/api/payments/dev-confirm` | Private |
-| POST | `/api/admin/rac/promote` | Admin |
-| POST/PUT/DELETE | `/api/stations` | Admin |
+| `POST` | `/api/auth/register` · `/api/auth/login` | Public |
+| `GET` | `/api/trains/search` · `/api/stations/search` | Public |
+| `GET` | `/api/bookings/pnr/:pnr` | Public |
+| `GET` | `/api/live-trains/:trainNumber` | Public |
+| `POST` | `/api/bookings` · `/api/payments/*` | Private |
+| `POST` | `/api/support/chat/:sessionId` | Private (AI chat) |
+| `GET` | `/api/admin/dashboard` · `/api/admin/reports/*` | Admin |
 
-## Scripts
+Full endpoint list in Swagger UI.
+
+---
+
+## 🛠 Scripts
 
 | Command | Description |
 |---------|-------------|
-| `npm start` | Start production server |
-| `npm test` | Run API integration tests |
-| `npm run dev` | Start with nodemon |
-| `npm run db:setup` | Create tables + seed data (`database/`) |
-| `npm run db:sync` | Sync database schema (`database/sync.js`) |
-| `npm run db:seed` | Seed stations, trains, admin (`database/seed.js`) |
-| `npm run download:railway` | Download DataMeet JSON to `database/data/railway/raw/` |
-| `npm run import:railway` | Import dev CSV sample (~24 stations, 8 trains) |
-| `npm run import:datameet` | Bulk import DataMeet JSON (~5k trains) |
-| `npm run db:migrate-master` | Link legacy seed rows to normalized FKs |
+| `npm start` | Production server |
+| `npm run dev` | API with nodemon |
+| `npm run frontend:dev` | Vite dev server |
+| `npm test` | Backend tests |
+| `npm run db:setup` | Schema + seed |
+| `npm run import:datameet` | Bulk import ~5k trains (~7 min) |
+| `npm run download:railway` | Download DataMeet JSON dataset |
 
-## Phase 6 Features — Railway Master Data Architecture
+---
 
-- **Normalized schema** — States, Cities, Zones, TrainStops with day offsets, segment fares, import audit
-- **Import pipeline** — Idempotent CSV + DataMeet JSON importers with error reports
-- **Train-between-stations search** — Graph search via intermediate stops (`fromStopOrder < toStopOrder`)
-- **Multi-day running logic** — Source departure date from day offsets; skips day filter when running days missing
-- **Admin trains UI** — Paginated list, filters, full route timeline with day/distance/platform
-- **Passenger search** — Station autocomplete, train autocomplete, route modal
-- **Category B fares** — Estimated from IRCA passenger fare table with **[Commercial Circular No. 11 of 2025](https://indianrailways.gov.in/railwayboard/uploads/directorate/traffic_comm/Comm_Cir_2025/CC%2011%20of%202025.pdf)** revision (effective 01.07.2025): +1 paisa/km non-AC Mail/Express, +2 paisa/km AC, ordinary 2S slab rules; reservation & superfast charges unchanged
-- **Segment bookings** — Route-segment seat allocations stored in `BookingSeatAllocations`
-- **Swagger UI** — Interactive API docs at `/api/swagger`
-- **Documentation** — `docs/RAILWAY_DATA_*.md` architecture, import, dictionary
+## 🌍 Deployment
 
-## Phase 1 Features
+RailYatra uses **SQL Server** with the Windows ODBC driver (`msnodesqlv8`). Recommended paths:
 
-- **Station autocomplete** — search stations by name, code, or city
-- **Train classes** — SL, 3A, 2A, 1A, CC, 2S, EC with per-class pricing and availability
-- **PNR enquiry** — check booking status with 10-digit PNR (no login required)
+| Method | Best for |
+|--------|----------|
+| **[Cloudflare Tunnel](docs/DEPLOY.md#quick-live-demo)** | Instant public demo from your PC |
+| **[Azure App Service + Azure SQL](docs/DEPLOY.md#azure-production)** | Production hosting |
+| **Docker + host SQL Server** | Local / on-prem containers |
 
-## Phase 2 Features
+See **[docs/DEPLOY.md](docs/DEPLOY.md)** for step-by-step instructions.
 
-- **Interactive seat selection** — pick specific seats from a visual seat map
-- **Razorpay payments** — pay before confirmation (dev mode auto-confirms without API keys)
-- **Waiting list** — join waitlist when seats are full; auto-promoted on cancellation
-- **Tatkal booking** — +30% fare for journeys 1–2 days away
+---
 
-## Phase 3 Features
+## 📦 Railway master data (optional)
 
-- **Admin dashboard** — overview stats, recent bookings, sidebar navigation
-- **Train schedule management** — running days and running status (Running/Cancelled/Diverted)
-- **Booking management** — filter by PNR, status, date; cancel and promote waitlist
-- **User management** — promote to admin, block/unblock users
-- **Station management** — add, edit, delete stations
-- **Reports** — revenue trends, cancellation trends, train occupancy by class
+```bash
+npm run download:railway    # DataMeet JSON (CC0, ~2016 era)
+npm run import:datameet     # ~8,988 stations · ~5,207 trains · ~417k stops
+```
 
-## Phase 4 Features
+Import report: `database/data/railway/RailwayDataImportReport.json`
 
-- **Mobile-first UI** — hamburger navigation, responsive modals and layouts
-- **Captcha protection** — on login, register, booking, and admin login
-- **Forgot password** — email reset link (dev mode shows link in response without SMTP)
-- **E-ticket PDF** — download confirmed booking tickets from My Bookings
-- **Rate limiting** — API, auth, and booking endpoints
-- **Security headers** — Helmet middleware
-- **Structured logging** — Winston logs in `backend/logs/`
-- **Integration tests** — `npm test`
+---
 
-## Phase 5 Features
+## 🧪 Testing
 
-- **Cancellation refunds** — IRCTC-style rules (100%/50%/25% by time before journey, ₹20/passenger charge)
-- **Refund preview** — see estimated refund before confirming cancellation
-- **Train route stops** — view intermediate stations, timings, and distance
-- **Passenger quotas** — General, Ladies, Senior Citizen (40% discount)
-- **Booking confirmation email** — sent on payment confirmation (SMTP or dev log)
-- **Admin refund reports** — total refunded, refund history
-- **Docker deployment** — `Dockerfile` + `docker-compose.yml`
+```bash
+npm test
+```
 
-## License
+Includes API integration tests, fare rules, NTES parser, and AI chat fallback tests.
 
-MIT
+---
+
+## 📄 License
+
+MIT — see [LICENSE](LICENSE).
+
+---
+
+<div align="center">
+
+**Built with ❤️ for Indian Railways enthusiasts**
+
+[⭐ Star on GitHub](https://github.com/Ankit2004-web/RailYatra) · [Report an issue](https://github.com/Ankit2004-web/RailYatra/issues)
+
+</div>
