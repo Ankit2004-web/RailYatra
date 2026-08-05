@@ -49,6 +49,8 @@ function normalizeSql(sqlText) {
     text = text.replace(/\bGETDATE\(\)/gi, "datetime('now')");
     text = text.replace(/\bSYSUTCDATETIME\(\)/gi, "datetime('now')");
     text = text.replace(/\bDATEADD\(MINUTE,\s*(\d+),\s*(?:SYSUTCDATETIME\(\)|GETDATE\(\))\)/gi, "datetime('now', '+$1 minutes')");
+    text = text.replace(/\bLTRIM\s*\(\s*RTRIM\s*\(([^)]+)\)\s*\)/gi, 'TRIM($1)');
+    text = text.replace(/\bLTRIM\s*\(\s*RTRIM\s*\(([^)]+)\)\)/gi, 'TRIM($1)');
     text = text.replace(/\bISNULL\(/gi, 'IFNULL(');
     text = text.replace(/\bdbo\./gi, '');
     text = text.replace(/\[([^\]]+)\]/g, '$1');
@@ -135,7 +137,9 @@ class Request {
     }
 
     input(name, _type, value) {
-        this.params.push({ name, value });
+        let normalized = value;
+        if (typeof normalized === 'boolean') normalized = normalized ? 1 : 0;
+        this.params.push({ name, value: normalized });
         return this;
     }
 
@@ -155,11 +159,23 @@ class Request {
         const hasOutput = /OUTPUT\s+INSERTED/i.test(text);
         const table = extractInsertTable(text);
         text = normalizeSql(text.replace(/\s*OUTPUT\s+INSERTED\.\*/gi, ''));
+        const updateTable = /^\s*UPDATE/i.test(text)
+            ? (text.match(/UPDATE\s+([A-Za-z0-9_]+)/i)?.[1] || table)
+            : table;
 
         if (/^\s*INSERT/i.test(text)) {
             await runQuery(text, values);
             const inserted = await runQuery(`SELECT * FROM ${table} ORDER BY id DESC LIMIT 1`);
             return { recordset: inserted, rowsAffected: [1] };
+        }
+
+        if (/^\s*UPDATE/i.test(text) && hasOutput) {
+            await runQuery(text, values);
+            const idParam = paramLookup.get('id');
+            const updated = idParam != null
+                ? await runQuery(`SELECT * FROM ${updateTable} WHERE id = ?`, [idParam])
+                : [];
+            return { recordset: updated, rowsAffected: [1] };
         }
 
         const rows = await runQuery(text, values);

@@ -42,11 +42,11 @@ const COLUMN_PATCHES = {
 
 function loadSchemaStatements() {
     const schemaPath = path.join(__dirname, 'schema-sqlite.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8');
+    const schema = fs.readFileSync(schemaPath, 'utf8').replace(/--[^\n]*/g, '');
     return schema
         .split(';')
         .map((stmt) => stmt.trim())
-        .filter((stmt) => stmt && !stmt.startsWith('--'));
+        .filter(Boolean);
 }
 
 async function tableExists(table) {
@@ -125,6 +125,9 @@ async function syncSqliteDatabase() {
             await resetDatabase();
             await runQuery('SELECT 1 AS ok');
             await applySchema(statements);
+            if (!(await verifyCoreTables())) {
+                throw new Error('SQLite rebuild failed — core tables still missing (check schema-sqlite.sql)');
+            }
         }
 
         await ensureColumns();

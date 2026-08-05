@@ -201,11 +201,39 @@ CREATE TABLE IF NOT EXISTS AuditLogs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     userId INTEGER,
     action TEXT NOT NULL,
-    entityType TEXT,
-    entityId TEXT,
+    resource TEXT,
     details TEXT,
     ipAddress TEXT,
     createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS UserDevices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    deviceLabel TEXT NOT NULL,
+    userAgent TEXT,
+    lastSeenAt TEXT NOT NULL DEFAULT (datetime('now')),
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS FavoriteRoutes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    sourceCode TEXT NOT NULL,
+    destinationCode TEXT NOT NULL,
+    label TEXT,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS UserPreferences (
+    userId INTEGER PRIMARY KEY,
+    notifyBooking INTEGER NOT NULL DEFAULT 1,
+    notifyRefund INTEGER NOT NULL DEFAULT 1,
+    notifyDelay INTEGER NOT NULL DEFAULT 1,
+    notifyChart INTEGER NOT NULL DEFAULT 1,
+    gstNumber TEXT,
+    gstBusinessName TEXT,
+    updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS SearchCache (
