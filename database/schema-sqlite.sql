@@ -11,6 +11,8 @@ CREATE TABLE IF NOT EXISTS Users (
     avatarUrl TEXT,
     theme TEXT NOT NULL DEFAULT 'light',
     role TEXT NOT NULL DEFAULT 'passenger',
+    mfaEnabled INTEGER NOT NULL DEFAULT 0,
+    mfaSecret TEXT,
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -71,6 +73,10 @@ CREATE TABLE IF NOT EXISTS Bookings (
     paymentStatus TEXT NOT NULL DEFAULT 'Pending',
     waitlistPosition INTEGER,
     quota TEXT NOT NULL DEFAULT 'General',
+    grandTotal REAL,
+    paymentBreakdown TEXT,
+    fromStationId INTEGER,
+    toStationId INTEGER,
     bookingDate TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -80,7 +86,9 @@ CREATE TABLE IF NOT EXISTS Passengers (
     bookingId INTEGER NOT NULL,
     name TEXT NOT NULL,
     age INTEGER NOT NULL,
-    gender TEXT NOT NULL
+    gender TEXT NOT NULL,
+    berthPreference TEXT,
+    passengerStatus TEXT NOT NULL DEFAULT 'Confirmed'
 );
 
 CREATE TABLE IF NOT EXISTS PasswordResetTokens (

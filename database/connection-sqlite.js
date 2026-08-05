@@ -190,6 +190,17 @@ const buildConnectionString = () => `sqlite://${dbPath}`;
 
 const loadDriver = () => getDb;
 
+const resetDatabase = async () => {
+    if (db) {
+        try { db.close(); } catch (_) { /* ignore */ }
+        db = null;
+        initPromise = null;
+    }
+    if (fs.existsSync(dbPath)) {
+        fs.unlinkSync(dbPath);
+    }
+};
+
 module.exports = {
     sql: {},
     getPool,
@@ -199,5 +210,6 @@ module.exports = {
     dbName,
     runQuery,
     withTransaction,
-    loadDriver
+    loadDriver,
+    resetDatabase
 };
