@@ -6,7 +6,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm run install:all && npm run frontend:build
+    buildCommand: NPM_CONFIG_PRODUCTION=false npm run install:all && npm run frontend:build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
