@@ -28,7 +28,7 @@ const TYPE_MAP = {
     exp: 'EXP', sf: 'SF', pass: 'PASS', raj: 'RAJ', shat: 'SHAT', dur: 'DUR', mail: 'EXP', passgr: 'PASS'
 };
 
-const STOP_BATCH = 12;
+const STOP_BATCH = 24;
 
 function parseDatameetTime(value) {
     if (!value || String(value).toLowerCase() === 'none') return null;

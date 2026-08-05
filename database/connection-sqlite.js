@@ -11,6 +11,11 @@ const dbName = process.env.DB_NAME || 'RailwayReservation';
 
 let db = null;
 let initPromise = null;
+let skipPersist = false;
+
+function setSkipPersist(value) {
+    skipPersist = !!value;
+}
 
 async function getDb() {
     if (db) return db;
@@ -37,8 +42,13 @@ async function getDb() {
 }
 
 function persistDb() {
-    if (!db) return;
+    if (!db || skipPersist) return;
     fs.writeFileSync(dbPath, Buffer.from(db.export()));
+}
+
+function flushDb() {
+    skipPersist = false;
+    persistDb();
 }
 
 function normalizeSql(sqlText) {
@@ -229,5 +239,8 @@ module.exports = {
     runQuery,
     withTransaction,
     loadDriver,
-    resetDatabase
+    resetDatabase,
+    setSkipPersist,
+    flushDb,
+    persistDb
 };

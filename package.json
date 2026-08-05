@@ -24,6 +24,7 @@
     "import:railway": "npm run import:railway --prefix backend",
     "import:datameet": "npm run import:datameet --prefix backend",
     "download:railway": "npm run download:railway --prefix backend",
+    "build:sqlite-master": "npm run build:sqlite-master --prefix backend",
     "fix:driver": "npm run fix:driver --prefix backend",
     "dotnet:build": "dotnet build backend/dotnet/RailYatra.sln",
     "dotnet:test": "dotnet test backend/dotnet/RailYatra.sln",

@@ -25,6 +25,11 @@ CREATE TABLE IF NOT EXISTS Stations (
     state TEXT NOT NULL,
     normalizedName TEXT,
     isActive INTEGER NOT NULL DEFAULT 1,
+    stateId INTEGER,
+    zoneId INTEGER,
+    latitude REAL,
+    longitude REAL,
+    dataSourceId INTEGER,
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -46,6 +51,10 @@ CREATE TABLE IF NOT EXISTS Trains (
     runningStatus TEXT NOT NULL DEFAULT 'Running',
     normalizedName TEXT,
     isActive INTEGER NOT NULL DEFAULT 1,
+    trainTypeId INTEGER,
+    sourceStationId INTEGER,
+    destinationStationId INTEGER,
+    dataSourceId INTEGER,
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -58,6 +67,8 @@ CREATE TABLE IF NOT EXISTS TrainClasses (
     price REAL NOT NULL,
     totalSeats INTEGER NOT NULL,
     availableSeats INTEGER NOT NULL,
+    travelClassId INTEGER,
+    isAvailable INTEGER NOT NULL DEFAULT 1,
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (trainId, classCode)

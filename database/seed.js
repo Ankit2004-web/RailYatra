@@ -51,7 +51,11 @@ async function seedDatabase() {
         const demoJourneyDate = new Date().toISOString().split('T')[0];
 
         const stationCount = await pool.request().query('SELECT COUNT(*) AS count FROM Stations');
-        if (stationCount.recordset[0].count === 0) {
+        const hasMasterData = stationCount.recordset[0].count > 500;
+
+        if (hasMasterData) {
+            console.log(`Master railway data detected (${stationCount.recordset[0].count} stations) — skipping demo seed.`);
+        } else if (stationCount.recordset[0].count === 0) {
             for (const [code, name, city, state] of stations) {
                 await pool.request()
                     .input('code', 'NVarChar', code)
@@ -63,11 +67,12 @@ async function seedDatabase() {
                             VALUES (@code, @name, @city, @state, @normalizedName, 1)`);
             }
             console.log(`Seeded ${stations.length} stations.`);
-        } else {
+        } else if (!hasMasterData) {
             console.log('Stations already exist, skipping.');
             await ensureStations(pool);
         }
 
+        if (!hasMasterData) {
         const trainCount = await pool.request().query('SELECT COUNT(*) AS count FROM Trains');
         if (trainCount.recordset[0].count === 0) {
             for (const train of trains) {
@@ -160,6 +165,7 @@ async function seedDatabase() {
             console.log(`Seeded ${seededStops} train route stops.`);
         } else {
             console.log('Train stops already exist, skipping.');
+        }
         }
 
         const demoEmails = ['demo@railway.com', 'admin@railway.com'];

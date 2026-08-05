@@ -26,11 +26,24 @@ const TRAIN_STOPS_DDL = `CREATE TABLE IF NOT EXISTS TrainStops (
 const COLUMN_PATCHES = {
     Stations: [
         ['normalizedName', 'TEXT'],
-        ['isActive', 'INTEGER DEFAULT 1']
+        ['isActive', 'INTEGER DEFAULT 1'],
+        ['stateId', 'INTEGER'],
+        ['zoneId', 'INTEGER'],
+        ['latitude', 'REAL'],
+        ['longitude', 'REAL'],
+        ['dataSourceId', 'INTEGER']
     ],
     Trains: [
         ['normalizedName', 'TEXT'],
-        ['isActive', 'INTEGER DEFAULT 1']
+        ['isActive', 'INTEGER DEFAULT 1'],
+        ['trainTypeId', 'INTEGER'],
+        ['sourceStationId', 'INTEGER'],
+        ['destinationStationId', 'INTEGER'],
+        ['dataSourceId', 'INTEGER']
+    ],
+    TrainClasses: [
+        ['travelClassId', 'INTEGER'],
+        ['isAvailable', 'INTEGER DEFAULT 1']
     ],
     TrainStops: [
         ['stationId', 'INTEGER'],
@@ -49,12 +62,18 @@ const COLUMN_PATCHES = {
 };
 
 function loadSchemaStatements() {
-    const schemaPath = path.join(__dirname, 'schema-sqlite.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8').replace(/--[^\n]*/g, '');
-    return schema
-        .split(';')
-        .map((stmt) => stmt.trim())
-        .filter(Boolean);
+    const files = ['schema-sqlite.sql', 'schema-sqlite-master.sql'];
+    const statements = [];
+    for (const file of files) {
+        const schemaPath = path.join(__dirname, file);
+        if (!fs.existsSync(schemaPath)) continue;
+        const schema = fs.readFileSync(schemaPath, 'utf8').replace(/--[^\n]*/g, '');
+        statements.push(...schema
+            .split(';')
+            .map((stmt) => stmt.trim())
+            .filter(Boolean));
+    }
+    return statements;
 }
 
 async function tableExists(table) {
@@ -88,6 +107,24 @@ async function ensureColumns() {
                 await runQuery(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
                 console.log(`Added column ${table}.${name}`);
             }
+        }
+    }
+}
+
+async function ensureIndexes() {
+    const indexes = [
+        'CREATE INDEX IF NOT EXISTS IX_TrainRunningDays_TrainId ON TrainRunningDays(trainId)',
+        'CREATE INDEX IF NOT EXISTS IX_Stations_NormalizedName ON Stations(normalizedName)',
+        'CREATE INDEX IF NOT EXISTS IX_Trains_SourceStationId ON Trains(sourceStationId)',
+        'CREATE INDEX IF NOT EXISTS IX_Trains_DestinationStationId ON Trains(destinationStationId)',
+        'CREATE INDEX IF NOT EXISTS IX_TrainStops_StationId ON TrainStops(stationId)',
+        'CREATE INDEX IF NOT EXISTS IX_TrainStops_Train_Station ON TrainStops(trainId, stationId)'
+    ];
+    for (const ddl of indexes) {
+        try {
+            await runQuery(ddl);
+        } catch (error) {
+            console.warn(`Index skipped: ${error.message}`);
         }
     }
 }
@@ -139,6 +176,7 @@ async function syncSqliteDatabase() {
         }
 
         await ensureColumns();
+        await ensureIndexes();
         await repairTrainStopsTable();
         console.log('Database schema is up to date.');
     } catch (error) {
