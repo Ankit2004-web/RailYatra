@@ -93,9 +93,15 @@ app.get('/api/health/ready', async (req, res) => {
         const { getPool } = require('../database/connection');
         const pool = await getPool();
         await pool.request().query('SELECT 1 AS ok');
+        const counts = await pool.request().query('SELECT (SELECT COUNT(*) FROM Stations) AS stations, (SELECT COUNT(*) FROM Trains WHERE isActive = 1) AS trains');
+        const row = counts.recordset[0] || {};
         res.json({
             status: 'ready',
             database: 'connected',
+            stations: row.stations || 0,
+            trains: row.trains || 0,
+            masterData: (row.stations || 0) > 500,
+            dbPath: process.env.SQLITE_PATH || 'default',
             timestamp: new Date().toISOString()
         });
     } catch (err) {
@@ -200,6 +206,19 @@ const startServer = async () => {
         const afterListen = async () => {
             try {
                 await seedDatabase();
+
+                try {
+                    const { getPool } = require('../database/connection');
+                    const pool = await getPool();
+                    const stats = await pool.request().query('SELECT (SELECT COUNT(*) FROM Stations) AS stations, (SELECT COUNT(*) FROM Trains WHERE isActive = 1) AS trains');
+                    const row = stats.recordset[0] || {};
+                    console.log(`Railway data loaded: ${row.stations || 0} stations, ${row.trains || 0} active trains`);
+                    if ((row.stations || 0) <= 50) {
+                        console.warn('WARNING: Master railway DB may be missing — only demo stations loaded. Redeploy or run npm run build:sqlite-master');
+                    }
+                } catch (statsErr) {
+                    console.warn('Could not read railway data stats:', statsErr.message);
+                }
 
                 const coachCapacityRulesService = require('./services/coachCapacityRulesService');
                 try {

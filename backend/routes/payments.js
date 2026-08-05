@@ -18,11 +18,15 @@ const verifyRules = [
     body('bookingId').isInt({ min: 1 }).withMessage('Valid booking ID is required'),
     body('razorpay_order_id').notEmpty().withMessage('Order ID is required'),
     body('razorpay_payment_id').notEmpty().withMessage('Payment ID is required'),
-    body('razorpay_signature').if(() => razorpayService.isConfigured()).notEmpty().withMessage('Payment signature is required')
+    body('razorpay_signature').if(() => razorpayService.isConfigured() && !allowDevPayment()).notEmpty().withMessage('Payment signature is required')
 ];
 
+const allowDevPayment = () => (
+    process.env.ALLOW_DEV_PAYMENT === '1' || process.env.ALLOW_DEV_PAYMENT === 'true' || !razorpayService.isConfigured()
+);
+
 router.get('/config', (req, res) => {
-    const configured = razorpayService.isConfigured();
+    const configured = razorpayService.isConfigured() && !allowDevPayment();
     res.json({
         devMode: !configured,
         keyId: configured ? process.env.RAZORPAY_KEY_ID : null
@@ -58,11 +62,22 @@ router.post('/create-order', auth, idempotencyMiddleware('/api/payments/create-o
             amount: order.amount,
             currency: order.currency,
             key: order.key,
-            devMode: order.devMode,
+            devMode: order.devMode || allowDevPayment(),
             bookingId: booking.id
         });
     } catch (err) {
         console.error('Create order error:', err.message);
+        if (allowDevPayment()) {
+            try {
+                const booking = await bookingRepository.findById(req.body.bookingId);
+                const payableAmount = booking.grandTotal || booking.paymentBreakdown?.totalFare || booking.totalPrice;
+                const order = { id: `dev_order_${booking.id}_${Date.now()}`, amount: Math.round(Number(payableAmount) * 100), currency: 'INR', key: 'dev_mode', devMode: true };
+                await paymentRepository.create({ bookingId: booking.id, razorpayOrderId: order.id, amount: payableAmount });
+                return res.json({ orderId: order.id, amount: order.amount, currency: order.currency, key: order.key, devMode: true, bookingId: booking.id });
+            } catch (fallbackErr) {
+                console.error('Dev payment fallback failed:', fallbackErr.message);
+            }
+        }
         res.status(500).json({ msg: 'Failed to create payment order' });
     }
 });
@@ -108,7 +123,7 @@ router.post('/verify', auth, idempotencyMiddleware('/api/payments/verify'), veri
 });
 
 router.post('/dev-confirm', auth, paymentRules, validate, async (req, res) => {
-    if (razorpayService.isConfigured()) {
+    if (razorpayService.isConfigured() && !allowDevPayment()) {
         return res.status(400).json({ msg: 'Dev confirm is only available without Razorpay keys' });
     }
 

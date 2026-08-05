@@ -22,7 +22,7 @@ export default function StationAutocomplete({ id, label, value, onChange, placeh
       return;
     }
     try {
-      const results = await api.get(`/stations/search?q=${encodeURIComponent(q)}&limit=8`);
+      const results = await api.get(`/stations/search?q=${encodeURIComponent(q)}&limit=15`);
       setSuggestions(results);
       setOpen(true);
     } catch {

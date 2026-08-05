@@ -2,8 +2,19 @@ const fs = require('fs');
 const path = require('path');
 const { requireFromBackend } = require('./bootstrap');
 
-const dbPath = process.env.SQLITE_PATH
-    || path.join(__dirname, '../backend/data/railyatra.db');
+function resolveDbPath() {
+    const projectRoot = path.join(__dirname, '..');
+    const configured = process.env.SQLITE_PATH;
+    if (!configured) {
+        return path.join(projectRoot, 'backend/data/railyatra.db');
+    }
+    if (path.isAbsolute(configured)) {
+        return configured;
+    }
+    return path.join(projectRoot, configured);
+}
+
+const dbPath = resolveDbPath();
 
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
@@ -63,6 +74,7 @@ function normalizeSql(sqlText) {
     text = text.replace(/\bLTRIM\s*\(\s*RTRIM\s*\(([^)]+)\)\)/gi, 'TRIM($1)');
     text = text.replace(/\bISNULL\(/gi, 'IFNULL(');
     text = text.replace(/\bLEN\s*\(/gi, 'LENGTH(');
+    text = text.replace(/\s+WITH\s*\(\s*UPDLOCK\s*,\s*ROWLOCK\s*\)/gi, '');
     text = text.replace(/\bOFFSET\s+(\?)\s+ROWS\s+FETCH\s+NEXT\s+(\?)\s+ROWS\s+ONLY/gi, 'LIMIT $2 OFFSET $1');
     text = text.replace(/\bdbo\./gi, '');
     text = text.replace(/\[([^\]]+)\]/g, '$1');
@@ -92,6 +104,8 @@ function rowsFromExec(result) {
 
 async function runQuery(sqlText, params = []) {
     const database = await getDb();
+    const hadOutput = /OUTPUT\s+INSERTED/i.test(sqlText);
+    const insertTable = hadOutput ? (sqlText.match(/INSERT\s+INTO\s+([A-Za-z0-9_]+)/i)?.[1] || null) : null;
     const text = normalizeSql(sqlText);
     const op = text.split(/\s+/)[0].toUpperCase();
 
@@ -117,7 +131,17 @@ async function runQuery(sqlText, params = []) {
 
     if (/INSERT/i.test(text)) {
         const idRows = rowsFromExec(database.exec('SELECT last_insert_rowid() AS id'));
-        return idRows.length ? idRows : [{ id: database.exec('SELECT last_insert_rowid()')[0]?.values?.[0]?.[0] }];
+        const insertedId = idRows[0]?.id ?? database.exec('SELECT last_insert_rowid()')[0]?.values?.[0]?.[0];
+        if (hadOutput && insertTable && insertedId != null) {
+            const stmt = database.prepare(`SELECT * FROM ${insertTable} WHERE id = ?`);
+            try {
+                stmt.bind([insertedId]);
+                if (stmt.step()) return [stmt.getAsObject()];
+            } finally {
+                stmt.free();
+            }
+        }
+        return idRows.length ? idRows : [{ id: insertedId }];
     }
 
     return [];

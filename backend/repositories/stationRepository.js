@@ -6,9 +6,9 @@ const findAll = async () => {
     return result.recordset;
 };
 
-const search = async (query, limit = 10) => {
+const search = async (query, limit = 20) => {
     const pool = await getPool();
-    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 20);
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 50);
     const term = String(query || '').trim();
     if (!term) return [];
 

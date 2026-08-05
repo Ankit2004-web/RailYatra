@@ -28,5 +28,7 @@ services:
         value: admin@railway.com
       - key: ADMIN_PASSWORD
         generateValue: true
+      - key: ALLOW_DEV_PAYMENT
+        value: "1"
       - key: GROQ_API_KEY
         sync: false
