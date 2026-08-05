@@ -81,7 +81,7 @@ async function runQuery(sqlText, params = []) {
     const text = normalizeSql(sqlText);
     const op = text.split(/\s+/)[0].toUpperCase();
 
-    if (op === 'SELECT' || op === 'WITH') {
+    if (op === 'SELECT' || op === 'WITH' || op === 'PRAGMA') {
         const stmt = database.prepare(text);
         try {
             if (params.length) stmt.bind(params);

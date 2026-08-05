@@ -194,6 +194,39 @@ const startServer = async () => {
         }
 
         await syncDatabase();
+
+        const isSqliteCloud = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';
+
+        const afterListen = async () => {
+            try {
+                await seedDatabase();
+
+                const coachCapacityRulesService = require('./services/coachCapacityRulesService');
+                try {
+                    await coachCapacityRulesService.loadRulesCache();
+                    console.log('Loaded IR CoachCapacityRules for per-coach seating data.');
+                } catch (cacheErr) {
+                    console.warn('Coach capacity rules cache skipped:', cacheErr.message);
+                }
+
+                startBackgroundJobs();
+            } catch (error) {
+                logger.error('Post-start bootstrap failed', { error: error.message });
+                console.error('Post-start bootstrap failed:', error.message);
+            }
+        };
+
+        if (isSqliteCloud) {
+            app.listen(PORT, () => {
+                logger.info(`Server running on port ${PORT}`);
+                console.log(`Server running on port ${PORT}`);
+                console.log(`http://localhost:${PORT}`);
+                console.log('Database: SQLite (cloud demo)');
+                afterListen();
+            });
+            return;
+        }
+
         await seedDatabase();
 
         const coachCapacityRulesService = require('./services/coachCapacityRulesService');

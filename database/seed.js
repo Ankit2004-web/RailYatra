@@ -92,15 +92,18 @@ async function seedDatabase() {
                 'SELECT tc.trainId, tc.classCode, tc.totalSeats, t.journeyDate FROM TrainClasses tc INNER JOIN Trains t ON tc.trainId = t.id'
             );
             const seatRepository = require(path.join(__dirname, '../backend/repositories/seatRepository'));
+            const isSqliteCloud = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';
+            const seatCap = isSqliteCloud ? 36 : Infinity;
             let seededSeats = 0;
 
             for (const row of classRows.recordset) {
                 const journeyDate = new Date(row.journeyDate).toISOString().split('T')[0];
-                await seatRepository.seedSeatsForClass(row.trainId, row.classCode, row.totalSeats, journeyDate);
-                seededSeats += row.totalSeats;
+                const seatsToSeed = Math.min(Number(row.totalSeats) || 0, seatCap);
+                await seatRepository.seedSeatsForClass(row.trainId, row.classCode, seatsToSeed, journeyDate);
+                seededSeats += seatsToSeed;
             }
 
-            console.log(`Seeded ${seededSeats} seats.`);
+            console.log(`Seeded ${seededSeats} seats${isSqliteCloud ? ' (cloud demo cap)' : ''}.`);
         } else {
             console.log('Seats already exist, skipping.');
         }
