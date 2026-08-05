@@ -33,6 +33,7 @@ export default function SearchResultsPage() {
   const destination = params.get('destination') || '';
   const date = params.get('date') || '';
   const urlClass = params.get('class') || '';
+  const flexDays = params.get('flexDays') || '';
   const routeAware = params.get('routeAware') === '1';
 
   const [trains, setTrains] = useState([]);
@@ -44,7 +45,7 @@ export default function SearchResultsPage() {
   const [appliedFilters, setAppliedFilters] = useState(defaultFilters(urlClass));
   const [sortBy, setSortBy] = useState('departure-early');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(50);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedClasses, setSelectedClasses] = useState({});
   const [searchMeta, setSearchMeta] = useState(null);
@@ -68,6 +69,7 @@ export default function SearchResultsPage() {
     setPage(1);
     const q = new URLSearchParams({ source, destination, date });
     if (urlClass) q.set('class', urlClass);
+    if (flexDays) q.set('flexDays', flexDays);
 
     api.get(`/trains/search?${q}`)
       .then((data) => {
@@ -81,7 +83,7 @@ export default function SearchResultsPage() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [source, destination, date, urlClass]);
+  }, [source, destination, date, urlClass, flexDays]);
 
   useEffect(() => {
     if (!source || !destination || !date) {
@@ -89,7 +91,7 @@ export default function SearchResultsPage() {
       return;
     }
     fetchTrains();
-  }, [source, destination, date, urlClass, navigate, fetchTrains]);
+  }, [source, destination, date, urlClass, flexDays, navigate, fetchTrains]);
 
   const classOptions = useMemo(() => collectAvailableClasses(trains), [trains]);
   const classPrices = useMemo(() => collectClassPrices(trains), [trains]);

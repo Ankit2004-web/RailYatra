@@ -65,6 +65,16 @@ function flushDb() {
 function normalizeSql(sqlText) {
     let text = sqlText;
 
+    // Scalar subqueries: SELECT TOP 1 must become LIMIT 1 or SQLite returns wrong row counts.
+    text = text.replace(
+        /\(SELECT\s+TOP\s+1\s+([\s\S]*?\s+ORDER BY\s+[A-Za-z0-9_.]+(?:\.[A-Za-z0-9_]+)?(?:\s+(?:ASC|DESC))?)\s*\)/gi,
+        '(SELECT $1 LIMIT 1)'
+    );
+    text = text.replace(
+        /\(SELECT\s+TOP\s+1\s+([^()]+?)\)/gi,
+        '(SELECT $1 LIMIT 1)'
+    );
+
     text = text.replace(/\bSELECT\s+TOP\s+\(([^)]+)\)/gi, 'SELECT');
     text = text.replace(/\bSELECT\s+TOP\s+(\d+)/gi, 'SELECT');
     text = text.replace(/\bGETDATE\(\)/gi, "datetime('now')");

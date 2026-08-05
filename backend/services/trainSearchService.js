@@ -195,40 +195,32 @@ async function resolveStation(query) {
     const term = normalizeStationQuery(query);
     if (!term) return null;
 
+    const stationRepository = require('../repositories/stationRepository');
     const upper = term.toUpperCase();
+
+    if (/^[A-Z]{2,5}$/.test(upper)) {
+        const byCode = await pool.request()
+            .input('code', 'NVarChar', upper)
+            .query('SELECT TOP 1 * FROM Stations WHERE UPPER(code) = @code AND isActive = 1');
+        if (byCode.recordset[0]) return byCode.recordset[0];
+    }
+
     const aliasCode = STATION_CODE_ALIASES[term.toLowerCase()];
     if (aliasCode) {
         const aliasResult = await pool.request()
             .input('code', 'NVarChar', aliasCode)
-            .query(`SELECT TOP 1 * FROM Stations WHERE UPPER(code) = @code AND isActive = 1`);
+            .query('SELECT TOP 1 * FROM Stations WHERE UPPER(code) = @code AND isActive = 1');
         if (aliasResult.recordset[0]) return aliasResult.recordset[0];
     }
 
-    const like = `%${term}%`;
+    const candidates = await stationRepository.search(term, 25);
+    if (!candidates.length) return null;
 
-    const exactCode = await pool.request()
-        .input('code', 'NVarChar', upper)
-        .query(`SELECT TOP 1 * FROM Stations WHERE UPPER(code) = @code AND isActive = 1`);
+    const exact = candidates.find((s) => s.code?.toUpperCase() === upper);
+    if (exact) return exact;
 
-    if (exactCode.recordset[0]) return exactCode.recordset[0];
-
-    const result = await pool.request()
-        .input('like1', 'NVarChar', like)
-        .input('like2', 'NVarChar', like)
-        .input('like3', 'NVarChar', like)
-        .input('upper', 'NVarChar', upper)
-        .query(`SELECT TOP 1 * FROM Stations
-                WHERE isActive = 1 AND (name LIKE @like1 OR city LIKE @like2 OR normalizedName LIKE @like3 OR UPPER(code) = @upper)
-                ORDER BY
-                  CASE WHEN UPPER(code) = @upper THEN 0
-                       WHEN name LIKE '%GOODS%' OR name LIKE '%HALT%' OR name LIKE '% NEW%' OR name LIKE '% YARD%' THEN 3
-                       WHEN name LIKE '% JN%' OR name LIKE '% JUNCTION%' OR name LIKE '% CANT%' OR name LIKE '% TERMINAL%' THEN 1
-                       ELSE 2 END,
-                  CASE WHEN name LIKE @like1 THEN 0 ELSE 1 END,
-                  LEN(name) ASC,
-                  name ASC`);
-
-    return result.recordset[0] || null;
+    const preferJunction = candidates.find((s) => /JN|JUNCTION|CANT|TERMINAL/i.test(s.name));
+    return preferJunction || candidates[0];
 }
 
 async function hasNormalizedStops() {
@@ -310,7 +302,11 @@ async function searchViaStops({ fromStationId, toStationId, date, classCode, fro
     const classesMap = await trainClassRepository.findByTrainIds(trainIds);
 
     const rows = [];
+    const seenTrainIds = new Set();
     for (const row of result.recordset) {
+        if (seenTrainIds.has(row.trainId)) continue;
+        seenTrainIds.add(row.trainId);
+
         const runningDayList = runningDayService.resolveRunningDayList(
             row.runningDays,
             runningDaysMap[row.trainId]
@@ -543,7 +539,7 @@ async function search({ source, destination, date, classCode, from, to, flexDays
     }
 
     const cacheKey = searchCacheRepository.buildKey({
-        v: 5,
+        v: 6,
         from: fromQuery, to: toQuery, date, classCode, flexDays
     });
 

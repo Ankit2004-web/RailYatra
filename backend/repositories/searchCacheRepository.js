@@ -17,6 +17,19 @@ const get = async (cacheKey) => {
 const set = async (cacheKey, payload, ttlMinutes = 10) => {
     const pool = await getPool();
     const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
+    const isSqlite = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';
+
+    if (isSqlite) {
+        await pool.request()
+            .input('key', 'NVarChar', cacheKey)
+            .input('payload', 'NVarChar', JSON.stringify(payload))
+            .input('expiresAt', 'DateTime2', expiresAt)
+            .query(`INSERT INTO SearchCache (cacheKey, payload, expiresAt)
+                    VALUES (@key, @payload, @expiresAt)
+                    ON CONFLICT(cacheKey) DO UPDATE SET payload = @payload, expiresAt = @expiresAt`);
+        return;
+    }
+
     await pool.request()
         .input('key', 'NVarChar', cacheKey)
         .input('payload', 'NVarChar', JSON.stringify(payload))
