@@ -1,5 +1,4 @@
 # Render Blueprint — RailYatra (100% FREE — no credit card for database)
-# Connect at https://dashboard.render.com → New → Blueprint → select this repo
 
 services:
   - type: web
@@ -8,9 +7,11 @@ services:
     plan: free
     region: singapore
     buildCommand: npm run install:all && npm run frontend:build
-    startCommand: node backend/server.js
-    healthCheckPath: /api/health/ready
+    startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: "22"
       - key: NODE_ENV
         value: production
       - key: PORT

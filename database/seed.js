@@ -152,8 +152,10 @@ async function seedDatabase() {
         if (!adminEmail || !adminPassword) {
             console.log('ADMIN_EMAIL and ADMIN_PASSWORD not set — skipping admin seed.');
             console.log('Seed completed successfully.');
-            const migrateMasterData = require('./migrate-master-data');
-            await migrateMasterData();
+            if ((process.env.DB_DRIVER || '').toLowerCase() !== 'sqlite') {
+                const migrateMasterData = require('./migrate-master-data');
+                await migrateMasterData();
+            }
             return;
         }
 
@@ -185,8 +187,10 @@ async function seedDatabase() {
         }
 
         console.log('Seed completed successfully.');
-        const migrateMasterData = require('./migrate-master-data');
-        await migrateMasterData();
+        if ((process.env.DB_DRIVER || '').toLowerCase() !== 'sqlite') {
+            const migrateMasterData = require('./migrate-master-data');
+            await migrateMasterData();
+        }
     } catch (error) {
         console.error('Seed failed:', error.message);
         if (require.main === module) {

@@ -197,8 +197,12 @@ const startServer = async () => {
         await seedDatabase();
 
         const coachCapacityRulesService = require('./services/coachCapacityRulesService');
-        await coachCapacityRulesService.loadRulesCache();
-        console.log('Loaded IR CoachCapacityRules for per-coach seating data.');
+        try {
+            await coachCapacityRulesService.loadRulesCache();
+            console.log('Loaded IR CoachCapacityRules for per-coach seating data.');
+        } catch (cacheErr) {
+            console.warn('Coach capacity rules cache skipped:', cacheErr.message);
+        }
 
         app.listen(PORT, () => {
             logger.info(`Server running on port ${PORT}`);

@@ -117,7 +117,7 @@ const getPool = async () => ({
 });
 
 const closePool = async () => {
-    db.close();
+    // Keep SQLite open for the app lifetime (sync/seed also call closePool).
 };
 
 const buildConnectionString = () => `sqlite://${dbPath}`;
