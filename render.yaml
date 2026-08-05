@@ -1,24 +1,28 @@
-# Render Blueprint — RailYatra
-# Note: Requires external SQL Server (Azure SQL recommended).
-# LocalDB / msnodesqlv8 is Windows-only; use Azure App Service for easiest SQL Server hosting.
-#
-# Docs: docs/DEPLOY.md
+# Render Blueprint — RailYatra API
+# Connect at https://dashboard.render.com → New → Blueprint → select this repo
+# Requires Azure SQL Database (free tier — create in browser at portal.azure.com)
 
 services:
   - type: web
-    name: railyatra
+    name: railyatra-api
     runtime: node
     plan: free
     region: singapore
     buildCommand: npm run install:all && npm run frontend:build
-    startCommand: node backend/scripts/start.js
-    healthCheckPath: /api/health
+    startCommand: node backend/server.js
+    healthCheckPath: /api/health/ready
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 5000
+      - key: DB_DRIVER
+        value: tedious
       - key: DB_TRUSTED_CONNECTION
+        value: false
+      - key: DB_ENCRYPT
+        value: true
+      - key: DB_TRUST_SERVER_CERT
         value: false
       - key: DB_NAME
         value: RailwayReservation
@@ -34,3 +38,7 @@ services:
         sync: false
       - key: GROQ_API_KEY
         sync: false
+      - key: ADMIN_EMAIL
+        value: admin@railway.com
+      - key: ADMIN_PASSWORD
+        generateValue: true

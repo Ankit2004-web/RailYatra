@@ -39,16 +39,21 @@
 
 ## 🌐 Live Demo
 
-> Deploy the app locally, then expose it with [Cloudflare Tunnel](docs/DEPLOY.md#quick-live-demo) for a public URL — ideal for portfolios and demos.
+Deploy entirely from your **browser** — no installs on your laptop. See **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+
+| Step | Service | What you get |
+|------|---------|--------------|
+| 1 | [Azure SQL](https://portal.azure.com) | Cloud database (free trial) |
+| 2 | [Render](https://dashboard.render.com) + GitHub | Full API at `*.onrender.com` |
+| 3 | [Vercel](https://vercel.com) + GitHub | Portfolio UI at `*.vercel.app` |
+
+**Repo:** [github.com/Ankit2004-web/RailYatra](https://github.com/Ankit2004-web/RailYatra)
 
 | Resource | URL |
 |----------|-----|
-| **App** | `http://localhost:5000` (local) |
-| **API / Swagger** | [localhost:5000/api/swagger](http://localhost:5000/api/swagger) |
-| **Admin login** | [localhost:5000/admin/login](http://localhost:5000/admin/login) |
-| **Support + AI chat** | [localhost:5000/support](http://localhost:5000/support) |
-
-Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `backend/.env` before `npm run db:seed`.
+| **Local dev** | http://localhost:5000 |
+| **API / Swagger** | `/api/swagger` on your deployed URL |
+| **Deploy guide** | [docs/DEPLOY.md](docs/DEPLOY.md) |
 
 ---
 
@@ -224,15 +229,13 @@ Full endpoint list in Swagger UI.
 
 ## 🌍 Deployment
 
-RailYatra uses **SQL Server** with the Windows ODBC driver (`msnodesqlv8`). Recommended paths:
+Deploy live from your browser — **no local installs**:
 
-| Method | Best for |
-|--------|----------|
-| **[Cloudflare Tunnel](docs/DEPLOY.md#quick-live-demo)** | Instant public demo from your PC |
-| **[Azure App Service + Azure SQL](docs/DEPLOY.md#azure-production)** | Production hosting |
-| **Docker + host SQL Server** | Local / on-prem containers |
+1. **[Azure SQL](https://portal.azure.com)** — free cloud database  
+2. **[Render](https://dashboard.render.com)** — connect GitHub repo, uses `render.yaml`  
+3. **[Vercel](https://vercel.com)** — import `frontend/` folder, set `VITE_API_URL`
 
-See **[docs/DEPLOY.md](docs/DEPLOY.md)** for step-by-step instructions.
+Full step-by-step guide: **[docs/DEPLOY.md](docs/DEPLOY.md)**
 
 ---
 

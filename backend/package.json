@@ -33,7 +33,6 @@
         "express-validator": "^7.2.1",
         "helmet": "^8.0.0",
         "jsonwebtoken": "^9.0.2",
-        "msnodesqlv8": "^4.5.0",
         "mssql": "^11.0.1",
         "nodemailer": "^6.10.0",
         "odbc": "^2.5.0",
@@ -46,6 +45,9 @@
     "devDependencies": {
         "nodemon": "^3.0.1",
         "supertest": "^7.0.0"
+    },
+    "optionalDependencies": {
+        "msnodesqlv8": "^4.5.0"
     },
     "overrides": {
         "jwa": "^2.0.0"
