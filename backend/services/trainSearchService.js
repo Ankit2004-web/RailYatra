@@ -455,6 +455,7 @@ function formatSearchResult(row, runningDayList, classes, durationMinutes, dista
 async function legacySearch({ source, destination, date, fromStationMeta, toStationMeta }) {
     const pool = await getPool();
     const request = pool.request();
+    const isSqliteCloud = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';
     let query = 'SELECT * FROM Trains WHERE isActive = 1';
 
     if (source) {
@@ -465,7 +466,7 @@ async function legacySearch({ source, destination, date, fromStationMeta, toStat
         query += ' AND destination LIKE @destination';
         request.input('destination', 'NVarChar', `%${destination}%`);
     }
-    if (date) {
+    if (date && !isSqliteCloud) {
         query += ' AND journeyDate = @date';
         request.input('date', 'Date', date);
     }
@@ -601,8 +602,8 @@ async function search({ source, destination, date, classCode, from, to, flexDays
             });
         } else if (!fromStation || !toStation || !stopsAvailable) {
             batch = await legacySearch({
-                source: fromQuery,
-                destination: toQuery,
+                source: fromStation?.name || fromStation?.city || fromQuery,
+                destination: toStation?.name || toStation?.city || toQuery,
                 date: journeyDate,
                 fromStationMeta: fromStation,
                 toStationMeta: toStation

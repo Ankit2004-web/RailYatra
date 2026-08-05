@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS Stations (
     name TEXT NOT NULL,
     city TEXT NOT NULL,
     state TEXT NOT NULL,
+    normalizedName TEXT,
+    isActive INTEGER NOT NULL DEFAULT 1,
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -42,6 +44,8 @@ CREATE TABLE IF NOT EXISTS Trains (
     journeyDate TEXT NOT NULL,
     runningDays TEXT NOT NULL DEFAULT 'Daily',
     runningStatus TEXT NOT NULL DEFAULT 'Running',
+    normalizedName TEXT,
+    isActive INTEGER NOT NULL DEFAULT 1,
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );

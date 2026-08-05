@@ -52,6 +52,8 @@ function normalizeSql(sqlText) {
     text = text.replace(/\bLTRIM\s*\(\s*RTRIM\s*\(([^)]+)\)\s*\)/gi, 'TRIM($1)');
     text = text.replace(/\bLTRIM\s*\(\s*RTRIM\s*\(([^)]+)\)\)/gi, 'TRIM($1)');
     text = text.replace(/\bISNULL\(/gi, 'IFNULL(');
+    text = text.replace(/\bLEN\s*\(/gi, 'LENGTH(');
+    text = text.replace(/\bOFFSET\s+(\?)\s+ROWS\s+FETCH\s+NEXT\s+(\?)\s+ROWS\s+ONLY/gi, 'LIMIT $2 OFFSET $1');
     text = text.replace(/\bdbo\./gi, '');
     text = text.replace(/\[([^\]]+)\]/g, '$1');
     text = text.replace(/\bNVarChar\b/gi, 'TEXT');

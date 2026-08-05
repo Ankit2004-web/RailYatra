@@ -22,7 +22,13 @@ module.exports = {
         ['PUNE', 'Pune Junction', 'Pune', 'Maharashtra'],
         ['CNB', 'Kanpur Central', 'Kanpur', 'Uttar Pradesh'],
         ['BPL', 'Bhopal Junction', 'Bhopal', 'Madhya Pradesh'],
-        ['VSKP', 'Visakhapatnam', 'Visakhapatnam', 'Andhra Pradesh']
+        ['VSKP', 'Visakhapatnam', 'Visakhapatnam', 'Andhra Pradesh'],
+        ['BBS', 'Bhubaneswar', 'Bhubaneswar', 'Odisha'],
+        ['HYB', 'Hyderabad Deccan', 'Hyderabad', 'Telangana'],
+        ['KOAA', 'Kolkata', 'Kolkata', 'West Bengal'],
+        ['RNC', 'Ranchi Junction', 'Ranchi', 'Jharkhand'],
+        ['GAY', 'Gaya Junction', 'Gaya', 'Bihar'],
+        ['BBSR', 'Bhubaneswar New', 'Bhubaneswar', 'Odisha']
     ],
     trains: [
         ['12951', 'Mumbai Rajdhani', 'New Delhi', 'Mumbai Central', '16:55', '08:35', '15h 40m', 1384, 120, 2500, addDays(1)],
@@ -49,7 +55,9 @@ module.exports = {
         ['12269', 'Chennai Duronto', 'New Delhi', 'Chennai Central', '15:45', '20:15', '28h 30m', 2180, 100, 2400, addDays(5)],
         ['12431', 'Rajdhani Express', 'New Delhi', 'Bhopal Junction', '17:55', '23:45', '5h 50m', 707, 105, 1450, addDays(6)],
         ['12740', 'Vande Bharat Express', 'New Delhi', 'Lucknow NR', '06:10', '10:35', '4h 25m', 512, 80, 1650, addDays(1)],
-        ['12801', 'Purushottam Express', 'New Delhi', 'Visakhapatnam', '22:00', '04:30', '30h 30m', 1915, 170, 1320, addDays(8)]
+        ['12801', 'Purushottam Express', 'New Delhi', 'Visakhapatnam', '22:00', '04:30', '30h 30m', 1915, 170, 1320, addDays(8)],
+        ['12839', 'Howrah-Bhubaneswar Express', 'Howrah Junction', 'Bhubaneswar', '06:00', '14:30', '8h 30m', 445, 150, 680, addDays(1)],
+        ['12881', 'Bhubaneswar-Howrah Express', 'Bhubaneswar', 'Howrah Junction', '07:00', '15:30', '8h 30m', 445, 150, 680, addDays(1)]
     ],
     getClassesForTrain: (trainName, basePrice, totalSeats) => {
         let templates;

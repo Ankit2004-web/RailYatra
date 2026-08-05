@@ -24,6 +24,14 @@ const TRAIN_STOPS_DDL = `CREATE TABLE IF NOT EXISTS TrainStops (
 )`;
 
 const COLUMN_PATCHES = {
+    Stations: [
+        ['normalizedName', 'TEXT'],
+        ['isActive', 'INTEGER DEFAULT 1']
+    ],
+    Trains: [
+        ['normalizedName', 'TEXT'],
+        ['isActive', 'INTEGER DEFAULT 1']
+    ],
     TrainStops: [
         ['stationId', 'INTEGER'],
         ['haltMinutes', 'INTEGER DEFAULT 0'],

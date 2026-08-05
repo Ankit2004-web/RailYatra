@@ -14,7 +14,7 @@ router.get('/search', async (req, res) => {
     }
 
     try {
-        const stations = await stationRepository.search(query);
+        const stations = await stationRepository.search(query, req.query.limit);
         res.json(stations);
     } catch (err) {
         console.error(err.message);

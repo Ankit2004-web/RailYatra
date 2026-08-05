@@ -19,7 +19,7 @@ services:
       - key: DB_DRIVER
         value: sqlite
       - key: SQLITE_PATH
-        value: /tmp/railyatra-v5.db
+        value: /tmp/railyatra-v6.db
       - key: JWT_SECRET
         generateValue: true
       - key: APP_URL

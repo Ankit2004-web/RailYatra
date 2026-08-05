@@ -5,6 +5,31 @@ const path = require('path');
 const { getPool, closePool } = require('./connection');
 const { stations, trains, getClassesForTrain, buildTrainStops } = require('./seedData');
 
+const normalizeStationName = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+
+async function ensureStations(pool) {
+    let inserted = 0;
+    for (const [code, name, city, state] of stations) {
+        const existing = await pool.request()
+            .input('code', 'NVarChar', code)
+            .query('SELECT id FROM Stations WHERE code = @code');
+        if (existing.recordset.length) continue;
+
+        await pool.request()
+            .input('code', 'NVarChar', code)
+            .input('name', 'NVarChar', name)
+            .input('city', 'NVarChar', city)
+            .input('state', 'NVarChar', state)
+            .input('normalizedName', 'NVarChar', normalizeStationName(name))
+            .query(`INSERT INTO Stations (code, name, city, state, normalizedName, isActive)
+                    VALUES (@code, @name, @city, @state, @normalizedName, 1)`);
+        inserted += 1;
+    }
+    if (inserted) {
+        console.log(`Added ${inserted} missing demo stations.`);
+    }
+}
+
 function ensureLocalDbRunning() {
     try {
         execSync('sqllocaldb start MSSQLLocalDB', { stdio: 'ignore' });
@@ -22,6 +47,9 @@ async function seedDatabase() {
     try {
         console.log('Connected for seeding...');
 
+        const isSqliteCloud = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';
+        const demoJourneyDate = new Date().toISOString().split('T')[0];
+
         const stationCount = await pool.request().query('SELECT COUNT(*) AS count FROM Stations');
         if (stationCount.recordset[0].count === 0) {
             for (const [code, name, city, state] of stations) {
@@ -30,16 +58,20 @@ async function seedDatabase() {
                     .input('name', 'NVarChar', name)
                     .input('city', 'NVarChar', city)
                     .input('state', 'NVarChar', state)
-                    .query('INSERT INTO Stations (code, name, city, state) VALUES (@code, @name, @city, @state)');
+                    .input('normalizedName', 'NVarChar', normalizeStationName(name))
+                    .query(`INSERT INTO Stations (code, name, city, state, normalizedName, isActive)
+                            VALUES (@code, @name, @city, @state, @normalizedName, 1)`);
             }
             console.log(`Seeded ${stations.length} stations.`);
         } else {
             console.log('Stations already exist, skipping.');
+            await ensureStations(pool);
         }
 
         const trainCount = await pool.request().query('SELECT COUNT(*) AS count FROM Trains');
         if (trainCount.recordset[0].count === 0) {
             for (const train of trains) {
+                const journeyDate = isSqliteCloud ? demoJourneyDate : train[10];
                 await pool.request()
                     .input('trainNumber', 'NVarChar', train[0])
                     .input('trainName', 'NVarChar', train[1])
@@ -51,9 +83,10 @@ async function seedDatabase() {
                     .input('distance', 'Int', train[7])
                     .input('availableSeats', 'Int', train[8])
                     .input('price', 'Decimal', train[9])
-                    .input('journeyDate', 'Date', train[10])
-                    .query(`INSERT INTO Trains (trainNumber, trainName, source, destination, departureTime, arrivalTime, duration, distance, availableSeats, price, journeyDate)
-                            VALUES (@trainNumber, @trainName, @source, @destination, @departureTime, @arrivalTime, @duration, @distance, @availableSeats, @price, @journeyDate)`);
+                    .input('journeyDate', 'Date', journeyDate)
+                    .input('normalizedName', 'NVarChar', normalizeStationName(train[1]))
+                    .query(`INSERT INTO Trains (trainNumber, trainName, source, destination, departureTime, arrivalTime, duration, distance, availableSeats, price, journeyDate, normalizedName, isActive)
+                            VALUES (@trainNumber, @trainName, @source, @destination, @departureTime, @arrivalTime, @duration, @distance, @availableSeats, @price, @journeyDate, @normalizedName, 1)`);
             }
             console.log(`Seeded ${trains.length} trains.`);
         } else {
