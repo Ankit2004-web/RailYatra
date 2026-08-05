@@ -2,18 +2,44 @@ const fs = require('fs');
 const path = require('path');
 const { requireFromBackend } = require('./bootstrap');
 
-const Database = requireFromBackend('better-sqlite3');
-
 const dbPath = process.env.SQLITE_PATH
     || path.join(__dirname, '../backend/data/railyatra.db');
 
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 
-const db = new Database(dbPath);
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
-
 const dbName = process.env.DB_NAME || 'RailwayReservation';
+
+let db = null;
+let initPromise = null;
+
+async function getDb() {
+    if (db) return db;
+    if (!initPromise) {
+        initPromise = (async () => {
+            const initSqlJs = requireFromBackend('sql.js');
+            const wasmDir = path.join(__dirname, '../backend/node_modules/sql.js/dist');
+            const SQL = await initSqlJs({
+                locateFile: (file) => path.join(wasmDir, file)
+            });
+
+            if (fs.existsSync(dbPath)) {
+                db = new SQL.Database(fs.readFileSync(dbPath));
+            } else {
+                db = new SQL.Database();
+            }
+
+            db.run('PRAGMA foreign_keys = ON');
+            return db;
+        })();
+    }
+    db = await initPromise;
+    return db;
+}
+
+function persistDb() {
+    if (!db) return;
+    fs.writeFileSync(dbPath, Buffer.from(db.export()));
+}
 
 function normalizeSql(sqlText) {
     let text = sqlText;
@@ -22,13 +48,17 @@ function normalizeSql(sqlText) {
     text = text.replace(/\bSELECT\s+TOP\s+(\d+)/gi, 'SELECT');
     text = text.replace(/\bGETDATE\(\)/gi, "datetime('now')");
     text = text.replace(/\bSYSUTCDATETIME\(\)/gi, "datetime('now')");
+    text = text.replace(/\bDATEADD\(MINUTE,\s*(\d+),\s*(?:SYSUTCDATETIME\(\)|GETDATE\(\))\)/gi, "datetime('now', '+$1 minutes')");
     text = text.replace(/\bISNULL\(/gi, 'IFNULL(');
     text = text.replace(/\bdbo\./gi, '');
     text = text.replace(/\[([^\]]+)\]/g, '$1');
     text = text.replace(/\bNVarChar\b/gi, 'TEXT');
     text = text.replace(/\bBit\b/gi, 'INTEGER');
+    text = text.replace(/\bTinyInt\b/gi, 'INTEGER');
+    text = text.replace(/\bDecimal\b/gi, 'REAL');
     text = text.replace(/\bOUTPUT INSERTED\.\*/gi, '');
     text = text.replace(/\bOUTPUT INSERTED\.([a-zA-Z0-9_]+)/gi, '');
+    text = text.replace(/\s+WITH\s*\([^)]*\)/gi, '');
 
     if (/^\s*SELECT\b/i.test(text) && !/\bLIMIT\b/i.test(text)) {
         const topMatch = sqlText.match(/\bTOP\s+\(([^)]+)\)/i) || sqlText.match(/\bTOP\s+(\d+)/i);
@@ -40,27 +70,63 @@ function normalizeSql(sqlText) {
     return text.trim();
 }
 
-const runQuery = (sqlText, params = []) => {
+function rowsFromExec(result) {
+    if (!result?.length) return [];
+    const { columns, values } = result[0];
+    return values.map((row) => Object.fromEntries(columns.map((col, idx) => [col, row[idx]])));
+}
+
+async function runQuery(sqlText, params = []) {
+    const database = await getDb();
     const text = normalizeSql(sqlText);
-    const stmt = db.prepare(text);
     const op = text.split(/\s+/)[0].toUpperCase();
 
     if (op === 'SELECT' || op === 'WITH') {
-        return stmt.all(...params);
+        const stmt = database.prepare(text);
+        try {
+            if (params.length) stmt.bind(params);
+            const rows = [];
+            while (stmt.step()) rows.push(stmt.getAsObject());
+            return rows;
+        } finally {
+            stmt.free();
+        }
     }
 
-    stmt.run(...params);
-    if (/INSERT/i.test(text)) {
-        const row = db.prepare('SELECT last_insert_rowid() AS id').get();
-        return [{ id: row.id }];
+    if (params.length) {
+        database.run(text, params);
+    } else {
+        database.run(text);
     }
+
+    persistDb();
+
+    if (/INSERT/i.test(text)) {
+        const idRows = rowsFromExec(database.exec('SELECT last_insert_rowid() AS id'));
+        return idRows.length ? idRows : [{ id: database.exec('SELECT last_insert_rowid()')[0]?.values?.[0]?.[0] }];
+    }
+
     return [];
-};
+}
 
 const withTransaction = async (callback) => {
-    const query = (sqlText, params = []) => Promise.resolve(runQuery(sqlText, params));
-    const tx = db.transaction(() => callback({ query }));
-    return tx();
+    const database = await getDb();
+    database.run('BEGIN TRANSACTION');
+    try {
+        const result = await callback({
+            query: (sqlText, params = []) => runQuery(sqlText, params)
+        });
+        database.run('COMMIT');
+        persistDb();
+        return result;
+    } catch (error) {
+        try {
+            database.run('ROLLBACK');
+        } catch (rollbackError) {
+            console.error('Rollback failed:', rollbackError.message);
+        }
+        throw error;
+    }
 };
 
 class Request {
@@ -91,15 +157,14 @@ class Request {
         text = normalizeSql(text.replace(/\s*OUTPUT\s+INSERTED\.\*/gi, ''));
 
         if (/^\s*INSERT/i.test(text)) {
-            db.prepare(text).run(...values);
-            const row = db.prepare(`SELECT * FROM ${table} ORDER BY id DESC LIMIT 1`).get();
-            return { recordset: row ? [row] : [], rowsAffected: [1] };
+            await runQuery(text, values);
+            const inserted = await runQuery(`SELECT * FROM ${table} ORDER BY id DESC LIMIT 1`);
+            return { recordset: inserted, rowsAffected: [1] };
         }
 
-        const rows = runQuery(text, values);
-        if (hasOutput && rows.length === 1 && rows[0].id) {
-            const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(rows[0].id);
-            return { recordset: row ? [row] : rows, rowsAffected: [1] };
+        const rows = await runQuery(text, values);
+        if (hasOutput && rows.length) {
+            return { recordset: rows, rowsAffected: [1] };
         }
 
         return { recordset: Array.isArray(rows) ? rows : [rows], rowsAffected: [rows.length || 0] };
@@ -111,18 +176,19 @@ function extractInsertTable(sqlText) {
     return match ? match[1] : 'Users';
 }
 
-const getPool = async () => ({
-    request: () => new Request(),
-    close: async () => {}
-});
-
-const closePool = async () => {
-    // Keep SQLite open for the app lifetime (sync/seed also call closePool).
+const getPool = async () => {
+    await getDb();
+    return {
+        request: () => new Request(),
+        close: async () => {}
+    };
 };
+
+const closePool = async () => {};
 
 const buildConnectionString = () => `sqlite://${dbPath}`;
 
-const loadDriver = () => Database;
+const loadDriver = () => getDb;
 
 module.exports = {
     sql: {},
