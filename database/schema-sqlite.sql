@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS Bookings (
     paymentBreakdown TEXT,
     fromStationId INTEGER,
     toStationId INTEGER,
+    paymentHoldExpiresAt TEXT,
     bookingDate TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -103,7 +104,27 @@ CREATE TABLE IF NOT EXISTS Passengers (
     age INTEGER NOT NULL,
     gender TEXT NOT NULL,
     berthPreference TEXT,
-    passengerStatus TEXT NOT NULL DEFAULT 'Confirmed'
+    passengerStatus TEXT NOT NULL DEFAULT 'Confirmed',
+    nationality TEXT DEFAULT 'Indian',
+    mobile TEXT,
+    email TEXT,
+    idType TEXT,
+    idNumber TEXT,
+    foodPreference TEXT,
+    insuranceOptIn INTEGER NOT NULL DEFAULT 0,
+    isSeniorCitizen INTEGER NOT NULL DEFAULT 0,
+    isDivyang INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS BookingSeatAllocations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    passengerId INTEGER NOT NULL,
+    journeySeatId INTEGER,
+    fromStopSequence INTEGER NOT NULL,
+    toStopSequence INTEGER NOT NULL,
+    bookingStatus TEXT NOT NULL DEFAULT 'Confirmed',
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (passengerId) REFERENCES Passengers(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS PasswordResetTokens (

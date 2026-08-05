@@ -77,9 +77,10 @@ function normalizeSql(sqlText) {
 
     text = text.replace(/\bSELECT\s+TOP\s+\(([^)]+)\)/gi, 'SELECT');
     text = text.replace(/\bSELECT\s+TOP\s+(\d+)/gi, 'SELECT');
+    text = text.replace(/\bDATEADD\(MINUTE,\s*(\d+),\s*(?:SYSUTCDATETIME\(\)|GETDATE\(\))\)/gi, "datetime('now', '+$1 minutes')");
+    text = text.replace(/\bDATEADD\(MINUTE,\s*(\d+),\s*datetime\('now'\)\)/gi, "datetime('now', '+$1 minutes')");
     text = text.replace(/\bGETDATE\(\)/gi, "datetime('now')");
     text = text.replace(/\bSYSUTCDATETIME\(\)/gi, "datetime('now')");
-    text = text.replace(/\bDATEADD\(MINUTE,\s*(\d+),\s*(?:SYSUTCDATETIME\(\)|GETDATE\(\))\)/gi, "datetime('now', '+$1 minutes')");
     text = text.replace(/\bLTRIM\s*\(\s*RTRIM\s*\(([^)]+)\)\s*\)/gi, 'TRIM($1)');
     text = text.replace(/\bLTRIM\s*\(\s*RTRIM\s*\(([^)]+)\)\)/gi, 'TRIM($1)');
     text = text.replace(/\bISNULL\(/gi, 'IFNULL(');
@@ -159,12 +160,15 @@ async function runQuery(sqlText, params = []) {
 
 const withTransaction = async (callback) => {
     const database = await getDb();
+    const wasSkippingPersist = skipPersist;
+    skipPersist = true;
     database.run('BEGIN TRANSACTION');
     try {
         const result = await callback({
             query: (sqlText, params = []) => runQuery(sqlText, params)
         });
         database.run('COMMIT');
+        skipPersist = wasSkippingPersist;
         persistDb();
         return result;
     } catch (error) {
@@ -173,6 +177,7 @@ const withTransaction = async (callback) => {
         } catch (rollbackError) {
             console.error('Rollback failed:', rollbackError.message);
         }
+        skipPersist = wasSkippingPersist;
         throw error;
     }
 };

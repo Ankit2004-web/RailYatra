@@ -2,7 +2,18 @@ const fs = require('fs');
 const path = require('path');
 const { runQuery, closePool, resetDatabase } = require('./connection');
 
-const CORE_TABLES = ['Users', 'Stations', 'Trains', 'TrainClasses', 'Bookings', 'Passengers', 'Seats', 'TrainStops'];
+const CORE_TABLES = ['Users', 'Stations', 'Trains', 'TrainClasses', 'Bookings', 'Passengers', 'Seats', 'TrainStops', 'BookingSeatAllocations'];
+
+const BOOKING_SEAT_ALLOCATIONS_DDL = `CREATE TABLE IF NOT EXISTS BookingSeatAllocations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    passengerId INTEGER NOT NULL,
+    journeySeatId INTEGER,
+    fromStopSequence INTEGER NOT NULL,
+    toStopSequence INTEGER NOT NULL,
+    bookingStatus TEXT NOT NULL DEFAULT 'Confirmed',
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (passengerId) REFERENCES Passengers(id) ON DELETE CASCADE
+)`;
 
 const TRAIN_STOPS_DDL = `CREATE TABLE IF NOT EXISTS TrainStops (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,7 +68,19 @@ const COLUMN_PATCHES = {
         ['grandTotal', 'REAL'],
         ['paymentBreakdown', 'TEXT'],
         ['fromStationId', 'INTEGER'],
-        ['toStationId', 'INTEGER']
+        ['toStationId', 'INTEGER'],
+        ['paymentHoldExpiresAt', 'TEXT']
+    ],
+    Passengers: [
+        ['nationality', "TEXT DEFAULT 'Indian'"],
+        ['mobile', 'TEXT'],
+        ['email', 'TEXT'],
+        ['idType', 'TEXT'],
+        ['idNumber', 'TEXT'],
+        ['foodPreference', 'TEXT'],
+        ['insuranceOptIn', 'INTEGER NOT NULL DEFAULT 0'],
+        ['isSeniorCitizen', 'INTEGER NOT NULL DEFAULT 0'],
+        ['isDivyang', 'INTEGER NOT NULL DEFAULT 0']
     ]
 };
 
@@ -118,7 +141,8 @@ async function ensureIndexes() {
         'CREATE INDEX IF NOT EXISTS IX_Trains_SourceStationId ON Trains(sourceStationId)',
         'CREATE INDEX IF NOT EXISTS IX_Trains_DestinationStationId ON Trains(destinationStationId)',
         'CREATE INDEX IF NOT EXISTS IX_TrainStops_StationId ON TrainStops(stationId)',
-        'CREATE INDEX IF NOT EXISTS IX_TrainStops_Train_Station ON TrainStops(trainId, stationId)'
+        'CREATE INDEX IF NOT EXISTS IX_TrainStops_Train_Station ON TrainStops(trainId, stationId)',
+        'CREATE INDEX IF NOT EXISTS IX_BSA_Seat_Stops ON BookingSeatAllocations(journeySeatId, fromStopSequence, toStopSequence)'
     ];
     for (const ddl of indexes) {
         try {
@@ -143,6 +167,12 @@ async function repairTrainStopsTable() {
     await runQuery('DROP TABLE IF EXISTS TrainStops');
     await runQuery(TRAIN_STOPS_DDL);
     console.log('TrainStops table recreated.');
+}
+
+async function ensureBookingSeatAllocationsTable() {
+    if (await tableExists('BookingSeatAllocations')) return;
+    await runQuery(BOOKING_SEAT_ALLOCATIONS_DDL);
+    console.log('Created BookingSeatAllocations table.');
 }
 
 async function verifyCoreTables() {
@@ -176,6 +206,7 @@ async function syncSqliteDatabase() {
         }
 
         await ensureColumns();
+        await ensureBookingSeatAllocationsTable();
         await ensureIndexes();
         await repairTrainStopsTable();
         console.log('Database schema is up to date.');
