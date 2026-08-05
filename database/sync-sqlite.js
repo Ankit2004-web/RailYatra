@@ -2,6 +2,44 @@ const fs = require('fs');
 const path = require('path');
 const { runQuery, closePool } = require('./connection');
 
+const COLUMN_PATCHES = {
+    TrainStops: [
+        ['stationId', 'INTEGER'],
+        ['haltMinutes', 'INTEGER NOT NULL DEFAULT 0'],
+        ['arrivalDayOffset', 'INTEGER NOT NULL DEFAULT 0'],
+        ['departureDayOffset', 'INTEGER NOT NULL DEFAULT 0'],
+        ['platformHint', 'TEXT'],
+        ['isTechnicalStop', 'INTEGER NOT NULL DEFAULT 0']
+    ],
+    Bookings: [
+        ['grandTotal', 'REAL'],
+        ['paymentBreakdown', 'TEXT'],
+        ['fromStationId', 'INTEGER'],
+        ['toStationId', 'INTEGER']
+    ],
+    Passengers: [
+        ['berthPreference', 'TEXT'],
+        ['passengerStatus', "TEXT NOT NULL DEFAULT 'Confirmed'"]
+    ],
+    Users: [
+        ['mfaEnabled', 'INTEGER NOT NULL DEFAULT 0'],
+        ['mfaSecret', 'TEXT']
+    ]
+};
+
+async function ensureColumns() {
+    for (const [table, columns] of Object.entries(COLUMN_PATCHES)) {
+        const info = await runQuery(`PRAGMA table_info(${table})`);
+        const existing = new Set(info.map((col) => col.name));
+        for (const [name, definition] of columns) {
+            if (!existing.has(name)) {
+                await runQuery(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+                console.log(`Added column ${table}.${name}`);
+            }
+        }
+    }
+}
+
 async function syncSqliteDatabase() {
     try {
         console.log('Using SQLite (free cloud demo mode)...');
@@ -22,6 +60,7 @@ async function syncSqliteDatabase() {
             await runQuery(`${statement};`);
         }
 
+        await ensureColumns();
         console.log('Database schema is up to date.');
     } catch (error) {
         console.error('SQLite sync failed:', error.message);

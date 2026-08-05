@@ -133,15 +133,20 @@ CREATE TABLE IF NOT EXISTS Refunds (
 CREATE TABLE IF NOT EXISTS TrainStops (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     trainId INTEGER NOT NULL,
-    stationCode TEXT NOT NULL,
+    stationId INTEGER,
+    stationCode TEXT,
     stationName TEXT NOT NULL,
+    stopOrder INTEGER NOT NULL,
     arrivalTime TEXT,
     departureTime TEXT,
-    stopOrder INTEGER NOT NULL,
-    dayOffset INTEGER NOT NULL DEFAULT 0,
-    distanceKm INTEGER NOT NULL DEFAULT 0,
-    platform TEXT,
-    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+    arrivalDayOffset INTEGER NOT NULL DEFAULT 0,
+    departureDayOffset INTEGER NOT NULL DEFAULT 0,
+    haltMinutes INTEGER NOT NULL DEFAULT 0,
+    distanceKm INTEGER,
+    platformHint TEXT,
+    isTechnicalStop INTEGER NOT NULL DEFAULT 0,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (trainId, stopOrder)
 );
 
 CREATE TABLE IF NOT EXISTS SavedPassengers (
