@@ -35,9 +35,10 @@ test('E2E booking → dev payment → ticket download', { skip: dbReady ? false 
         await require('../../database/sync')();
     }
 
+    const runId = Date.now();
     const agent = request(app);
-    const email = `e2e_${Date.now()}@railyatra.test`;
-    const phone = `9${String(Date.now()).slice(-9)}`;
+    const email = `e2e_${runId}@railyatra.test`;
+    const phone = `9${String(runId).slice(-9)}`;
     const password = 'Test@123456';
     const captcha = await fetchCaptcha(agent);
 
@@ -66,7 +67,7 @@ test('E2E booking → dev payment → ticket download', { skip: dbReady ? false 
     assert.ok(trainDetail.body.classes?.length, 'Train must have at least one class');
 
     const classCode = trainDetail.body.classes[0].classCode;
-    const journeyDate = new Date(Date.now() + 3 * 86400000).toISOString().split('T')[0];
+    const journeyDate = new Date(Date.now() + (3 + (runId % 50)) * 86400000).toISOString().split('T')[0];
 
     const bookingCaptcha = await fetchCaptcha(agent);
     const bookingResponse = await agent
@@ -76,7 +77,7 @@ test('E2E booking → dev payment → ticket download', { skip: dbReady ? false 
             trainId: train.id,
             journeyDate,
             classCode,
-            passengers: [{ name: 'E2E Passenger', age: 28, gender: 'Male', berthPreference: 'Lower' }],
+            passengers: [{ name: `E2E Passenger ${runId}`, age: 28, gender: 'Male', berthPreference: 'Lower' }],
             bookingType: 'General',
             quota: 'General',
             seatNumbers: [],
