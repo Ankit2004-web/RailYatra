@@ -17,6 +17,7 @@
         "import:coach-composition": "node scripts/run.js ../database/import/CoachCompositionImporter.js",
         "import:railway": "node scripts/run.js ../database/import/run-import.js",
         "import:datameet": "node scripts/run.js ../database/import/run-datameet-import.js",
+    "import:wikipedia": "node scripts/run.js ../database/import/run-wikipedia-import.js",
         "download:railway": "node scripts/download-railway-data.js",
     "build:sqlite-master": "node scripts/build-sqlite-master.js",
         "fix:driver": "npm install msnodesqlv8",

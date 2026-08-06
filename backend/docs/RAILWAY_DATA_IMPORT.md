@@ -42,6 +42,11 @@ npm run import:railway
 # Custom directory
 node database/import/run-import.js --dir path/to/csv/folder
 
+# Wikipedia train name list (CC BY-SA — enriches existing + adds wiki-only stubs)
+npm run import:wikipedia
+# Source file: database/data/railway/raw/wikipedia-trains-list.md
+# From: https://en.wikipedia.org/wiki/List_of_trains_run_by_Indian_Railways
+
 # Link legacy seed data to normalized columns
 npm run db:migrate-master
 

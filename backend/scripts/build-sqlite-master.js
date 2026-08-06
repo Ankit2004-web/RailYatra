@@ -55,6 +55,22 @@ async function main() {
         console.warn('2S class backfill skipped:', err.message);
     }
 
+    try {
+        const wikiListPath = path.join(projectRoot, 'database/data/railway/raw/wikipedia-trains-list.md');
+        if (fs.existsSync(wikiListPath)) {
+            const WikipediaRailwayImporter = require('../../database/import/WikipediaRailwayImporter');
+            console.log('Enriching trains from Wikipedia list...');
+            const wikiImporter = new WikipediaRailwayImporter({ listPath: wikiListPath });
+            const wikiReport = await wikiImporter.run();
+            flushDb();
+            console.log(`Wikipedia: matched ${wikiReport.matchedExisting}, inserted ${wikiReport.inserted}, skipped ${wikiReport.skipped}`);
+        } else {
+            console.log('Wikipedia list not bundled — skip (add database/data/railway/raw/wikipedia-trains-list.md)');
+        }
+    } catch (err) {
+        console.warn('Wikipedia enrichment skipped:', err.message);
+    }
+
     const stations = await runQuery('SELECT COUNT(*) AS c FROM Stations');
     const trains = await runQuery('SELECT COUNT(*) AS c FROM Trains');
     const stops = await runQuery('SELECT COUNT(*) AS c FROM TrainStops WHERE stationId IS NOT NULL');
