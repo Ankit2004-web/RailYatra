@@ -49,6 +49,38 @@ async function enrichWithLocalMeta(status, trainNumber) {
     };
 }
 
+async function buildLocalScheduledStatus(trainNumber, journeyDate) {
+    const train = await trainRepository.findByNumber(trainNumber);
+    if (!train) {
+        const err = new Error(`Train ${trainNumber} not found in RailYatra database`);
+        err.status = 404;
+        throw err;
+    }
+
+    return {
+        trainId: train.id,
+        trainNumber: String(trainNumber),
+        trainName: train.trainName || '—',
+        source: train.source || '—',
+        destination: train.destination || '—',
+        currentLocation: train.source || '—',
+        currentStationCode: null,
+        nextStation: train.destination || '—',
+        nextStationCode: null,
+        delayMinutes: 0,
+        speedKmph: null,
+        platform: null,
+        status: 'Scheduled',
+        lastUpdated: new Date().toISOString(),
+        provider: 'local',
+        dataSource: 'scheduled',
+        journeyDate: journeyDate || null,
+        notice: 'Live NTES feed is unavailable from this server. Showing scheduled route from RailYatra.',
+        events: [],
+        routeStops: []
+    };
+}
+
 const getLiveStatusByTrainNumber = async (trainNumber, journeyDate) => {
     const normalized = normalizeTrainNumber(trainNumber);
     if (!normalized) {
@@ -65,16 +97,11 @@ const getLiveStatusByTrainNumber = async (trainNumber, journeyDate) => {
     let status;
     try {
         status = await ntesClient.getLiveStatus(normalized, date);
+        status = await enrichWithLocalMeta(status, normalized);
     } catch (err) {
-        if (err.name === 'NtesError') {
-            const wrapped = new Error(err.message);
-            wrapped.status = err.statusCode || 502;
-            throw wrapped;
-        }
-        throw err;
+        status = await buildLocalScheduledStatus(normalized, date);
     }
 
-    status = await enrichWithLocalMeta(status, normalized);
     writeCache(key, status);
     return status;
 };

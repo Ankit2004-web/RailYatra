@@ -7,7 +7,8 @@ test('GET /api/health returns ok', async () => {
     const response = await request(app).get('/api/health');
     assert.equal(response.status, 200);
     assert.equal(response.body.status, 'ok');
-    assert.equal(response.body.database, 'Microsoft SQL Server');
+    const isSqlite = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';
+    assert.equal(response.body.database, isSqlite ? 'SQLite' : 'Microsoft SQL Server');
 });
 
 test('GET /api/captcha returns a challenge', async () => {

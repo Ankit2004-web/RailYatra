@@ -49,7 +49,7 @@ app.use(helmet({
             styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
             fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com'],
             imgSrc: ["'self'", 'data:', 'blob:'],
-            connectSrc: ["'self'", 'https://api.razorpay.com'],
+            connectSrc: ["'self'", 'https://api.razorpay.com', 'https://api.web3forms.com'],
             frameSrc: ['https://api.razorpay.com']
         }
     }

@@ -666,8 +666,8 @@ button.home-feature-link {
 
 .home-dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
   margin-bottom: 1.25rem;
 }
 
@@ -675,14 +675,56 @@ button.home-feature-link {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 108px;
+  padding: 1rem 0.75rem;
   text-align: center;
   text-decoration: none;
   color: inherit;
   border: none;
   cursor: pointer;
   font: inherit;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.home-dash-card:hover {
+  transform: translateY(-2px);
+}
+
+.home-dash-card span {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  font-weight: 600;
+  max-width: 100%;
+  word-break: break-word;
+}
+
+.home-dash-card svg {
+  flex-shrink: 0;
+  color: var(--primary, #0d9488);
+}
+
+@media (max-width: 900px) {
+  .home-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .home-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .home-dash-card {
+    min-height: 96px;
+    padding: 0.875rem 0.5rem;
+  }
+
+  .home-dash-card span {
+    font-size: 0.75rem;
+  }
 }
 
 .home-upcoming,

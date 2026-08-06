@@ -20,15 +20,40 @@ const STATION_CODE_ALIASES = {
     'howrah jn': 'HWH',
     bhubaneswar: 'BBS',
     'bhubaneswar new': 'BBS',
+    puri: 'PURI',
     kolkata: 'KOAA',
     chennai: 'MAS',
+    'chennai central': 'MAS',
     mumbai: 'CSTM',
+    'mumbai cst': 'CSTM',
     delhi: 'NDLS',
     'new delhi': 'NDLS',
     bangalore: 'SBC',
+    bengaluru: 'SBC',
     hyderabad: 'HYB',
-    secunderabad: 'SC'
+    secunderabad: 'SC',
+    kharagpur: 'KGP',
+    cuttack: 'CTC',
+    balasore: 'BLS',
+    lucknow: 'LKO',
+    kanpur: 'CNB',
+    patna: 'PNBE',
+    guwahati: 'GHY',
+    jaipur: 'JP',
+    ahmedabad: 'ADI',
+    pune: 'PUNE',
+    nagpur: 'NGP',
+    varanasi: 'BSB',
+    amritsar: 'ASR'
 };
+
+function effectiveRunningDays(runningDaysString, fromMap) {
+    const list = runningDayService.resolveRunningDayList(runningDaysString, fromMap);
+    if (list.length) return list;
+    const text = String(runningDaysString || '').trim();
+    if (!text || /^daily$/i.test(text)) return runningDayService.ALL_RUNNING_DAYS;
+    return runningDayService.ALL_RUNNING_DAYS;
+}
 
 function filterTrainsDepartingAfterNow(trains, istClock = runningDayService.getIstClock()) {
     return trains.filter((train) => {
@@ -324,10 +349,7 @@ async function searchViaStops({ fromStationId, toStationId, date, classCode, fro
         if (seenTrainIds.has(row.trainId)) continue;
         seenTrainIds.add(row.trainId);
 
-        const runningDayList = runningDayService.resolveRunningDayList(
-            row.runningDays,
-            runningDaysMap[row.trainId]
-        );
+        const runningDayList = effectiveRunningDays(row.runningDays, runningDaysMap[row.trainId]);
 
         if (date && !runningDayService.trainRunsOnBoardingDate(date, row.fromDepartureDayOffset, runningDayList)) {
             continue;
@@ -469,6 +491,101 @@ function formatSearchResult(row, runningDayList, classes, durationMinutes, dista
             dayOffset: row.toArrivalDayOffset || 0
         }
     };
+}
+
+async function searchByEndpoints({ fromStation, toStation, date, classCode, fromStationMeta, toStationMeta }) {
+    if (!fromStation?.id || !toStation?.id) return [];
+    const pool = await getPool();
+    const request = pool.request()
+        .input('fromId', 'Int', fromStation.id)
+        .input('toId', 'Int', toStation.id)
+        .input('fromName', 'NVarChar', `%${fromStation.name || ''}%`)
+        .input('toName', 'NVarChar', `%${toStation.name || ''}%`);
+
+    let classFilter = '';
+    if (classCode) {
+        request.input('classCode', 'NVarChar', classCode);
+        classFilter = `AND EXISTS (
+            SELECT 1 FROM TrainClasses tc
+            WHERE tc.trainId = t.id AND tc.classCode = @classCode AND tc.isAvailable = 1
+        )`;
+    }
+
+    const result = await request.query(`
+        SELECT t.*, tt.code AS trainTypeCode, tt.name AS trainTypeName
+        FROM Trains t
+        LEFT JOIN TrainTypes tt ON tt.id = t.trainTypeId
+        WHERE t.isActive = 1
+          AND t.runningStatus = 'Running'
+          AND (
+            (t.sourceStationId = @fromId AND t.destinationStationId = @toId)
+            OR (t.source LIKE @fromName AND t.destination LIKE @toName)
+            OR ((t.sourceStationId = @fromId OR t.source LIKE @fromName)
+                AND (t.destinationStationId = @toId OR t.destination LIKE @toName))
+          )
+          ${classFilter}
+        ORDER BY t.departureTime ASC
+        LIMIT 200
+    `);
+
+    const trainIds = result.recordset.map((t) => t.id);
+    const runningDaysMap = await loadRunningDaysMap(trainIds);
+    const classesMap = await trainClassRepository.findByTrainIds(trainIds);
+
+    return result.recordset
+        .filter((train) => {
+            const days = effectiveRunningDays(train.runningDays, runningDaysMap[train.id]);
+            if (!date) return true;
+            return runningDayService.trainRunsOnBoardingDate(date, 0, days);
+        })
+        .map((train) => {
+            const runningDayList = effectiveRunningDays(train.runningDays, runningDaysMap[train.id]);
+            const fromName = fromStationMeta?.name || train.source;
+            const toName = toStationMeta?.name || train.destination;
+            const fromCode = fromStationMeta?.code || '';
+            const toCode = toStationMeta?.code || '';
+            const fromDepartureTime = normalizeTimeValue(train.departureTime);
+            const toArrivalTime = normalizeTimeValue(train.arrivalTime);
+            const durationMinutes = runningDayService.calculateDurationMinutes(
+                { departureTime: fromDepartureTime, departureDayOffset: 0 },
+                { arrivalTime: toArrivalTime, arrivalDayOffset: 0, departureDayOffset: 0 }
+            );
+            const classes = classesMap[train.id] || [];
+            const segmentKm = train.distance || 0;
+
+            return formatSearchResult(
+                {
+                    trainId: train.id,
+                    trainNumber: train.trainNumber,
+                    trainName: train.trainName,
+                    runningDays: train.runningDays,
+                    runningStatus: train.runningStatus,
+                    journeyDate: date || train.journeyDate,
+                    trainDistance: segmentKm,
+                    trainDepartureTime: fromDepartureTime,
+                    trainArrivalTime: toArrivalTime,
+                    trainTypeCode: train.trainTypeCode,
+                    trainTypeName: train.trainTypeName,
+                    fromDepartureTime,
+                    toArrivalTime,
+                    fromDepartureDayOffset: 0,
+                    toArrivalDayOffset: 0,
+                    fromStationCode: fromCode,
+                    fromStationName: fromName,
+                    toStationCode: toCode,
+                    toStationName: toName,
+                    fromDistanceKm: 0,
+                    toDistanceKm: segmentKm
+                },
+                runningDayList,
+                classes,
+                durationMinutes,
+                segmentKm,
+                date,
+                fromStationMeta,
+                toStationMeta
+            );
+        });
 }
 
 async function legacySearch({ source, destination, date, fromStationMeta, toStationMeta }) {
@@ -619,7 +736,20 @@ async function search({ source, destination, date, classCode, from, to, flexDays
                 fromStationMeta: fromStation,
                 toStationMeta: toStation
             });
-        } else if (!fromStation || !toStation || !stopsAvailable) {
+        }
+
+        if (!batch.length && fromStation && toStation) {
+            batch = await searchByEndpoints({
+                fromStation,
+                toStation,
+                date: journeyDate,
+                classCode,
+                fromStationMeta: fromStation,
+                toStationMeta: toStation
+            });
+        }
+
+        if (!batch.length && (!fromStation || !toStation || !stopsAvailable)) {
             batch = await legacySearch({
                 source: fromStation?.name || fromStation?.city || fromQuery,
                 destination: toStation?.name || toStation?.city || toQuery,
@@ -628,6 +758,17 @@ async function search({ source, destination, date, classCode, from, to, flexDays
                 toStationMeta: toStation
             });
         }
+
+        if (!batch.length && fromStation && toStation) {
+            batch = await legacySearch({
+                source: fromStation.name || fromQuery,
+                destination: toStation.name || toQuery,
+                date: journeyDate,
+                fromStationMeta: fromStation,
+                toStationMeta: toStation
+            });
+        }
+
         for (const train of batch) {
             const key = `${train.id}-${journeyDate}`;
             if (!seen.has(key)) {

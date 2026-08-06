@@ -19,24 +19,18 @@ export default function ContactPage() {
     setError('');
     setLoading(true);
     try {
-      try {
-        const response = await api.post('/contact', form, { idempotent: false });
-        setSent(response.msg || 'Message sent');
-        setForm({ name: '', email: '', subject: '', message: '' });
-        return;
-      } catch (apiErr) {
-        const status = apiErr.status || apiErr.response?.status;
-        const isNotConfigured = status === 503
-          || /not configured/i.test(apiErr.message || '');
-        if (!isNotConfigured) throw apiErr;
+      const { submitContactViaWeb3Forms, isWeb3FormsConfigured } = await import('../services/web3forms');
 
-        const { submitContactViaWeb3Forms, isWeb3FormsConfigured } = await import('../services/web3forms');
-        if (!isWeb3FormsConfigured()) throw apiErr;
-
+      if (isWeb3FormsConfigured()) {
         await submitContactViaWeb3Forms(form);
         setSent('Your message has been sent. We will get back to you soon.');
         setForm({ name: '', email: '', subject: '', message: '' });
+        return;
       }
+
+      const response = await api.post('/contact', form, { idempotent: false });
+      setSent(response.msg || 'Message sent');
+      setForm({ name: '', email: '', subject: '', message: '' });
     } catch (err) {
       setError(err.message || 'Could not send your message');
     } finally {

@@ -1,15 +1,18 @@
 const WEB3FORMS_ENDPOINT = 'https://api.web3forms.com/submit';
 
+/** Fallback when VITE_ env not baked at build time (matches render.yaml). */
+const DEFAULT_ACCESS_KEY = 'f8d13fbf-80b4-4dbc-bab1-e6b5c38d84f8';
+
+function getAccessKey() {
+  return String(import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || DEFAULT_ACCESS_KEY).trim();
+}
+
 export function isWeb3FormsConfigured() {
-  const key = String(import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || '').trim();
-  return Boolean(key);
+  return Boolean(getAccessKey());
 }
 
 export async function submitContactViaWeb3Forms({ name, email, subject, message }) {
-  const accessKey = String(import.meta.env.VITE_WEB3FORMS_ACCESS_KEY || '').trim();
-  if (!accessKey) {
-    throw new Error('Contact email is not configured');
-  }
+  const accessKey = getAccessKey();
 
   const response = await fetch(WEB3FORMS_ENDPOINT, {
     method: 'POST',
@@ -34,7 +37,7 @@ export async function submitContactViaWeb3Forms({ name, email, subject, message 
   }
 
   if (!response.ok || !data.success) {
-    throw new Error(data.message || 'Could not send your message');
+    throw new Error(data.message || `Could not send your message (${response.status})`);
   }
 
   return data;

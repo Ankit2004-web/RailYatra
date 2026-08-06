@@ -2,7 +2,9 @@ const logger = require('../utils/logger');
 
 const WEB3FORMS_ENDPOINT = 'https://api.web3forms.com/submit';
 
-const getAccessKey = () => String(process.env.WEB3FORMS_ACCESS_KEY || '').trim();
+const getAccessKey = () => String(
+    process.env.WEB3FORMS_ACCESS_KEY || 'f8d13fbf-80b4-4dbc-bab1-e6b5c38d84f8'
+).trim();
 
 const isWeb3FormsConfigured = () => Boolean(getAccessKey());
 

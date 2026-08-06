@@ -154,6 +154,11 @@ export default function LiveTrainPage() {
                   {train.source && train.destination && (
                     <p className="muted live-train-route">{train.source} → {train.destination}</p>
                   )}
+                  {train.notice && (
+                    <p className="alert alert-info" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
+                      {train.notice}
+                    </p>
+                  )}
                   <ul className="live-train-meta">
                     <li><MapPin size={14} aria-hidden="true" /> Current: {train.currentLocation}</li>
                     <li><MapPin size={14} aria-hidden="true" /> Next: {train.nextStation}</li>
