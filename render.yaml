@@ -32,3 +32,5 @@ services:
         value: "1"
       - key: GROQ_API_KEY
         sync: false
+      - key: WEB3FORMS_ACCESS_KEY
+        sync: false

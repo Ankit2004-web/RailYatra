@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const { validationResult } = require('express-validator');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
@@ -17,6 +18,12 @@ const auditRepository = require('../repositories/auditRepository');
 const { resolveRole } = require('../constants/roles');
 const { normalizeEmail } = require('../utils/email');
 
+function syntheticPhoneForEmail(email) {
+    const hash = crypto.createHash('sha256').update(String(email).toLowerCase()).digest('hex');
+    const digits = hash.replace(/[^0-9]/g, '').slice(0, 9);
+    return `8${digits.padStart(9, '0')}`;
+}
+
 const signToken = (user, rememberMe = false) => {
     const payload = {
         user: {
@@ -31,29 +38,42 @@ const signToken = (user, rememberMe = false) => {
 
 router.post('/register', authLimiter, registerRules, validate, validateCaptcha, async (req, res) => {
     const { name, email, password, phone } = req.body;
-    const normalizedPhone = String(phone || '').replace(/\D/g, '').slice(-10);
-    const resolvedEmail = email?.trim()
-        ? normalizeEmail(email.trim())
-        : `${normalizedPhone}@railyatra.local`;
+    const loginId = String(phone || email || '').trim();
+
+    let resolvedEmail;
+    let normalizedPhone;
+
+    if (loginId.includes('@')) {
+        resolvedEmail = normalizeEmail(loginId);
+        normalizedPhone = syntheticPhoneForEmail(resolvedEmail);
+    } else {
+        normalizedPhone = String(loginId).replace(/\D/g, '').slice(-10);
+        if (normalizedPhone.length !== 10) {
+            return res.status(400).json({ msg: 'Enter a valid 10-digit mobile number' });
+        }
+        resolvedEmail = `${normalizedPhone}@railyatra.local`;
+    }
 
     try {
         const existingUser = await userRepository.findByEmail(resolvedEmail);
         if (existingUser) {
-            return res.status(400).json({ msg: 'User already exists' });
+            return res.status(400).json({ msg: loginId.includes('@') ? 'Email already registered' : 'User already exists' });
         }
 
-        const existingPhone = await userRepository.findByPhone(normalizedPhone);
-        if (existingPhone) {
-            return res.status(400).json({ msg: 'Mobile number already registered' });
+        if (!loginId.includes('@')) {
+            const existingPhone = await userRepository.findByPhone(normalizedPhone);
+            if (existingPhone) {
+                return res.status(400).json({ msg: 'Mobile number already registered' });
+            }
         }
 
         const user = await userRepository.create({ name, email: resolvedEmail, password, phone: normalizedPhone });
-        logger.info('User registered', { userId: user.id, email });
+        logger.info('User registered', { userId: user.id, email: resolvedEmail });
         auditRepository.log({
             userId: user.id,
             action: 'auth.register',
             resource: `user:${user.id}`,
-            details: { email },
+            details: { email: resolvedEmail, usedEmail: loginId.includes('@') },
             ipAddress: req.ip
         }).catch(() => {});
         res.json({ token: signToken(user) });

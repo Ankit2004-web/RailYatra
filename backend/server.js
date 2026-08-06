@@ -31,6 +31,7 @@ const profileRoutes = require('./routes/profile');
 const mfaRoutes = require('./routes/mfa');
 const oauthRoutes = require('./routes/oauth');
 const recommendationRoutes = require('./routes/recommendations');
+const contactRoutes = require('./routes/contact');
 const { startBackgroundJobs } = require('./services/jobScheduler');
 const { errorHandler } = require('./middleware/errorHandler');
 const { UPLOAD_DIR: AVATAR_UPLOAD_DIR } = require('./services/avatarService');
@@ -79,6 +80,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/mfa', mfaRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/contact', contactRoutes);
 
 app.get('/api/health', async (req, res) => {
     res.json({

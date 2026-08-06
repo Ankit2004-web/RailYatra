@@ -1,9 +1,12 @@
 const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
+const { isWeb3FormsConfigured, submitToWeb3Forms } = require('./web3formsService');
 
-const isEmailConfigured = () => Boolean(
+const isSmtpConfigured = () => Boolean(
     process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS
 );
+
+const isEmailConfigured = () => isSmtpConfigured() || isWeb3FormsConfigured();
 
 const getTransporter = () => nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -15,25 +18,60 @@ const getTransporter = () => nodemailer.createTransport({
     }
 });
 
+const sendViaSmtp = async ({ to, subject, html }) => {
+    const transporter = getTransporter();
+    await transporter.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to,
+        subject,
+        html
+    });
+};
+
+const sendViaWeb3Forms = async ({ to, subject, html, text, type = 'notification' }) => {
+    const plainText = text || String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+    await submitToWeb3Forms({
+        email: to,
+        replyto: to,
+        subject,
+        message: plainText,
+        html_content: html,
+        notification_type: type,
+        recipient: to
+    });
+};
+
+const deliverEmail = async ({ to, subject, html, text, type }) => {
+    if (isSmtpConfigured()) {
+        await sendViaSmtp({ to, subject, html });
+        return { sent: true, provider: 'smtp' };
+    }
+
+    if (isWeb3FormsConfigured()) {
+        await sendViaWeb3Forms({ to, subject, html, text, type });
+        return { sent: true, provider: 'web3forms' };
+    }
+
+    return { sent: false, devMode: true };
+};
+
 const sendPasswordResetEmail = async ({ to, resetUrl }) => {
     if (!isEmailConfigured()) {
         return { sent: false, devMode: true };
     }
 
-    const transporter = getTransporter();
-    await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to,
-        subject: 'RailYatra - Password Reset',
-        html: `
-            <p>You requested a password reset.</p>
-            <p><a href="${resetUrl}">Reset your password</a></p>
-            <p>This link expires in 1 hour. If you did not request this, ignore this email.</p>
-        `
-    });
+    const subject = 'RailYatra - Password Reset';
+    const html = `
+        <p>You requested a password reset for your RailYatra account.</p>
+        <p><a href="${resetUrl}">Reset your password</a></p>
+        <p>This link expires in 1 hour. If you did not request this, ignore this email.</p>
+    `;
+    const text = `You requested a password reset.\n\nReset your password: ${resetUrl}\n\nThis link expires in 1 hour.`;
 
-    logger.info('Password reset email sent', { to });
-    return { sent: true, devMode: false };
+    const result = await deliverEmail({ to, subject, html, text, type: 'password_reset' });
+    logger.info('Password reset email sent', { to, provider: result.provider });
+    return { sent: true, devMode: false, ...result };
 };
 
 const sendBookingConfirmationEmail = async ({ to, booking, ticketUrl }) => {
@@ -48,27 +86,70 @@ const sendBookingConfirmationEmail = async ({ to, booking, ticketUrl }) => {
         <p><strong>Class:</strong> ${booking.classCode || '-'}</p>
         <p><strong>Total Fare:</strong> ₹${booking.totalPrice}</p>
         <p>Download your e-ticket from My Bookings after logging in.</p>
+        ${ticketUrl ? `<p><a href="${ticketUrl}">View ticket</a></p>` : ''}
     `;
+    const text = [
+        'Your train booking is confirmed.',
+        `PNR: ${booking.pnrNumber}`,
+        `Train: ${train.trainName} (${train.trainNumber})`,
+        `Route: ${train.source} → ${train.destination}`,
+        `Journey Date: ${new Date(booking.journeyDate).toLocaleDateString('en-IN')}`,
+        `Class: ${booking.classCode || '-'}`,
+        `Total Fare: ₹${booking.totalPrice}`
+    ].join('\n');
 
     if (!isEmailConfigured()) {
         logger.info('Booking confirmation (dev mode)', { to, pnr: booking.pnrNumber });
         return { sent: false, devMode: true };
     }
 
-    const transporter = getTransporter();
-    await transporter.sendMail({
-        from: process.env.SMTP_FROM || process.env.SMTP_USER,
-        to,
-        subject,
+    const result = await deliverEmail({ to, subject, html, text, type: 'booking_confirmation' });
+    logger.info('Booking confirmation email sent', { to, pnr: booking.pnrNumber, provider: result.provider });
+    return { sent: true, devMode: false, ...result };
+};
+
+const sendContactEmail = async ({ name, email, subject, message }) => {
+    const resolvedSubject = subject?.trim() || 'RailYatra support enquiry';
+
+    if (isWeb3FormsConfigured()) {
+        await submitToWeb3Forms({
+            name,
+            email,
+            replyto: email,
+            subject: resolvedSubject,
+            message
+        });
+        logger.info('Contact enquiry sent via Web3Forms', { from: email });
+        return { sent: true, devMode: false, provider: 'web3forms' };
+    }
+
+    if (!isSmtpConfigured()) {
+        return { sent: false, devMode: true };
+    }
+
+    const inbox = process.env.SMTP_FROM || process.env.SMTP_USER;
+    const html = `
+        <p><strong>From:</strong> ${name} &lt;${email}&gt;</p>
+        <p><strong>Subject:</strong> ${resolvedSubject}</p>
+        <hr />
+        <p>${String(message || '').replace(/\n/g, '<br />')}</p>
+    `;
+
+    await sendViaSmtp({
+        to: inbox,
+        subject: `[Contact] ${resolvedSubject}`,
         html
     });
 
-    logger.info('Booking confirmation email sent', { to, pnr: booking.pnrNumber });
-    return { sent: true, devMode: false };
+    logger.info('Contact enquiry sent via SMTP', { from: email });
+    return { sent: true, devMode: false, provider: 'smtp' };
 };
 
 module.exports = {
     isEmailConfigured,
+    isSmtpConfigured,
+    isWeb3FormsConfigured,
     sendPasswordResetEmail,
-    sendBookingConfirmationEmail
+    sendBookingConfirmationEmail,
+    sendContactEmail
 };

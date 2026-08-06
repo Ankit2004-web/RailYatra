@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, Clock, MessageCircle, Ticket, LayoutDashboard, Send } from 'lucide-react';
 import StaticPageLayout, { StaticSection } from '../components/StaticPageLayout';
+import { api } from '../api/client';
 
 const CONTACT_EMAIL = 'imankit.biswas@gmail.com';
 const CONTACT_PHONE = '7864939820';
@@ -10,15 +11,22 @@ const CONTACT_PHONE_DISPLAY = '+91 78649 39820';
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    const body = encodeURIComponent(
-      `Name: ${form.name}\nEmail: ${form.email}\n\n${form.message}`
-    );
-    const subject = encodeURIComponent(form.subject || 'RailYatra support enquiry');
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
-    setSent(true);
+    setError('');
+    setLoading(true);
+    try {
+      const response = await api.post('/contact', form, { idempotent: false });
+      setSent(response.msg || 'Message sent');
+      setForm({ name: '', email: '', subject: '', message: '' });
+    } catch (err) {
+      setError(err.message || 'Could not send your message');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -79,7 +87,7 @@ export default function ContactPage() {
       <StaticSection icon={Send} title="Send us a message">
         {sent ? (
           <div className="contact-form-success">
-            Your email client should open with the enquiry draft. Send the email to complete your request.
+            {typeof sent === 'string' ? sent : 'Your message has been sent. We will get back to you soon.'}
           </div>
         ) : (
           <form className="contact-form card" onSubmit={submit}>
@@ -99,8 +107,9 @@ export default function ContactPage() {
               <label htmlFor="contact-message">Message</label>
               <textarea id="contact-message" className="input" rows={5} required value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} />
             </div>
-            <button type="submit" className="btn btn-primary">
-              <Send size={16} aria-hidden="true" /> Send enquiry
+            {error && <div className="alert alert-error">{error}</div>}
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              <Send size={16} aria-hidden="true" /> {loading ? 'Sending…' : 'Send enquiry'}
             </button>
           </form>
         )}

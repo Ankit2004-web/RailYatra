@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Phone, Lock, UserPlus, Eye, EyeOff } from 'lucide-react';
+import { User, Lock, UserPlus, Eye, EyeOff, UserRound, LogIn } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import CaptchaField from '../components/CaptchaField';
 import AuthShell from '../components/AuthShell';
@@ -13,25 +13,41 @@ export default function RegisterPage() {
   const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
+    if (submittingRef.current || loading) return;
+    submittingRef.current = true;
     setError('');
     setLoading(true);
     try {
-      await register({ ...form, ...captcha });
+      const loginId = form.phone.trim();
+      const payload = {
+        name: form.name.trim(),
+        password: form.password,
+        ...captcha
+      };
+      if (loginId.includes('@')) {
+        payload.email = loginId;
+      } else {
+        payload.phone = loginId;
+      }
+      await register(payload);
       navigate('/home');
     } catch (err) {
       setError(err.message || 'Registration failed');
     } finally {
+      submittingRef.current = false;
       setLoading(false);
     }
   };
 
   return (
     <AuthShell
+      variant="enterprise"
       title="Create your account"
       subtitle="Join RailYatra to book trains and manage all your journeys in one place."
       sideTitle="Start your rail journey"
@@ -46,15 +62,32 @@ export default function RegisterPage() {
           <label htmlFor="name">Full name</label>
           <div className="auth-input-wrap">
             <User size={18} className="auth-input-icon" aria-hidden="true" />
-            <input id="name" className="input auth-input" value={form.name} onChange={set('name')} placeholder="Your full name" required />
+            <input
+              id="name"
+              className="input auth-input"
+              value={form.name}
+              onChange={set('name')}
+              placeholder="Your full name"
+              autoComplete="name"
+              required
+            />
           </div>
         </div>
 
         <div className="field auth-field">
-          <label htmlFor="phone">Mobile number</label>
+          <label htmlFor="phone">Mobile number or email</label>
           <div className="auth-input-wrap">
-            <Phone size={18} className="auth-input-icon" aria-hidden="true" />
-            <input id="phone" className="input auth-input" value={form.phone} onChange={set('phone')} placeholder="10-digit mobile" required />
+            <UserRound size={18} className="auth-input-icon" aria-hidden="true" />
+            <input
+              id="phone"
+              type="text"
+              className="input auth-input"
+              value={form.phone}
+              onChange={set('phone')}
+              placeholder="10-digit mobile or email@example.com"
+              autoComplete="username"
+              required
+            />
           </div>
         </div>
 
@@ -69,6 +102,7 @@ export default function RegisterPage() {
               value={form.password}
               onChange={set('password')}
               placeholder="Min. 6 characters"
+              autoComplete="new-password"
               minLength={6}
               required
             />
@@ -92,9 +126,12 @@ export default function RegisterPage() {
         </button>
       </form>
 
-      <p className="auth-switch">
-        Already have an account? <Link to="/login">Sign in</Link>
-      </p>
+      <div className="auth-card-footer">
+        <Link to="/login" className="btn btn-outline btn-block auth-register-btn">
+          <LogIn size={18} aria-hidden="true" />
+          Sign In
+        </Link>
+      </div>
     </AuthShell>
   );
 }

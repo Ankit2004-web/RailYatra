@@ -3,10 +3,31 @@ const { body } = require('express-validator');
 const registerRules = [
     body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 100 }),
     body('email').optional({ values: 'falsy' }).trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
-    body('phone').trim().notEmpty().withMessage('Phone is required').matches(/^[0-9+\-\s]{10,15}$/).withMessage('Invalid phone number'),
+    body('phone').optional({ values: 'falsy' }).trim().custom((value) => {
+        if (!value) return true;
+        if (String(value).includes('@')) {
+            throw new Error('Use the email field or a single login field with mobile or email');
+        }
+        if (!/^[0-9+\-\s]{10,15}$/.test(String(value))) {
+            throw new Error('Invalid mobile number');
+        }
+        return true;
+    }),
     body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
     body('captchaId').notEmpty().withMessage('Captcha is required'),
-    body('captchaAnswer').notEmpty().withMessage('Captcha answer is required')
+    body('captchaAnswer').notEmpty().withMessage('Captcha answer is required'),
+    body().custom((_, { req }) => {
+        const loginId = String(req.body.phone || req.body.email || '').trim();
+        if (!loginId) throw new Error('Mobile number or email is required');
+        if (loginId.includes('@')) {
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(loginId)) {
+                throw new Error('Invalid email address');
+            }
+        } else if (!/^[0-9+\-\s]{10,15}$/.test(loginId)) {
+            throw new Error('Invalid mobile number');
+        }
+        return true;
+    })
 ];
 
 const loginRules = [
