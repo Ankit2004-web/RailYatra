@@ -84,9 +84,10 @@ app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/contact', contactRoutes);
 
 app.get('/api/health', async (req, res) => {
+    const isSqlite = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';
     res.json({
         status: 'ok',
-        database: 'Microsoft SQL Server',
+        database: isSqlite ? 'SQLite' : 'Microsoft SQL Server',
         timestamp: new Date().toISOString()
     });
 });
@@ -202,11 +203,9 @@ const startServer = async () => {
             console.warn('Warning: JWT_SECRET is missing or weak. Set a strong secret before deploying.');
         }
 
-        await syncDatabase();
-
         const isSqliteCloud = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';
 
-        const afterListen = async () => {
+        const runPostSyncBootstrap = async () => {
             try {
                 await seedDatabase();
 
@@ -245,28 +244,27 @@ const startServer = async () => {
                 console.log(`http://localhost:${PORT}`);
                 console.log('Database: SQLite (cloud demo)');
                 console.log(`Contact email: ${isWeb3FormsConfigured() ? 'Web3Forms' : isSmtpConfigured() ? 'SMTP' : 'NOT CONFIGURED'}`);
-                afterListen();
+                (async () => {
+                    try {
+                        await syncDatabase();
+                        await runPostSyncBootstrap();
+                    } catch (error) {
+                        logger.error('SQLite bootstrap failed', { error: error.message });
+                        console.error('SQLite bootstrap failed:', error.message);
+                    }
+                })();
             });
             return;
         }
 
-        await seedDatabase();
-
-        const coachCapacityRulesService = require('./services/coachCapacityRulesService');
-        try {
-            await coachCapacityRulesService.loadRulesCache();
-            console.log('Loaded IR CoachCapacityRules for per-coach seating data.');
-        } catch (cacheErr) {
-            console.warn('Coach capacity rules cache skipped:', cacheErr.message);
-        }
+        await syncDatabase();
+        await runPostSyncBootstrap();
 
         app.listen(PORT, () => {
             logger.info(`Server running on port ${PORT}`);
             console.log(`Server running on port ${PORT}`);
             console.log(`http://localhost:${PORT}`);
             console.log('Database: Microsoft SQL Server');
-
-            startBackgroundJobs();
         });
     } catch (error) {
         logger.error('Failed to start server', { error: error.message });

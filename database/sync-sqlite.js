@@ -210,13 +210,6 @@ async function syncSqliteDatabase() {
         await ensureIndexes();
         await repairTrainStopsTable();
 
-        try {
-            const { backfillTrainClass2S } = require('../database/backfill-train-class-2s');
-            await backfillTrainClass2S();
-        } catch (err) {
-            console.warn('2S class backfill skipped:', err.message);
-        }
-
         console.log('Database schema is up to date.');
     } catch (error) {
         console.error('SQLite sync failed:', error.message);
