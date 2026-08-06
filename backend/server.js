@@ -6,6 +6,7 @@ const fs = require('fs');
 require('dotenv').config();
 
 const logger = require('./utils/logger');
+const { isWeb3FormsConfigured, isSmtpConfigured } = require('./services/emailService');
 const requestLogger = require('./middleware/requestLogger');
 const { apiLimiter } = require('./middleware/rateLimit');
 const syncDatabase = require('../database/sync');
@@ -243,6 +244,7 @@ const startServer = async () => {
                 console.log(`Server running on port ${PORT}`);
                 console.log(`http://localhost:${PORT}`);
                 console.log('Database: SQLite (cloud demo)');
+                console.log(`Contact email: ${isWeb3FormsConfigured() ? 'Web3Forms' : isSmtpConfigured() ? 'SMTP' : 'NOT CONFIGURED'}`);
                 afterListen();
             });
             return;

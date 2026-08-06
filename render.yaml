@@ -33,4 +33,10 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: WEB3FORMS_ACCESS_KEY
-        sync: false
+        value: f8d13fbf-80b4-4dbc-bab1-e6b5c38d84f8
+      - key: WEB3FORMS_FROM_NAME
+        value: RailYatra
+      - key: VITE_WEB3FORMS_ACCESS_KEY
+        value: f8d13fbf-80b4-4dbc-bab1-e6b5c38d84f8
+      - key: VITE_WEB3FORMS_FROM_NAME
+        value: RailYatra
