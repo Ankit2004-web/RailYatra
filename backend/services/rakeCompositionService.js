@@ -27,8 +27,8 @@ const CLASS_COACH_META = Object.freeze({
 /** Rake order (loco → tail) for synthesized composition */
 const RAKE_CLASS_ORDER = ['GS', 'UR', '2S', 'SL', '3E', '3A', '2A', '1A', 'EA', 'EC', 'CC'];
 
-function getCoachCountForClass(classCode, trainName, trainTypeCode) {
-    return getCoachCount(classCode, trainName, trainTypeCode);
+function getCoachCountForClass(classCode, trainName, trainTypeCode, trainNumber = '') {
+    return getCoachCount(classCode, trainName, trainTypeCode, trainNumber);
 }
 
 /**
@@ -39,7 +39,8 @@ function getCoachCountForClass(classCode, trainName, trainTypeCode) {
 function buildRakeFromTrainClasses(train, trainClasses) {
     const trainName = train.trainName || '';
     const trainTypeCode = train.trainTypeCode || '';
-    const build = inferCoachBuild(trainName, trainTypeCode);
+    const trainNumber = train.trainNumber || '';
+    const build = inferCoachBuild(trainName, trainTypeCode, trainNumber);
     const classCodes = trainClasses.map((c) => String(c.classCode).toUpperCase());
     const ordered = RAKE_CLASS_ORDER.filter((c) => classCodes.includes(c));
     const remaining = classCodes.filter((c) => !ordered.includes(c));
@@ -53,7 +54,7 @@ function buildRakeFromTrainClasses(train, trainClasses) {
         const meta = CLASS_COACH_META[classCode];
         if (!meta) continue;
 
-        const coachCount = getCoachCountForClass(classCode, trainName, trainTypeCode);
+        const coachCount = getCoachCountForClass(classCode, trainName, trainTypeCode, trainNumber);
         const capRule = getPerCoachCapacity(classCode, build);
         const perCoach = capRule.capacity;
         let classTotal = 0;

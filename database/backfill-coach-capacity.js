@@ -8,7 +8,7 @@ async function backfillCoachCapacity() {
     console.log('Updating TrainClasses with full rake capacity (all coaches × berths per coach)...');
 
     const trains = await pool.request().query(`
-        SELECT t.id, t.trainName, tt.code AS trainTypeCode
+        SELECT t.id, t.trainNumber, t.trainName, tt.code AS trainTypeCode
         FROM Trains t
         LEFT JOIN TrainTypes tt ON tt.id = t.trainTypeId
     `);
@@ -31,7 +31,7 @@ async function backfillCoachCapacity() {
         if (!trainClasses.length) continue;
 
         const rake = buildRakeFromTrainClasses(
-            { trainName: train.trainName, trainTypeCode: train.trainTypeCode },
+            { trainName: train.trainName, trainTypeCode: train.trainTypeCode, trainNumber: train.trainNumber },
             trainClasses
         );
 

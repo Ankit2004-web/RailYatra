@@ -7,6 +7,52 @@
  * Chair / unreserved:
  *   EA=50, EC=56, CC=73, 2S=108, SL=72/78 (ICF/LHB), GS/UR=90/99
  */
+const fs = require('fs');
+const path = require('path');
+
+const WIKI_RAKE_PATH = path.join(__dirname, '../../database/data/railway/processed/wiki-rake-counts.json');
+
+let wikiRakeCountsCache = null;
+
+function loadWikiRakeCounts() {
+    if (wikiRakeCountsCache) return wikiRakeCountsCache;
+    if (fs.existsSync(WIKI_RAKE_PATH)) {
+        try {
+            wikiRakeCountsCache = JSON.parse(fs.readFileSync(WIKI_RAKE_PATH, 'utf8'));
+            return wikiRakeCountsCache;
+        } catch {
+            wikiRakeCountsCache = {};
+            return wikiRakeCountsCache;
+        }
+    }
+    wikiRakeCountsCache = {};
+    return wikiRakeCountsCache;
+}
+
+function setWikiRakeCounts(counts) {
+    wikiRakeCountsCache = counts || {};
+}
+
+function saveWikiRakeCounts(counts) {
+    fs.mkdirSync(path.dirname(WIKI_RAKE_PATH), { recursive: true });
+    fs.writeFileSync(WIKI_RAKE_PATH, JSON.stringify(counts, null, 2));
+    wikiRakeCountsCache = counts;
+}
+
+function getWikiCoachCount(trainNumber, classCode) {
+    if (!trainNumber || !classCode) return null;
+    const tn = String(trainNumber).trim().replace(/\s+/g, '');
+    const counts = loadWikiRakeCounts()[tn];
+    if (!counts) return null;
+    const val = counts[classCode];
+    return val != null ? val : null;
+}
+
+function getWikiCoachBuild(trainNumber) {
+    if (!trainNumber) return null;
+    const tn = String(trainNumber).trim().replace(/\s+/g, '');
+    return loadWikiRakeCounts()[tn]?._coachBuild || null;
+}
 const COACH_CAPACITY_ICF = Object.freeze({
     '1A': 22,
     '2A': 46,
@@ -57,7 +103,9 @@ const DEFAULT_COACH_COUNT = Object.freeze({
 const LHB_TRAIN_PATTERN = /rajdhani|shatabdi|duronto|vande bharat|garib rath|tejas|humsafar|double decker|anubhuthi|amrit bharat/i;
 const LHB_TYPE_CODES = new Set(['RAJ', 'SHAT', 'DUR', 'VB']);
 
-function inferCoachBuild(trainName = '', trainTypeCode = '') {
+function inferCoachBuild(trainName = '', trainTypeCode = '', trainNumber = '') {
+    const wikiBuild = getWikiCoachBuild(trainNumber);
+    if (wikiBuild) return wikiBuild;
     const name = String(trainName);
     const type = String(trainTypeCode).toUpperCase();
     if (LHB_TRAIN_PATTERN.test(name) || LHB_TYPE_CODES.has(type)) return 'LHB';
@@ -94,7 +142,10 @@ function getBerthsPerCoach(classCode, coachBuild = 'LHB') {
     return table[code] ?? COACH_CAPACITY_LHB[code] ?? 72;
 }
 
-function getCoachCount(classCode, trainName, trainTypeCode) {
+function getCoachCount(classCode, trainName, trainTypeCode, trainNumber = '') {
+    const wikiCount = getWikiCoachCount(trainNumber, classCode);
+    if (wikiCount != null) return wikiCount;
+
     const category = inferTrainCategory(trainName, trainTypeCode);
     const map = DEFAULT_COACH_COUNT[category] || DEFAULT_COACH_COUNT.default;
     const code = String(classCode).toUpperCase();
@@ -102,15 +153,15 @@ function getCoachCount(classCode, trainName, trainTypeCode) {
 }
 
 /** Total berths/seats for a class on a train (coaches × per-coach capacity). */
-function getClassCapacity(classCode, trainName, trainTypeCode) {
-    const build = inferCoachBuild(trainName, trainTypeCode);
-    const coaches = getCoachCount(classCode, trainName, trainTypeCode);
+function getClassCapacity(classCode, trainName, trainTypeCode, trainNumber = '') {
+    const build = inferCoachBuild(trainName, trainTypeCode, trainNumber);
+    const coaches = getCoachCount(classCode, trainName, trainTypeCode, trainNumber);
     return coaches * getBerthsPerCoach(classCode, build);
 }
 
-function estimateTrainTotalCapacity(classCodes, trainName, trainTypeCode) {
+function estimateTrainTotalCapacity(classCodes, trainName, trainTypeCode, trainNumber = '') {
     return classCodes.reduce(
-        (sum, code) => sum + getClassCapacity(code, trainName, trainTypeCode),
+        (sum, code) => sum + getClassCapacity(code, trainName, trainTypeCode, trainNumber),
         0
     );
 }
@@ -120,10 +171,15 @@ module.exports = {
     COACH_CAPACITY_ICF,
     COACH_CAPACITY_LHB,
     DEFAULT_COACH_COUNT,
+    WIKI_RAKE_PATH,
     inferCoachBuild,
     getBerthsPerCoach,
     getCoachCount,
     getClassCapacity,
     estimateTrainTotalCapacity,
-    inferTrainCategory
+    inferTrainCategory,
+    loadWikiRakeCounts,
+    setWikiRakeCounts,
+    saveWikiRakeCounts,
+    getWikiCoachCount
 };

@@ -87,6 +87,23 @@ async function main() {
         console.warn('Coach capacity backfill skipped:', err.message);
     }
 
+    try {
+        const wikiManifest = path.join(projectRoot, 'database/data/railway/wiki-train-pages.manifest.json');
+        if (fs.existsSync(wikiManifest)) {
+            const WikipediaTrainPageImporter = require('../../database/import/WikipediaTrainPageImporter');
+            console.log('Importing Wikipedia train pages (routes + exact coach counts)...');
+            const pageImporter = new WikipediaTrainPageImporter({ manifestPath: wikiManifest });
+            const pageReport = await pageImporter.run();
+            flushDb();
+            console.log(`Wiki pages: ${pageReport.trainsProcessed} trains, ${pageReport.stopsImported} stops, ${pageReport.classesUpdated} class updates`);
+            const { backfillCoachCapacity: backfillAgain } = require('../../database/backfill-coach-capacity');
+            await backfillAgain();
+            flushDb();
+        }
+    } catch (err) {
+        console.warn('Wikipedia train page import skipped:', err.message);
+    }
+
     const stations = await runQuery('SELECT COUNT(*) AS c FROM Stations');
     const trains = await runQuery('SELECT COUNT(*) AS c FROM Trains');
     const stops = await runQuery('SELECT COUNT(*) AS c FROM TrainStops WHERE stationId IS NOT NULL');
