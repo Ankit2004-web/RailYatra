@@ -8,6 +8,12 @@ const { sendBookingConfirmationEmail } = require('../services/emailService');
 const runningDayService = require('../services/runningDayService');
 const notificationRepository = require('./notificationRepository');
 const outboxRepository = require('./outboxRepository');
+const userRepository = require('./userRepository');
+const {
+    ACTIVE_BOOKING_STATUSES,
+    normalizePassengerName,
+    normalizePassengerPhone
+} = require('../utils/bookingPolicy');
 
 async function notifyUser(userId, type, title, message, meta) {
     if (!userId) return;
@@ -104,7 +110,11 @@ const formatBooking = (booking, train, user, passengers) => {
     duration: durationMinutes != null ? runningDayService.formatDuration(durationMinutes) : null,
     passengers: passengers || [],
     totalPrice: Number(booking.totalPrice),
-    grandTotal: Number(booking.grandTotal || paymentBreakdown.totalFare),
+    grandTotal: (() => {
+        const stored = Number(booking.grandTotal);
+        if (stored > 0) return stored;
+        return Number(paymentBreakdown.totalFare || booking.totalPrice || 0);
+    })(),
     paymentBreakdown,
     seatNumbers: parseSeatNumbers(booking.seatNumbers),
     status: booking.status,
@@ -300,6 +310,70 @@ const restoreAvailability = async (query, trainId, classCode, count) => {
     }
 };
 
+const checkDuplicateBooking = async ({ userId, trainId, journeyDate, passengers }) => {
+    const pool = await getPool();
+    const user = await userRepository.findById(userId);
+    const normalizedDate = runningDayService.formatDateOnly(journeyDate);
+    const statusClause = ACTIVE_BOOKING_STATUSES.map((status) => `'${status}'`).join(',');
+
+    const sameAccount = await pool.request()
+        .input('userId', 'Int', userId)
+        .input('trainId', 'Int', trainId)
+        .input('journeyDate', 'NVarChar', normalizedDate)
+        .query(`SELECT TOP 1 id FROM Bookings
+                WHERE userId = @userId AND trainId = @trainId
+                AND CAST(journeyDate AS DATE) = CAST(@journeyDate AS DATE)
+                AND status IN (${statusClause})`);
+
+    if (sameAccount.recordset[0]) {
+        return {
+            error: 'You already have an active booking on this train for this date.',
+            status: 409
+        };
+    }
+
+    for (const passenger of passengers) {
+        const name = normalizePassengerName(passenger.name);
+        const mobile = normalizePassengerPhone(passenger.mobile || user?.phone);
+        const idNumber = String(passenger.idNumber || '').trim();
+        if (!name) continue;
+
+        const request = pool.request()
+            .input('trainId', 'Int', trainId)
+            .input('journeyDate', 'NVarChar', normalizedDate)
+            .input('name', 'NVarChar', name);
+
+        const identityChecks = ['LOWER(TRIM(p.name)) = @name'];
+        if (mobile.length === 10) {
+            request.input('mobile', 'NVarChar', `%${mobile}`);
+            identityChecks.push(`REPLACE(REPLACE(REPLACE(REPLACE(p.mobile, ' ', ''), '-', ''), '+', ''), '+91', '') LIKE @mobile`);
+        }
+        if (idNumber) {
+            request.input('idNumber', 'NVarChar', idNumber);
+            identityChecks.push('p.idNumber = @idNumber');
+        }
+
+        const duplicate = await request.query(`
+            SELECT TOP 1 b.id
+            FROM Bookings b
+            INNER JOIN Passengers p ON p.bookingId = b.id
+            WHERE b.trainId = @trainId
+              AND CAST(b.journeyDate AS DATE) = CAST(@journeyDate AS DATE)
+              AND b.status IN (${statusClause})
+              AND (${identityChecks.join(' OR ')})
+        `);
+
+        if (duplicate.recordset[0]) {
+            return {
+                error: 'A ticket is already booked for this passenger on the same train and date. Use a different name, mobile number, or account.',
+                status: 409
+            };
+        }
+    }
+
+    return null;
+};
+
 const createBooking = async ({
     userId,
     trainId,
@@ -319,6 +393,9 @@ const createBooking = async ({
     paymentBreakdown,
     grandTotal
 }) => {
+    const duplicate = await checkDuplicateBooking({ userId, trainId, journeyDate, passengers });
+    if (duplicate) return duplicate;
+
     const txResult = await withTransaction(async ({ query }) => {
         const trains = await query('SELECT * FROM Trains WITH (UPDLOCK, ROWLOCK) WHERE id = ?', [trainId]);
         const train = trains[0];

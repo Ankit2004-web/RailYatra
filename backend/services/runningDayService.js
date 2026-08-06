@@ -57,14 +57,16 @@ function parseRunningDaysString(runningDays) {
 
 const ALL_RUNNING_DAYS = [1, 2, 3, 4, 5, 6, 7];
 
-/** Resolve operating days from DB map or text; default to daily when source data is missing. */
+/** Resolve operating days from DB map or text. Unknown schedules are not treated as daily. */
 function resolveRunningDayList(runningDaysString, fromMap) {
     if (fromMap?.length) {
         return [...new Set(fromMap.map(Number).filter((n) => n >= 1 && n <= 7))].sort((a, b) => a - b);
     }
+    const text = String(runningDaysString || '').trim();
+    if (/^daily$/i.test(text)) return ALL_RUNNING_DAYS;
     const parsed = parseRunningDaysString(runningDaysString);
     if (parsed.length) return parsed;
-    return ALL_RUNNING_DAYS;
+    return [];
 }
 
 function runningDaysFromRows(rows) {
@@ -77,7 +79,7 @@ function calculateSourceDepartureDate(boardingDate, departureDayOffset = 0) {
 }
 
 function trainRunsOnBoardingDate(boardingDate, fromStopDepartureDayOffset, runningDayList) {
-    if (!runningDayList?.length) return true;
+    if (!runningDayList?.length) return false;
     const sourceDate = calculateSourceDepartureDate(boardingDate, fromStopDepartureDayOffset);
     const dow = isoDayOfWeek(sourceDate);
     return runningDayList.includes(dow);

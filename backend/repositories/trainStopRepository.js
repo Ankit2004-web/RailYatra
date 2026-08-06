@@ -8,6 +8,32 @@ const findByTrainId = async (trainId) => {
     return result.recordset;
 };
 
+const getSegmentMetrics = async (trainId, fromStationId, toStationId) => {
+    if (!trainId || !fromStationId || !toStationId) return null;
+    const pool = await getPool();
+    const result = await pool.request()
+        .input('trainId', 'Int', trainId)
+        .input('fromId', 'Int', fromStationId)
+        .input('toId', 'Int', toStationId)
+        .query(`
+            SELECT
+                f.distanceKm AS fromKm,
+                t.distanceKm AS toKm,
+                f.departureDayOffset AS fromDepartureDayOffset
+            FROM TrainStops f
+            INNER JOIN TrainStops t ON t.trainId = f.trainId
+            WHERE f.trainId = @trainId
+              AND f.stationId = @fromId
+              AND t.stationId = @toId
+        `);
+    const row = result.recordset[0];
+    if (!row || row.fromKm == null || row.toKm == null) return null;
+    return {
+        distanceKm: Math.max(0, Number(row.toKm) - Number(row.fromKm)),
+        fromDepartureDayOffset: Number(row.fromDepartureDayOffset) || 0
+    };
+};
+
 const createMany = async (trainId, stops) => {
     const pool = await getPool();
 
@@ -37,4 +63,4 @@ const replaceForTrain = async (trainId, stops) => {
     }
 };
 
-module.exports = { findByTrainId, createMany, replaceForTrain };
+module.exports = { findByTrainId, getSegmentMetrics, createMany, replaceForTrain };

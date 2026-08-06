@@ -9,6 +9,7 @@ import Modal from '../components/Modal';
 import VoiceSearchButton from '../components/VoiceSearchButton';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
+import { getMaxBookingDate, getTodayIso } from '../utils/bookingPolicy';
 
 const CLASS_OPTIONS = [
   { value: '', label: 'All Classes' },
@@ -43,10 +44,14 @@ export default function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayIso();
+  const maxBookingDate = getMaxBookingDate();
   const [source, setSource] = useState('');
   const [destination, setDestination] = useState('');
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(() => {
+    const initial = getTodayIso();
+    return initial;
+  });
   const [flexDays, setFlexDays] = useState(0);
   const [classCode, setClassCode] = useState('');
   const [routeAware, setRouteAware] = useState(true);
@@ -194,10 +199,12 @@ export default function HomePage() {
                   className="input"
                   value={date}
                   min={today}
+                  max={maxBookingDate}
                   onChange={(e) => setDate(e.target.value)}
                   required
                 />
               </div>
+              <p className="muted home-date-hint">Book up to 60 days in advance. Only trains running on the selected day are shown.</p>
               <div className="field">
                 <label htmlFor="class">Class</label>
                 <select id="class" className="input" value={classCode} onChange={(e) => setClassCode(e.target.value)}>

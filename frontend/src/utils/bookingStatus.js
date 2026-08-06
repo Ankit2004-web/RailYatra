@@ -9,5 +9,12 @@ export function isAwaitingPayment(booking) {
 }
 
 export function bookingFareAmount(booking) {
-  return Number(booking?.grandTotal || booking?.totalPrice || 0);
+  const breakdownTotal = booking?.paymentBreakdown?.totalFare;
+  if (breakdownTotal != null && Number(breakdownTotal) > 0) {
+    return Number(breakdownTotal);
+  }
+  if (booking?.grandTotal != null && Number(booking.grandTotal) > 0) {
+    return Number(booking.grandTotal);
+  }
+  return Number(booking?.totalPrice || 0);
 }

@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const { getPool } = require('../../database/connection');
 const auth = require('../middleware/auth');
 const admin = require('../middleware/admin');
 const validate = require('../middleware/validate');
@@ -12,11 +13,15 @@ const { bookingRules, updateBookingRules } = require('../validators/bookingValid
 const bookingRepository = require('../repositories/bookingRepository');
 const trainRepository = require('../repositories/trainRepository');
 const trainClassRepository = require('../repositories/trainClassRepository');
+const trainStopRepository = require('../repositories/trainStopRepository');
 const seatRepository = require('../repositories/seatRepository');
 const stationRepository = require('../repositories/stationRepository');
 const { isTatkalEligible, getTatkalPrice } = require('../utils/tatkal');
 const { calculateBookingFare } = require('../utils/fare');
 const { calculatePaymentBreakdown } = require('../utils/paymentBreakdown');
+const { calculateClassFare } = require('../utils/irctcFareTable2025');
+const runningDayService = require('../services/runningDayService');
+const { validateAdvanceBookingDate } = require('../utils/bookingPolicy');
 const {
     calculateMealTotal,
     normalizePassengerFoodPreferences,
@@ -240,12 +245,58 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
             return res.status(400).json({ msg: 'Invalid quota type' });
         }
 
+        const advanceCheck = validateAdvanceBookingDate(journeyDate);
+        if (advanceCheck.error) {
+            return res.status(advanceCheck.status).json({ msg: advanceCheck.error });
+        }
+
+        const pool = await getPool();
+        const runningDaysResult = await pool.request()
+            .input('trainId', 'Int', trainId)
+            .query('SELECT dayOfWeek FROM TrainRunningDays WHERE trainId = @trainId AND runs = 1 ORDER BY dayOfWeek');
+        const runningDayList = runningDayService.resolveRunningDayList(
+            train.runningDays,
+            runningDaysResult.recordset.map((row) => row.dayOfWeek)
+        );
+
+        let segmentDistanceKm = Number(train.distance) || 0;
+        let fromDepartureDayOffset = 0;
+        if (resolvedFromStationId && resolvedToStationId) {
+            const segment = await trainStopRepository.getSegmentMetrics(
+                trainId,
+                resolvedFromStationId,
+                resolvedToStationId
+            );
+            if (segment) {
+                segmentDistanceKm = segment.distanceKm;
+                fromDepartureDayOffset = segment.fromDepartureDayOffset;
+            }
+        }
+
+        if (!runningDayService.trainRunsOnBoardingDate(
+            advanceCheck.journeyDate,
+            fromDepartureDayOffset,
+            runningDayList
+        )) {
+            return res.status(400).json({
+                msg: `Train ${train.trainNumber} does not run on the selected date (${runningDayService.runningDaysLabel(runningDayList)}).`
+            });
+        }
+
+        const perPassengerBaseFare = calculateClassFare({
+            distanceKm: segmentDistanceKm,
+            classCode,
+            trainTypeCode: train.trainTypeCode,
+            trainName: train.trainName,
+            journeyDate: advanceCheck.journeyDate
+        });
+
         const fareResult = calculateBookingFare({
-            basePrice: trainClass.price,
+            basePrice: perPassengerBaseFare,
             bookingType,
             quota,
             passengers: normalizedPassengers,
-            journeyDate
+            journeyDate: advanceCheck.journeyDate
         });
 
         if (fareResult.error) {
@@ -264,7 +315,7 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
             userId: req.user.id,
             trainId,
             passengers: normalizedPassengers,
-            journeyDate,
+            journeyDate: advanceCheck.journeyDate,
             totalPrice: ticketFare,
             paymentBreakdown: JSON.stringify(paymentBreakdown),
             grandTotal: paymentBreakdown.totalFare,
