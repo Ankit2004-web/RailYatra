@@ -63,7 +63,16 @@ router.get('/search', async (req, res) => {
 
 router.get('/:id/route', async (req, res) => {
     try {
-        const train = await trainRepository.findById(req.params.id);
+        const { getPool } = require('../../database/connection');
+        const pool = await getPool();
+        const trainResult = await pool.request()
+            .input('id', 'Int', req.params.id)
+            .query(`
+                SELECT id, trainNumber, trainName, source, destination
+                FROM Trains
+                WHERE id = @id AND isActive = 1
+            `);
+        const train = trainResult.recordset[0];
         if (!train) {
             return res.status(404).json({ msg: 'Train not found' });
         }

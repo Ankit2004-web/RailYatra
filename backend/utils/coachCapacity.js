@@ -43,7 +43,7 @@ const DEFAULT_COACH_COUNT = Object.freeze({
     rajdhani: { '1A': 1, '2A': 2, '3A': 4 },
     duronto: { '1A': 1, '2A': 2, '3A': 3 },
     vandeBharat: { CC: 8, EC: 2 },
-    shatabdi: { CC: 5, EC: 1 },
+    shatabdi: { CC: 5, EC: 1, '2S': 2 },
     garibRath: { '3E': 12 },
     anubhuthi: { EA: 1, CC: 4 },
     superfast: { SL: 6, '3A': 2, '2A': 1, '2S': 2 },

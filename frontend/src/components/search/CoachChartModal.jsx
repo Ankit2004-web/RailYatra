@@ -24,6 +24,25 @@ function coachVacantCount(coach) {
   return coach.seatingCapacity || coach.sleepingBerths || coach.seatCount || 0;
 }
 
+function buildLayoutFromClasses(classes = []) {
+  const coaches = [];
+  for (const cls of classes) {
+    for (const coach of cls.coaches || []) {
+      coaches.push({
+        coachNumber: coach.coachNumber,
+        coachType: coach.coachType,
+        classCode: cls.classCode,
+        coachModel: coach.coachModel,
+        seatingCapacity: coach.seatingCapacity,
+        sleepingBerths: coach.sleepingBerths,
+        seatCount: coach.seatCount || coach.seatingCapacity || coach.sleepingBerths || 0,
+        seats: coach.seats || []
+      });
+    }
+  }
+  return coaches.length ? { coaches } : null;
+}
+
 export default function CoachChartModal({
   open,
   onClose,
@@ -45,11 +64,24 @@ export default function CoachChartModal({
     setLoading(true);
     setError('');
     setSelectedCoach(null);
+    setLayout(null);
     api.get(`/train/${trainNumber}/layout`)
-      .then((data) => setLayout(data))
-      .catch(() => setError('Could not load coach chart for this train.'))
+      .then((data) => {
+        if (data?.coaches?.length) {
+          setLayout(data);
+        } else {
+          const fallback = buildLayoutFromClasses(classes);
+          if (fallback) setLayout(fallback);
+          else setError('Coach chart is not available for this train.');
+        }
+      })
+      .catch(() => {
+        const fallback = buildLayoutFromClasses(classes);
+        if (fallback) setLayout(fallback);
+        else setError('Could not load coach chart for this train.');
+      })
       .finally(() => setLoading(false));
-  }, [open, trainNumber]);
+  }, [open, trainNumber, classes]);
 
   useEffect(() => {
     if (initialClassCode) setClassCode(initialClassCode);

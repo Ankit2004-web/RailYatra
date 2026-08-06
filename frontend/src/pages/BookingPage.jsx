@@ -16,6 +16,11 @@ import { formatIrctcAvailability, irctcAvailabilityClass } from '../utils/irctcA
 import { getAppliedOfferDetails } from '../utils/offerEngine';
 import { calculatePaymentBreakdown } from '../utils/paymentBreakdown';
 import {
+  calculateMealTotal,
+  MEAL_PRICES,
+  trainProvidesMeals
+} from '../utils/mealService';
+import {
   BOOKING_TYPE_OPTIONS,
   QUOTA_OPTIONS,
   isSoldOut,
@@ -73,7 +78,7 @@ function BookingContent() {
   const [train, setTrain] = useState(location.state?.train || null);
   const [classCode, setClassCode] = useState(location.state?.classCode || '');
   const [passengers, setPassengers] = useState([
-    { name: '', age: '', gender: 'Male', berthPreference: 'No Preference', nationality: 'Indian', mobile: '', email: '', idType: 'Aadhaar', idNumber: '', foodPreference: 'Veg', insuranceOptIn: false, isSeniorCitizen: false, isDivyang: false }
+    { name: '', age: '', gender: 'Male', berthPreference: 'No Preference', nationality: 'Indian', mobile: '', email: '', idType: 'Aadhaar', idNumber: '', foodPreference: 'None', insuranceOptIn: false, isSeniorCitizen: false, isDivyang: false }
   ]);
   const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
@@ -115,18 +120,34 @@ function BookingContent() {
 
   const classes = train?.classes || [];
   const selectedClass = classes.find((c) => c.classCode === classCode);
+  const mealsAvailable = trainProvidesMeals(train?.trainName, train?.trainTypeCode, classCode);
   const soldOut = isSoldOut(selectedClass, passengers.length);
   const tatkalEligible = isTatkalEligible(date);
   const baseTotal = selectedClass ? Number(selectedClass.price) * passengers.length : 0;
+  const mealTotal = mealsAvailable ? calculateMealTotal(passengers) : 0;
   const offerCtx = { total: baseTotal, classCode, journeyDate: date, paymentMethod };
   const appliedOffer = getAppliedOfferDetails(promoCode, offerCtx);
   const discount = appliedOffer.savings || 0;
   const ticketFare = Math.max(baseTotal - discount, 0);
   const paymentBreakdown = useMemo(
-    () => calculatePaymentBreakdown({ ticketFare, passengerCount: passengers.length }),
-    [ticketFare, passengers.length]
+    () => calculatePaymentBreakdown({
+      ticketFare,
+      passengerCount: passengers.length,
+      mealFare: mealTotal
+    }),
+    [ticketFare, passengers.length, mealTotal]
   );
   const payableTotal = paymentBreakdown.totalFare;
+
+  useEffect(() => {
+    if (!mealsAvailable) {
+      setPassengers((prev) => prev.map((p) => (
+        p.foodPreference && p.foodPreference !== 'None'
+          ? { ...p, foodPreference: 'None' }
+          : p
+      )));
+    }
+  }, [mealsAvailable, classCode]);
 
   const weekday = useMemo(() => {
     if (!date) return '';
@@ -411,12 +432,17 @@ function BookingContent() {
                         <label htmlFor={`pnationality-${i}`}>Nationality</label>
                         <input id={`pnationality-${i}`} className="input" value={p.nationality || 'Indian'} onChange={(e) => updatePassenger(i, 'nationality', e.target.value)} />
                       </div>
-                      <div className="field">
-                        <label htmlFor={`pfood-${i}`}>Food preference</label>
-                        <select id={`pfood-${i}`} className="input" value={p.foodPreference || 'Veg'} onChange={(e) => updatePassenger(i, 'foodPreference', e.target.value)}>
-                          <option>Veg</option><option>Non-Veg</option><option>Jain</option><option>None</option>
-                        </select>
-                      </div>
+                      {mealsAvailable && (
+                        <div className="field">
+                          <label htmlFor={`pfood-${i}`}>Meal (optional)</label>
+                          <select id={`pfood-${i}`} className="input" value={p.foodPreference || 'None'} onChange={(e) => updatePassenger(i, 'foodPreference', e.target.value)}>
+                            <option value="None">No meal</option>
+                            <option value="Veg">Veg — ₹{MEAL_PRICES.Veg}</option>
+                            <option value="Non-Veg">Non-Veg — ₹{MEAL_PRICES['Non-Veg']}</option>
+                            <option value="Jain">Jain — ₹{MEAL_PRICES.Jain}</option>
+                          </select>
+                        </div>
+                      )}
                       <div className="field">
                         <label htmlFor={`pidtype-${i}`}>ID type</label>
                         <select id={`pidtype-${i}`} className="input" value={p.idType || 'Aadhaar'} onChange={(e) => updatePassenger(i, 'idType', e.target.value)}>
@@ -543,7 +569,15 @@ function BookingContent() {
                 <div className="booking-summary-row"><span>Train</span><span>{train.trainName}</span></div>
                 <div className="booking-summary-row"><span>Passengers</span><span>{passengers.length}</span></div>
                 {passengers.map((p, i) => (
-                  <div key={i} className="booking-summary-row"><span>Passenger {i + 1}</span><span>{p.name} · {p.foodPreference || 'Veg'}</span></div>
+                  <div key={i} className="booking-summary-row">
+                    <span>Passenger {i + 1}</span>
+                    <span>
+                      {p.name}
+                      {mealsAvailable && p.foodPreference && p.foodPreference !== 'None'
+                        ? ` · Meal: ${p.foodPreference}`
+                        : ''}
+                    </span>
+                  </div>
                 ))}
               </div>
               <div className="booking-btn-row">
@@ -624,6 +658,12 @@ function BookingContent() {
                   <span>Ticket fare ({classCode} × {passengers.length})</span>
                   <span>Rs. {ticketFare.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
+                {mealTotal > 0 && (
+                  <div className="booking-summary-row">
+                    <span>Meals</span>
+                    <span>Rs. {mealTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
                 <div className="booking-summary-row">
                   <span>Convenience fee (incl. GST)</span>
                   <span>Rs. {paymentBreakdown.irctcConvenienceFee.toFixed(2)}</span>

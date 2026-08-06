@@ -290,8 +290,8 @@ export default function SearchResultsPage() {
         <TrainRouteModal
           data={routeModal}
           onClose={() => setRouteModal(null)}
-          highlightFrom={source}
-          highlightTo={destination}
+          highlightFrom={searchContext.fromCode || source}
+          highlightTo={searchContext.toCode || destination}
         />
 
         <CoachChartModal

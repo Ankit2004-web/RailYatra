@@ -9,6 +9,7 @@ const { computeAvgSpeedKmh } = require('../utils/trainSpeed');
 const { applyFaresToClasses, calculateClassFare } = require('../utils/irctcFareTable2025');
 const searchCacheRepository = require('../repositories/searchCacheRepository');
 const { enrichClassesFromTrainMeta } = require('./coachCompositionService');
+const { synthesizeMissingClasses } = require('./trainClassSynthesisService');
 
 const normalizeStationQuery = (q) => String(q || '').trim();
 
@@ -28,6 +29,22 @@ const STATION_CODE_ALIASES = {
     hyderabad: 'HYB',
     secunderabad: 'SC'
 };
+
+function filterTrainsDepartingAfterNow(trains, istClock = runningDayService.getIstClock()) {
+    return trains.filter((train) => {
+        const journeyDate = runningDayService.formatDateOnly(train.journeyDate || train.date);
+        const departureTime = normalizeTimeValue(
+            train.departureTime || train.boarding?.departureTime || train.from?.departureTime
+        );
+        const dayOffset = train.boarding?.dayOffset ?? train.from?.dayOffset ?? 0;
+        return runningDayService.isBoardingDepartureUpcoming(
+            journeyDate,
+            departureTime,
+            dayOffset,
+            istClock
+        );
+    });
+}
 
 function normalizeTimeValue(value) {
     if (value == null || value === '') return null;
@@ -389,8 +406,14 @@ function formatSearchResult(row, runningDayList, classes, durationMinutes, dista
         row.trainTypeCode,
         { includeSeats: false }
     );
-    const lowestPrice = enrichedClasses.length
-        ? Math.min(...enrichedClasses.map((c) => c.price))
+    const mergedClasses = synthesizeMissingClasses(enrichedClasses, {
+        trainName: row.trainName,
+        trainTypeCode: row.trainTypeCode,
+        distanceKm: segmentKm,
+        journeyDate
+    });
+    const lowestPrice = mergedClasses.length
+        ? Math.min(...mergedClasses.map((c) => c.price))
         : calculateClassFare({ ...fareContext, classCode: 'SL' });
 
     return {
@@ -418,7 +441,7 @@ function formatSearchResult(row, runningDayList, classes, durationMinutes, dista
         runningDaysList: runningDayList,
         runningStatus: row.runningStatus,
         price: lowestPrice,
-        classes: enrichedClasses,
+        classes: mergedClasses,
         lowestPrice,
         fareReference: 'MoR Commercial Circular No. 11 of 2025 (w.e.f. 01.07.2025)',
         boarding: {
@@ -539,7 +562,7 @@ async function search({ source, destination, date, classCode, from, to, flexDays
     }
 
     const cacheKey = searchCacheRepository.buildKey({
-        v: 6,
+        v: 8,
         from: fromQuery, to: toQuery, date, classCode, flexDays
     });
 
@@ -555,13 +578,13 @@ async function search({ source, destination, date, classCode, from, to, flexDays
         if (cached) {
             const cachedTrains = Array.isArray(cached) ? cached : cached.trains;
             if (cachedTrains?.length) {
-                const trains = await finalizeSearchResults(
+                const trains = filterTrainsDepartingAfterNow(await finalizeSearchResults(
                     cachedTrains,
                     fromStation,
                     toStation,
                     fromQuery,
                     toQuery
-                );
+                ));
                 return { trains, searchMeta: cached.searchMeta || searchMeta };
             }
         }
@@ -609,12 +632,24 @@ async function search({ source, destination, date, classCode, from, to, flexDays
             const key = `${train.id}-${journeyDate}`;
             if (!seen.has(key)) {
                 seen.add(key);
-                merged.push({ ...train, journeyDate: journeyDate || train.journeyDate });
+                const withClasses = synthesizeMissingClasses(train.classes || [], {
+                    trainName: train.trainName,
+                    trainTypeCode: train.trainTypeCode,
+                    distanceKm: train.distance,
+                    journeyDate
+                });
+                merged.push({
+                    ...train,
+                    classes: withClasses,
+                    journeyDate: journeyDate || train.journeyDate
+                });
             }
         }
     }
 
-    const trains = await finalizeSearchResults(merged, fromStation, toStation, fromQuery, toQuery);
+    const trains = filterTrainsDepartingAfterNow(
+        await finalizeSearchResults(merged, fromStation, toStation, fromQuery, toQuery)
+    );
     const payload = { trains, searchMeta };
 
     try {
@@ -652,5 +687,6 @@ module.exports = {
     resolveStation,
     autocompleteTrains,
     hasNormalizedStops,
-    searchViaStops
+    searchViaStops,
+    filterTrainsDepartingAfterNow
 };

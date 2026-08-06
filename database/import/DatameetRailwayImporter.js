@@ -362,7 +362,6 @@ class DatameetRailwayImporter {
         const pool = await getPool();
         const trainName = props.name || '';
         const trainTypeCode = this.mapTrainType(props.type);
-        const isPremiumRake = /rajdhani|shatabdi|duronto|vande bharat|garib rath|tejas|humsafar|anubhuthi/i.test(trainName);
 
         const classFlags = [
             ['1A', 'AC First Class', props.first_ac],
@@ -373,8 +372,9 @@ class DatameetRailwayImporter {
         ].filter(([, , flag]) => flag === true || flag === 'true' || flag === 1);
 
         const hasSleeper = classFlags.some(([code]) => code === 'SL');
+        const hasChair = classFlags.some(([code]) => ['CC', 'EC', 'EA'].includes(code));
         const has2S = classFlags.some(([code]) => code === '2S');
-        if (!has2S && !isPremiumRake && (hasSleeper || /passenger|pass\b|memu|demu/i.test(trainName))) {
+        if (!has2S && (hasSleeper || hasChair || /passenger|pass\b|memu|demu/i.test(trainName))) {
             classFlags.push(['2S', 'Second Sitting', true]);
         }
 

@@ -2,6 +2,7 @@ const { getPool } = require('../../database/connection');
 const trainClassRepository = require('./trainClassRepository');
 const trainSearchService = require('../services/trainSearchService');
 const { enrichClassesWithRake } = require('../services/coachCompositionService');
+const { synthesizeMissingClasses } = require('../services/trainClassSynthesisService');
 
 const formatTrain = (train, classes = []) => ({
     ...train,
@@ -50,6 +51,12 @@ const findById = async (id) => {
         trainName: train.trainName,
         trainTypeCode: train.trainTypeCode
     });
+    const mergedClasses = synthesizeMissingClasses(enrichedClasses, {
+        trainName: train.trainName,
+        trainTypeCode: train.trainTypeCode,
+        distanceKm: train.distance,
+        journeyDate: train.journeyDate
+    });
 
     const runningDaysResult = await pool.request()
         .input('trainId', 'Int', id)
@@ -60,7 +67,7 @@ const findById = async (id) => {
         ? runningDaysResult.recordset.map((r) => r.dayOfWeek)
         : runningDayService.parseRunningDaysString(train.runningDays);
 
-    const formatted = formatTrain(train, enrichedClasses);
+    const formatted = formatTrain(train, mergedClasses);
     return {
         ...formatted,
         trainType: train.trainTypeName || null,

@@ -1,6 +1,44 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { intervalsOverlap, canAllocateSeat } = require('../utils/segmentOverlap');
+const runningDayService = require('../services/runningDayService');
+const { filterTrainsDepartingAfterNow } = require('../services/trainSearchService');
+
+describe('today departure filtering', () => {
+    const today = '2026-08-06';
+    const istClock = { date: today, minutes: 13 * 60 + 20 };
+
+    it('keeps future-date trains regardless of departure time', () => {
+        assert.equal(
+            runningDayService.isBoardingDepartureUpcoming('2026-08-07', '06:00', 0, istClock),
+            true
+        );
+    });
+
+    it('hides today trains that already departed', () => {
+        assert.equal(
+            runningDayService.isBoardingDepartureUpcoming(today, '10:30', 0, istClock),
+            false
+        );
+    });
+
+    it('keeps today trains departing after the current IST time', () => {
+        assert.equal(
+            runningDayService.isBoardingDepartureUpcoming(today, '14:05', 0, istClock),
+            true
+        );
+    });
+
+    it('filters mixed search results by journey date', () => {
+        const filtered = filterTrainsDepartingAfterNow([
+            { id: 1, journeyDate: today, departureTime: '09:00' },
+            { id: 2, journeyDate: today, departureTime: '15:30' },
+            { id: 3, journeyDate: '2026-08-07', departureTime: '08:00' }
+        ], istClock);
+
+        assert.deepEqual(filtered.map((t) => t.id), [2, 3]);
+    });
+});
 
 describe('segment overlap inventory', () => {
     it('non-overlapping segments allow reuse', () => {

@@ -7,10 +7,12 @@ const round2 = (value) => Math.round(Number(value) * 100) / 100;
 const calculatePaymentBreakdown = ({
     ticketFare,
     passengerCount = 1,
+    mealFare = 0,
     includeInsurance = false,
     includeCancellationCover = false
 }) => {
     const fare = round2(ticketFare);
+    const meals = round2(mealFare);
     const passengers = Math.max(Number(passengerCount) || 1, 1);
 
     const convenienceExGst = round2(Math.max(15, Math.min(40, fare * 0.015)) * passengers);
@@ -28,6 +30,7 @@ const calculatePaymentBreakdown = ({
 
     const totalFare = round2(
         fare
+        + meals
         + irctcConvenienceFee
         + travelInsurance
         + cancellationCover
@@ -37,6 +40,7 @@ const calculatePaymentBreakdown = ({
 
     return {
         ticketFare: fare,
+        mealFare: meals,
         irctcConvenienceFee,
         convenienceFeeExGst: convenienceExGst,
         gstOnConvenience,

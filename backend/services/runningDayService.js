@@ -112,6 +112,45 @@ function formatDuration(minutes) {
     return `${h}h ${m}m`;
 }
 
+const IST_TIME_ZONE = 'Asia/Kolkata';
+
+/** Current calendar date and time-of-day in IST (Indian Railways local time). */
+function getIstClock(now = new Date()) {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: IST_TIME_ZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    const parts = Object.fromEntries(
+        formatter.formatToParts(now)
+            .filter((part) => part.type !== 'literal')
+            .map((part) => [part.type, part.value])
+    );
+    return {
+        date: `${parts.year}-${parts.month}-${parts.day}`,
+        minutes: parseInt(parts.hour, 10) * 60 + parseInt(parts.minute, 10)
+    };
+}
+
+/**
+ * For today's journey date only: keep trains whose boarding departure is still in the future.
+ * Future dates always return true.
+ */
+function isBoardingDepartureUpcoming(journeyDate, departureTime, departureDayOffset = 0, istClock = getIstClock()) {
+    const journey = formatDateOnly(journeyDate);
+    if (journey !== istClock.date) return true;
+    if ((departureDayOffset || 0) > 0) return true;
+
+    const depMinutes = parseTimeToMinutes(departureTime);
+    if (depMinutes == null) return true;
+
+    return depMinutes > istClock.minutes;
+}
+
 module.exports = {
     isoDayOfWeek,
     parseDateOnly,
@@ -126,5 +165,7 @@ module.exports = {
     runningDaysLabel,
     parseTimeToMinutes,
     calculateDurationMinutes,
-    formatDuration
+    formatDuration,
+    getIstClock,
+    isBoardingDepartureUpcoming
 };

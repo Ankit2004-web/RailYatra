@@ -1,4 +1,5 @@
 const trainRepository = require('../repositories/trainRepository');
+const { trainProvidesMeals } = require('../utils/mealService');
 
 function recommendSeats({ train, classCode, passengers, preferences = {} }) {
     const recommendations = [];
@@ -33,11 +34,13 @@ function recommendSeats({ train, classCode, passengers, preferences = {} }) {
         });
     }
 
-    if (train?.duration && String(train.duration).includes('h')) {
+    if (trainProvidesMeals(train?.trainName, train?.trainTypeCode, classCode)
+        && train?.duration
+        && String(train.duration).includes('h')) {
         recommendations.push({
             type: 'food',
             title: 'Pre-order veg meal',
-            reason: 'Journey over 6 hours — meal booking improves on-board availability.',
+            reason: 'Meals are available on this train — book now for guaranteed service.',
             confidence: 0.66
         });
     }

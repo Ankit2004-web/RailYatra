@@ -47,6 +47,14 @@ async function main() {
     setSkipPersist(false);
     flushDb();
 
+    try {
+        const { backfillTrainClass2S } = require('../../database/backfill-train-class-2s');
+        await backfillTrainClass2S();
+        flushDb();
+    } catch (err) {
+        console.warn('2S class backfill skipped:', err.message);
+    }
+
     const stations = await runQuery('SELECT COUNT(*) AS c FROM Stations');
     const trains = await runQuery('SELECT COUNT(*) AS c FROM Trains');
     const stops = await runQuery('SELECT COUNT(*) AS c FROM TrainStops WHERE stationId IS NOT NULL');

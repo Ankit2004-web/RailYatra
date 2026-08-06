@@ -7,15 +7,15 @@ const { inferTrainCategory } = require('../backend/utils/coachCapacity');
 const coachCapacityRulesService = require('../backend/services/coachCapacityRulesService');
 const { buildRakeFromTrainClasses, getClassTotalFromRake } = require('../backend/services/rakeCompositionService');
 
-const PREMIUM_CATEGORIES = new Set(['rajdhani', 'duronto', 'vandeBharat', 'shatabdi', 'garibRath', 'anubhuthi']);
+const PREMIUM_CATEGORIES = new Set(['rajdhani', 'duronto', 'vandeBharat', 'garibRath', 'anubhuthi']);
 
 function shouldAdd2S(trainName, trainTypeCode, classCodes) {
     if (classCodes.includes('2S')) return false;
     const category = inferTrainCategory(trainName, trainTypeCode);
     if (PREMIUM_CATEGORIES.has(category)) return false;
     if (classCodes.includes('SL')) return true;
-    if (category === 'passenger') return true;
-    if (classCodes.some((c) => ['3A', '2A', '1A'].includes(c))) return true;
+    if (classCodes.some((c) => ['CC', 'EC', 'EA'].includes(c))) return true;
+    if (category === 'passenger' || category === 'superfast' || category === 'express' || category === 'shatabdi') return true;
     return false;
 }
 
@@ -95,17 +95,19 @@ async function backfillTrainClass2S() {
         }
     }
 
-    await pool.request().query(`
-        UPDATE t
-        SET t.availableSeats = x.totalCap,
-            t.updatedAt = SYSUTCDATETIME()
-        FROM Trains t
-        INNER JOIN (
-            SELECT trainId, SUM(totalSeats) AS totalCap
-            FROM TrainClasses
-            GROUP BY trainId
-        ) x ON x.trainId = t.id
-    `);
+    if (inserted || updated) {
+        const trains = await pool.request().query('SELECT id FROM Trains');
+        for (const train of trains.recordset) {
+            const cap = await pool.request()
+                .input('trainId', 'Int', train.id)
+                .query('SELECT COALESCE(SUM(totalSeats), 0) AS totalCap FROM TrainClasses WHERE trainId = @trainId');
+            const totalCap = cap.recordset[0]?.totalCap || 0;
+            await pool.request()
+                .input('trainId', 'Int', train.id)
+                .input('totalCap', 'Int', totalCap)
+                .query('UPDATE Trains SET availableSeats = @totalCap, updatedAt = SYSUTCDATETIME() WHERE id = @trainId');
+        }
+    }
 
     console.log(`2S backfill complete: ${inserted} inserted, ${updated} updated.`);
     await closePool();

@@ -1,6 +1,14 @@
 import Modal from '../Modal';
 import { TrainFront } from 'lucide-react';
 
+function stopMatchesQuery(stop, query) {
+  if (!query || !stop) return false;
+  const q = String(query).trim().toLowerCase();
+  const code = String(stop.stationCode || '').toLowerCase();
+  const name = String(stop.stationName || '').toLowerCase();
+  return code === q || name.includes(q) || q.includes(code) || q.includes(name);
+}
+
 export default function TrainRouteModal({ data, onClose, highlightFrom, highlightTo }) {
   const open = !!data;
   const isError = data?.error;
@@ -17,8 +25,8 @@ export default function TrainRouteModal({ data, onClose, highlightFrom, highligh
           </div>
           <div className="route-timeline">
             {(data.stops || []).map((stop, idx) => {
-              const isOrigin = stop.isSource || stop.stationCode === highlightFrom;
-              const isDest = stop.isDestination || stop.stationCode === highlightTo;
+              const isOrigin = stop.isSource || stopMatchesQuery(stop, highlightFrom);
+              const isDest = stop.isDestination || stopMatchesQuery(stop, highlightTo);
               const isLast = idx === (data.stops?.length || 0) - 1;
 
               return (

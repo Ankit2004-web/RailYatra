@@ -92,10 +92,7 @@ export default function TrainCard({
         <div className="train-journey">
           <div className="journey-point departure">
             <span className="j-point-label">Boarding</span>
-            <span className="j-time">
-              {vm.from.time || '—'}
-              {vm.from.dayOffset > 0 && <span className="j-day-offset">+{vm.from.dayOffset}</span>}
-            </span>
+            <span className="j-time">{vm.from.time || '—'}</span>
             <span className="j-station">{vm.from.code || vm.from.name || '—'}</span>
             <span className="j-location">{vm.from.name}</span>
             {vm.from.dateLabel && <span className="j-date-badge">{vm.from.dateLabel}</span>}
@@ -114,13 +111,10 @@ export default function TrainCard({
 
           <div className="journey-point arrival">
             <span className="j-point-label">Drop</span>
-            <span className="j-time">
-              {vm.to.time || '—'}
-              {vm.to.dayOffset > 0 && <span className="j-day-offset">+{vm.to.dayOffset}</span>}
-            </span>
+            <span className="j-time">{vm.to.time || '—'}</span>
             <span className="j-station">{vm.to.code || vm.to.name || '—'}</span>
             <span className="j-location">{vm.to.name}</span>
-            {vm.to.dateLabel && vm.to.dayOffset > 0 && <span className="j-date-badge">{vm.to.dateLabel}</span>}
+            {vm.to.dateLabel && <span className="j-date-badge">{vm.to.dateLabel}</span>}
           </div>
         </div>
 

@@ -17,6 +17,12 @@ const stationRepository = require('../repositories/stationRepository');
 const { isTatkalEligible, getTatkalPrice } = require('../utils/tatkal');
 const { calculateBookingFare } = require('../utils/fare');
 const { calculatePaymentBreakdown } = require('../utils/paymentBreakdown');
+const {
+    calculateMealTotal,
+    normalizePassengerFoodPreferences,
+    trainProvidesMeals
+} = require('../utils/mealService');
+const { persistMissingClassForBooking } = require('../services/trainClassSynthesisService');
 const { VALID_QUOTAS } = require('../utils/quota');
 const { generateTicketPdf, mapPassengerPnrFields } = require('../services/ticketService');
 
@@ -214,10 +220,17 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
             resolvedToStationId = toStation?.id || null;
         }
 
-        const trainClass = await trainClassRepository.findByTrainAndCode(trainId, classCode);
+        const trainClassFromTrain = (train.classes || []).find((c) => c.classCode === classCode);
+        let trainClass = await trainClassRepository.findByTrainAndCode(trainId, classCode);
+        if (!trainClass && trainClassFromTrain) {
+            trainClass = await persistMissingClassForBooking(trainId, classCode, train);
+        }
         if (!trainClass) {
             return res.status(400).json({ msg: 'Selected class not available for this train' });
         }
+
+        const mealsAvailable = trainProvidesMeals(train.trainName, train.trainTypeCode, classCode);
+        const normalizedPassengers = normalizePassengerFoodPreferences(passengers, mealsAvailable);
 
         if (bookingType === 'Tatkal' && !isTatkalEligible(journeyDate)) {
             return res.status(400).json({ msg: 'Tatkal booking is only available 1-2 days before journey' });
@@ -231,7 +244,7 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
             basePrice: trainClass.price,
             bookingType,
             quota,
-            passengers,
+            passengers: normalizedPassengers,
             journeyDate
         });
 
@@ -240,15 +253,17 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
         }
 
         const ticketFare = fareResult.totalPrice;
+        const mealFare = mealsAvailable ? calculateMealTotal(normalizedPassengers) : 0;
         const paymentBreakdown = calculatePaymentBreakdown({
             ticketFare,
-            passengerCount: passengers.length
+            passengerCount: normalizedPassengers.length,
+            mealFare
         });
 
         const result = await bookingRepository.createBooking({
             userId: req.user.id,
             trainId,
-            passengers,
+            passengers: normalizedPassengers,
             journeyDate,
             totalPrice: ticketFare,
             paymentBreakdown: JSON.stringify(paymentBreakdown),
