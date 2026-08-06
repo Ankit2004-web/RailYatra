@@ -5,10 +5,14 @@ const registerRules = [
     body('email').optional({ values: 'falsy' }).trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
     body('phone').optional({ values: 'falsy' }).trim().custom((value) => {
         if (!value) return true;
-        if (String(value).includes('@')) {
-            throw new Error('Use the email field or a single login field with mobile or email');
+        const input = String(value).trim();
+        if (input.includes('@')) {
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input)) {
+                throw new Error('Invalid email address');
+            }
+            return true;
         }
-        if (!/^[0-9+\-\s]{10,15}$/.test(String(value))) {
+        if (!/^[0-9+\-\s]{10,15}$/.test(input)) {
             throw new Error('Invalid mobile number');
         }
         return true;

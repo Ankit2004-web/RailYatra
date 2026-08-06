@@ -45,10 +45,11 @@ const findById = async (id) => {
 
 const findByPhone = async (phone) => {
     const normalized = String(phone || '').replace(/\D/g, '').slice(-10);
+    if (normalized.length !== 10) return null;
     const pool = await getPool();
     const result = await pool.request()
-        .input('phone', 'NVarChar', `%${normalized}`)
-        .query('SELECT TOP 1 * FROM Users WHERE phone LIKE @phone ORDER BY id ASC');
+        .input('phone', 'NVarChar', normalized)
+        .query('SELECT TOP 1 * FROM Users WHERE phone = @phone');
     return result.recordset[0] || null;
 };
 

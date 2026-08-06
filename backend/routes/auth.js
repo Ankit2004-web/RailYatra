@@ -18,11 +18,22 @@ const auditRepository = require('../repositories/auditRepository');
 const { resolveRole } = require('../constants/roles');
 const { normalizeEmail } = require('../utils/email');
 
-function syntheticPhoneForEmail(email) {
-    const hash = crypto.createHash('sha256').update(String(email).toLowerCase()).digest('hex');
+function syntheticPhoneForEmail(email, attempt = 0) {
+    const hash = crypto.createHash('sha256').update(`${String(email).toLowerCase()}:${attempt}`).digest('hex');
     const digits = hash.replace(/[^0-9]/g, '').slice(0, 9);
     return `8${digits.padStart(9, '0')}`;
 }
+
+async function allocateSyntheticPhone(email) {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+        const candidate = syntheticPhoneForEmail(email, attempt);
+        const existing = await userRepository.findByPhone(candidate);
+        if (!existing) return candidate;
+    }
+    throw new Error('Could not allocate unique phone for email registration');
+}
+
+const isLocalAccountEmail = (email) => String(email || '').toLowerCase().endsWith('@railyatra.local');
 
 const signToken = (user, rememberMe = false) => {
     const payload = {
@@ -36,35 +47,32 @@ const signToken = (user, rememberMe = false) => {
     return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
 };
 
-router.post('/register', authLimiter, registerRules, validate, validateCaptcha, async (req, res) => {
+router.post('/register', authLimiter, normalizeLoginBody, registerRules, validate, validateCaptcha, async (req, res) => {
     const { name, email, password, phone } = req.body;
     const loginId = String(phone || email || '').trim();
 
     let resolvedEmail;
     let normalizedPhone;
 
-    if (loginId.includes('@')) {
-        resolvedEmail = normalizeEmail(loginId);
-        normalizedPhone = syntheticPhoneForEmail(resolvedEmail);
-    } else {
-        normalizedPhone = String(loginId).replace(/\D/g, '').slice(-10);
-        if (normalizedPhone.length !== 10) {
-            return res.status(400).json({ msg: 'Enter a valid 10-digit mobile number' });
-        }
-        resolvedEmail = `${normalizedPhone}@railyatra.local`;
-    }
-
     try {
-        const existingUser = await userRepository.findByEmail(resolvedEmail);
-        if (existingUser) {
-            return res.status(400).json({ msg: loginId.includes('@') ? 'Email already registered' : 'User already exists' });
-        }
-
-        if (!loginId.includes('@')) {
+        if (loginId.includes('@')) {
+            resolvedEmail = normalizeEmail(loginId);
+            normalizedPhone = await allocateSyntheticPhone(resolvedEmail);
+        } else {
+            normalizedPhone = String(loginId).replace(/\D/g, '').slice(-10);
+            if (normalizedPhone.length !== 10) {
+                return res.status(400).json({ msg: 'Enter a valid 10-digit mobile number' });
+            }
             const existingPhone = await userRepository.findByPhone(normalizedPhone);
             if (existingPhone) {
                 return res.status(400).json({ msg: 'Mobile number already registered' });
             }
+            resolvedEmail = `${normalizedPhone}@railyatra.local`;
+        }
+
+        const existingUser = await userRepository.findByEmail(resolvedEmail);
+        if (existingUser) {
+            return res.status(400).json({ msg: loginId.includes('@') ? 'Email already registered' : 'User already exists' });
         }
 
         const user = await userRepository.create({ name, email: resolvedEmail, password, phone: normalizedPhone });
@@ -150,10 +158,13 @@ router.post('/forgot-password', authLimiter, normalizeLoginBody, forgotPasswordR
         const baseUrl = process.env.APP_URL || `http://localhost:${process.env.PORT || 5000}`;
         const resetUrl = `${baseUrl}/reset-password?token=${resetRecord.token}`;
 
-        const emailResult = await sendPasswordResetEmail({ to: user.email, resetUrl });
+        let emailResult = { sent: false, devMode: true };
+        if (!isLocalAccountEmail(user.email)) {
+            emailResult = await sendPasswordResetEmail({ to: user.email, resetUrl });
+        }
 
         const response = { msg: 'If an account exists, a reset link has been sent.' };
-        if (!emailResult.sent && process.env.NODE_ENV !== 'production') {
+        if ((!emailResult.sent || isLocalAccountEmail(user.email)) && process.env.NODE_ENV !== 'production') {
             response.devResetUrl = resetUrl;
         }
 

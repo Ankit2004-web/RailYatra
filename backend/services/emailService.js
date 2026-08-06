@@ -28,36 +28,17 @@ const sendViaSmtp = async ({ to, subject, html }) => {
     });
 };
 
-const sendViaWeb3Forms = async ({ to, subject, html, text, type = 'notification' }) => {
-    const plainText = text || String(html || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-
-    await submitToWeb3Forms({
-        email: to,
-        replyto: to,
-        subject,
-        message: plainText,
-        html_content: html,
-        notification_type: type,
-        recipient: to
-    });
-};
-
-const deliverEmail = async ({ to, subject, html, text, type }) => {
-    if (isSmtpConfigured()) {
-        await sendViaSmtp({ to, subject, html });
-        return { sent: true, provider: 'smtp' };
+const deliverEmail = async ({ to, subject, html }) => {
+    if (!isSmtpConfigured()) {
+        return { sent: false, devMode: true };
     }
 
-    if (isWeb3FormsConfigured()) {
-        await sendViaWeb3Forms({ to, subject, html, text, type });
-        return { sent: true, provider: 'web3forms' };
-    }
-
-    return { sent: false, devMode: true };
+    await sendViaSmtp({ to, subject, html });
+    return { sent: true, provider: 'smtp' };
 };
 
 const sendPasswordResetEmail = async ({ to, resetUrl }) => {
-    if (!isEmailConfigured()) {
+    if (!isSmtpConfigured()) {
         return { sent: false, devMode: true };
     }
 
@@ -69,7 +50,7 @@ const sendPasswordResetEmail = async ({ to, resetUrl }) => {
     `;
     const text = `You requested a password reset.\n\nReset your password: ${resetUrl}\n\nThis link expires in 1 hour.`;
 
-    const result = await deliverEmail({ to, subject, html, text, type: 'password_reset' });
+    const result = await deliverEmail({ to, subject, html });
     logger.info('Password reset email sent', { to, provider: result.provider });
     return { sent: true, devMode: false, ...result };
 };
@@ -98,12 +79,12 @@ const sendBookingConfirmationEmail = async ({ to, booking, ticketUrl }) => {
         `Total Fare: ₹${booking.totalPrice}`
     ].join('\n');
 
-    if (!isEmailConfigured()) {
+    if (!isSmtpConfigured()) {
         logger.info('Booking confirmation (dev mode)', { to, pnr: booking.pnrNumber });
         return { sent: false, devMode: true };
     }
 
-    const result = await deliverEmail({ to, subject, html, text, type: 'booking_confirmation' });
+    const result = await deliverEmail({ to, subject, html });
     logger.info('Booking confirmation email sent', { to, pnr: booking.pnrNumber, provider: result.provider });
     return { sent: true, devMode: false, ...result };
 };
