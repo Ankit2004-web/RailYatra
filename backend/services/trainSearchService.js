@@ -47,14 +47,6 @@ const STATION_CODE_ALIASES = {
     amritsar: 'ASR'
 };
 
-function effectiveRunningDays(runningDaysString, fromMap) {
-    const list = runningDayService.resolveRunningDayList(runningDaysString, fromMap);
-    if (list.length) return list;
-    const text = String(runningDaysString || '').trim();
-    if (!text || /^daily$/i.test(text)) return runningDayService.ALL_RUNNING_DAYS;
-    return runningDayService.ALL_RUNNING_DAYS;
-}
-
 function filterTrainsDepartingAfterNow(trains, istClock = runningDayService.getIstClock()) {
     return trains.filter((train) => {
         const journeyDate = runningDayService.formatDateOnly(train.journeyDate || train.date);
@@ -349,7 +341,7 @@ async function searchViaStops({ fromStationId, toStationId, date, classCode, fro
         if (seenTrainIds.has(row.trainId)) continue;
         seenTrainIds.add(row.trainId);
 
-        const runningDayList = effectiveRunningDays(row.runningDays, runningDaysMap[row.trainId]);
+        const runningDayList = runningDayService.effectiveRunningDays(row.runningDays, runningDaysMap[row.trainId]);
 
         if (date && !runningDayService.trainRunsOnBoardingDate(date, row.fromDepartureDayOffset, runningDayList)) {
             continue;
@@ -534,12 +526,12 @@ async function searchByEndpoints({ fromStation, toStation, date, classCode, from
 
     return result.recordset
         .filter((train) => {
-            const days = effectiveRunningDays(train.runningDays, runningDaysMap[train.id]);
+            const days = runningDayService.effectiveRunningDays(train.runningDays, runningDaysMap[train.id]);
             if (!date) return true;
             return runningDayService.trainRunsOnBoardingDate(date, 0, days);
         })
         .map((train) => {
-            const runningDayList = effectiveRunningDays(train.runningDays, runningDaysMap[train.id]);
+            const runningDayList = runningDayService.effectiveRunningDays(train.runningDays, runningDaysMap[train.id]);
             const fromName = fromStationMeta?.name || train.source;
             const toName = toStationMeta?.name || train.destination;
             const fromCode = fromStationMeta?.code || '';

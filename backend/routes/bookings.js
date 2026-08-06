@@ -254,7 +254,7 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
         const runningDaysResult = await pool.request()
             .input('trainId', 'Int', trainId)
             .query('SELECT dayOfWeek FROM TrainRunningDays WHERE trainId = @trainId AND runs = 1 ORDER BY dayOfWeek');
-        const runningDayList = runningDayService.resolveRunningDayList(
+        const runningDayList = runningDayService.effectiveRunningDays(
             train.runningDays,
             runningDaysResult.recordset.map((row) => row.dayOfWeek)
         );

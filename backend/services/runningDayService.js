@@ -69,6 +69,13 @@ function resolveRunningDayList(runningDaysString, fromMap) {
     return [];
 }
 
+/** Search/booking: treat missing or unverified schedules as daily so trains stay bookable. */
+function effectiveRunningDays(runningDaysString, fromMap) {
+    const list = resolveRunningDayList(runningDaysString, fromMap);
+    if (list.length) return list;
+    return ALL_RUNNING_DAYS;
+}
+
 function runningDaysFromRows(rows) {
     if (!rows?.length) return [];
     return rows.filter((r) => r.runs !== false && r.runs !== 0).map((r) => r.dayOfWeek).sort((a, b) => a - b);
@@ -160,6 +167,7 @@ module.exports = {
     addDays,
     parseRunningDaysString,
     resolveRunningDayList,
+    effectiveRunningDays,
     ALL_RUNNING_DAYS,
     runningDaysFromRows,
     calculateSourceDepartureDate,

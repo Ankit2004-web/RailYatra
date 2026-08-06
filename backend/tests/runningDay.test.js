@@ -21,9 +21,16 @@ describe('running day service', () => {
         assert.equal(runningDayService.calculateSourceDepartureDate(tuesday, fromOffset), monday);
     });
 
-    it('resolveRunningDayList defaults to daily when source data missing', () => {
+    it('resolveRunningDayList returns empty when source data missing', () => {
         assert.deepEqual(
             runningDayService.resolveRunningDayList('Not in source dataset'),
+            []
+        );
+    });
+
+    it('effectiveRunningDays defaults to daily when source data missing', () => {
+        assert.deepEqual(
+            runningDayService.effectiveRunningDays('Not in source dataset'),
             [1, 2, 3, 4, 5, 6, 7]
         );
     });
@@ -44,8 +51,13 @@ describe('running day service', () => {
         assert.equal(runningDayService.trainRunsOnBoardingDate(tuesday, 0, [3]), false);
     });
 
-    it('trainRunsOnBoardingDate passes when running days unknown', () => {
-        assert.equal(runningDayService.trainRunsOnBoardingDate('2026-07-21', 0, []), true);
+    it('trainRunsOnBoardingDate rejects when running days unknown', () => {
+        assert.equal(runningDayService.trainRunsOnBoardingDate('2026-07-21', 0, []), false);
+    });
+
+    it('trainRunsOnBoardingDate passes when effective days default to daily', () => {
+        const days = runningDayService.effectiveRunningDays('Not in source dataset');
+        assert.equal(runningDayService.trainRunsOnBoardingDate('2026-07-21', 0, days), true);
     });
 
     it('calculates duration across day boundary', () => {

@@ -1,3 +1,5 @@
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-for-e2e-tests';
+
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
