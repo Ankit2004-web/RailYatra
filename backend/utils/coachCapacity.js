@@ -1,12 +1,14 @@
 /**
- * Indian Railways passenger coach capacity per IR classification.
- * Supports ICF (older) and LHB (Linke Hofmann Busch) coach builds.
- * Values = berths/seats per single coach.
+ * Indian Railways passenger coach capacity per IR classification (LWFAC / ICF / LHB).
+ * Values = berths or seats per single coach.
  *
- * Reference: IR coach classification (1A, 2A, 3A, 3E, EA, EC, CC, SL, 2S, UR/GS).
+ * LWFAC (Linke Hofmann Wide Fully Air Conditioned) AC classes:
+ *   1A=22, 2A=46, 3A=64, 3E=78
+ * Chair / unreserved:
+ *   EA=50, EC=56, CC=73, 2S=108, SL=72/78 (ICF/LHB), GS/UR=90/99
  */
 const COACH_CAPACITY_ICF = Object.freeze({
-    '1A': 24,
+    '1A': 22,
     '2A': 46,
     '3A': 64,
     '3E': 78,
@@ -14,25 +16,25 @@ const COACH_CAPACITY_ICF = Object.freeze({
     EC: 56,
     CC: 73,
     SL: 72,
-    '2S': 73,
+    '2S': 108,
     GS: 90,
     UR: 90,
-    FC: 24
+    FC: 22
 });
 
 const COACH_CAPACITY_LHB = Object.freeze({
-    '1A': 24,
-    '2A': 54,
-    '3A': 72,
+    '1A': 22,
+    '2A': 46,
+    '3A': 64,
     '3E': 78,
     EA: 50,
     EC: 56,
     CC: 73,
     SL: 78,
-    '2S': 73,
+    '2S': 108,
     GS: 99,
     UR: 99,
-    FC: 24
+    FC: 22
 });
 
 /** @deprecated Use getBerthsPerCoach(code, build) — kept for backward compatibility (LHB defaults). */

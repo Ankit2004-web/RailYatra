@@ -60,7 +60,7 @@ function synthesizeMissingClasses(classes, { trainName, trainTypeCode, distanceK
         ];
         const rake = buildRakeFromTrainClasses({ trainName, trainTypeCode }, expanded);
         const capacity = getClassTotalFromRake(rake.coaches, classCode)
-            || (classCode === '2S' ? 146 : 72);
+            || (classCode === '2S' ? 216 : 72);
 
         return {
             classCode,

@@ -71,6 +71,22 @@ async function main() {
         console.warn('Wikipedia enrichment skipped:', err.message);
     }
 
+    try {
+        const { seedCoachRules } = require('../../database/seed-coach-rules');
+        await seedCoachRules();
+        flushDb();
+    } catch (err) {
+        console.warn('Coach rules seed skipped:', err.message);
+    }
+
+    try {
+        const { backfillCoachCapacity } = require('../../database/backfill-coach-capacity');
+        await backfillCoachCapacity();
+        flushDb();
+    } catch (err) {
+        console.warn('Coach capacity backfill skipped:', err.message);
+    }
+
     const stations = await runQuery('SELECT COUNT(*) AS c FROM Stations');
     const trains = await runQuery('SELECT COUNT(*) AS c FROM Trains');
     const stops = await runQuery('SELECT COUNT(*) AS c FROM TrainStops WHERE stationId IS NOT NULL');

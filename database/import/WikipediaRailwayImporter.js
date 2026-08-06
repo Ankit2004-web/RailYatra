@@ -17,7 +17,7 @@ const { buildStationLookup, resolveStationName } = require('./wikipediaStationRe
 const {
     normalizeName, normalizeTrainNumber, inferTrainTypeCode, parseRunningDaysField
 } = require('./normalizers');
-const { inferTrainCategory, getCoachCount, getClassCapacity } = require('../../backend/utils/coachCapacity');
+const { inferTrainCategory, getClassCapacity } = require('../../backend/utils/coachCapacity');
 
 const SOURCE = {
     name: 'Wikipedia — List of trains run by Indian Railways',
@@ -181,9 +181,7 @@ class WikipediaRailwayImporter {
         const classCodes = this.inferClasses(trainName, trainTypeCode);
 
         for (const classCode of classCodes) {
-            const coachCount = getCoachCount(classCode, trainName, trainTypeCode);
-            const perCoach = getClassCapacity(classCode, trainName, trainTypeCode);
-            const totalSeats = coachCount * perCoach;
+            const totalSeats = getClassCapacity(classCode, trainName, trainTypeCode);
             const classNames = {
                 '1A': 'AC First Class', '2A': 'AC 2 Tier', '3A': 'AC 3 Tier', '3E': 'AC 3 Economy',
                 CC: 'Chair Car', EC: 'Executive Chair Car', SL: 'Sleeper', '2S': 'Second Sitting', EA: 'Anubhuthi Executive'
