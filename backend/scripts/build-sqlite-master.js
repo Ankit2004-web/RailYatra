@@ -96,8 +96,6 @@ async function main() {
             const pageReport = await pageImporter.run();
             flushDb();
             console.log(`Wiki pages: ${pageReport.trainsProcessed} trains, ${pageReport.stopsImported} stops, ${pageReport.classesUpdated} class updates`);
-            const { backfillCoachCapacity: backfillAgain } = require('../../database/backfill-coach-capacity');
-            await backfillAgain();
             flushDb();
         }
     } catch (err) {

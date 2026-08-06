@@ -53,15 +53,14 @@ async function backfillCoachCapacity() {
     }
 
     await pool.request().query(`
-        UPDATE t
-        SET t.availableSeats = x.totalCap,
-            t.updatedAt = SYSUTCDATETIME()
-        FROM Trains t
-        INNER JOIN (
-            SELECT trainId, SUM(totalSeats) AS totalCap
-            FROM TrainClasses
-            GROUP BY trainId
-        ) x ON x.trainId = t.id
+        UPDATE Trains
+        SET availableSeats = (
+            SELECT COALESCE(SUM(totalSeats), 0)
+            FROM TrainClasses tc
+            WHERE tc.trainId = Trains.id
+        ),
+        updatedAt = SYSUTCDATETIME()
+        WHERE id IN (SELECT DISTINCT trainId FROM TrainClasses)
     `);
 
     console.log(`Updated ${updated} train class rows with full-rake totals.`);
