@@ -11,6 +11,7 @@ export default function LiveTrainCatalog({
   onPageChange,
   selectedTrainNumber,
   onSelectTrain,
+  onTrackTrain,
   journeyDate
 }) {
   return (
@@ -51,34 +52,47 @@ export default function LiveTrainCatalog({
         {!loading && items.map((train) => {
           const active = selectedTrainNumber === train.trainNumber;
           return (
-            <button
+            <div
               key={train.trainId || train.trainNumber}
-              type="button"
               role="listitem"
               className={`live-catalog-item${active ? ' is-active' : ''}`}
-              onClick={() => onSelectTrain(train.trainNumber)}
-              aria-pressed={active}
             >
-              <div className="live-catalog-item-top">
-                <strong>{train.trainNumber}</strong>
-                {train.trainTypeCode && (
-                  <span className="live-catalog-type">{train.trainTypeCode}</span>
-                )}
-              </div>
-              <span className="live-catalog-name">{train.trainName}</span>
-              <span className="live-catalog-route">
-                <MapPin size={12} aria-hidden="true" />
-                {train.route}
-              </span>
-              <div className="live-catalog-meta">
-                {train.departureTime && (
-                  <span><Clock size={12} aria-hidden="true" /> {train.departureTime}</span>
-                )}
-                {train.stopCount > 0 && (
-                  <span>{train.stopCount} app station{train.stopCount === 1 ? '' : 's'}</span>
-                )}
-              </div>
-            </button>
+              <button
+                type="button"
+                className="live-catalog-item-body"
+                onClick={() => onSelectTrain(train.trainNumber)}
+                aria-pressed={active}
+              >
+                <div className="live-catalog-item-top">
+                  <strong>{train.trainNumber}</strong>
+                  {train.trainTypeCode && (
+                    <span className="live-catalog-type">{train.trainTypeCode}</span>
+                  )}
+                </div>
+                <span className="live-catalog-name">{train.trainName}</span>
+                <span className="live-catalog-route">
+                  <MapPin size={12} aria-hidden="true" />
+                  {train.route}
+                </span>
+                <div className="live-catalog-meta">
+                  {train.departureTime && (
+                    <span><Clock size={12} aria-hidden="true" /> {train.departureTime}</span>
+                  )}
+                  {train.stopCount > 0 && (
+                    <span>{train.stopCount} app station{train.stopCount === 1 ? '' : 's'}</span>
+                  )}
+                </div>
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm live-catalog-track-btn"
+                onClick={() => onTrackTrain(train.trainNumber)}
+                aria-label={`Track train ${train.trainNumber} live position`}
+              >
+                <TrainFront size={14} aria-hidden="true" />
+                Track
+              </button>
+            </div>
           );
         })}
       </div>

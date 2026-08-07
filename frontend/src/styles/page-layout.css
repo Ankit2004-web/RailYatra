@@ -202,7 +202,47 @@
 
 /* Live train NTES-style timeline */
 .live-timeline-shell {
-  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  gap: 0.75rem;
+}
+
+.live-timeline-fixed {
+  flex-shrink: 0;
+}
+
+.live-timeline-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.live-timeline-scroll.live-timeline-fallback {
+  padding: 1rem 1.25rem;
+}
+
+.live-timeline-here-badge {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(251, 140, 0, 0.15);
+  color: #e65100;
+  vertical-align: middle;
+}
+
+.live-timeline-now-banner strong {
+  font-weight: 700;
 }
 
 .live-timeline-meta-bar {
@@ -218,6 +258,7 @@
 .live-timeline-card {
   padding: 0;
   overflow: hidden;
+  margin-bottom: 0;
 }
 
 .live-timeline-header {
@@ -295,11 +336,14 @@
   grid-template-columns: 110px 1fr 110px;
   gap: 0.75rem;
   padding: 0.65rem 1.25rem;
-  background: #0f2d3d;
+  background: var(--brand-deep);
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .live-timeline-stops {
@@ -458,6 +502,33 @@
   gap: 1rem;
   align-items: start;
   margin-top: 1rem;
+  min-height: calc(100vh - 320px);
+}
+
+.live-train-page .live-train-search {
+  position: sticky;
+  top: 72px;
+  z-index: 5;
+}
+
+.live-trains-detail {
+  min-width: 0;
+  position: sticky;
+  top: 72px;
+  max-height: calc(100vh - 88px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.live-trains-loading {
+  min-height: 240px;
+}
+
+.live-trains-empty {
+  padding: 2rem 1.5rem;
+  text-align: center;
+  flex: 1;
 }
 
 .live-catalog {
@@ -519,17 +590,35 @@
 
 .live-catalog-item {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.2rem;
-  width: 100%;
-  text-align: left;
-  padding: 0.75rem 0.85rem;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.5rem;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: #fff;
-  cursor: pointer;
+  background: var(--surface);
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.live-catalog-item-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.35rem 0.45rem;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+.live-catalog-track-btn {
+  align-self: center;
+  flex-shrink: 0;
+  white-space: nowrap;
+  min-width: 76px;
 }
 
 .live-catalog-item:hover {
@@ -610,15 +699,6 @@
   font-size: 0.875rem;
 }
 
-.live-trains-detail {
-  min-width: 0;
-}
-
-.live-trains-empty {
-  padding: 2rem 1.5rem;
-  text-align: center;
-}
-
 .live-trains-empty h3 {
   margin-top: 0;
 }
@@ -626,6 +706,17 @@
 @media (max-width: 960px) {
   .live-trains-layout {
     grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .live-train-page .live-train-search,
+  .live-trains-detail {
+    position: static;
+    max-height: none;
+  }
+
+  .live-timeline-scroll {
+    max-height: 420px;
   }
 
   .live-catalog {

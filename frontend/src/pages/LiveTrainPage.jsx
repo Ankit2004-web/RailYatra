@@ -35,6 +35,7 @@ export default function LiveTrainPage() {
   const [lastFetched, setLastFetched] = useState(null);
   const autoRefreshRef = useRef(null);
   const [catalogPage, setCatalogPage] = useState(Number(params.get('page') || 1));
+  const [scrollToCurrentKey, setScrollToCurrentKey] = useState(0);
 
   const syncUrl = useCallback((nextTrain, nextDate, nextQ, nextPage) => {
     const q = new URLSearchParams();
@@ -75,7 +76,7 @@ export default function LiveTrainPage() {
     setCatalogPage(1);
   }, [debouncedCatalogSearch]);
 
-  const fetchLive = useCallback(async (overrideNumber, { updateUrl = true } = {}) => {
+  const fetchLive = useCallback(async (overrideNumber, { updateUrl = true, scrollToCurrent = false } = {}) => {
     const digits = String(overrideNumber ?? trainNumber).replace(/\D/g, '');
     if (digits.length !== 5) {
       setError('Enter a valid 5-digit train number.');
@@ -89,6 +90,7 @@ export default function LiveTrainPage() {
       const data = await api.get(`/live-trains/${digits}?date=${journeyDate}`);
       setTrains([data]);
       setLastFetched(new Date());
+      if (scrollToCurrent) setScrollToCurrentKey((k) => k + 1);
       if (updateUrl) syncUrl(digits, journeyDate, catalogSearch, catalogPage);
     } catch (err) {
       setTrains([]);
@@ -101,7 +103,7 @@ export default function LiveTrainPage() {
   useEffect(() => {
     const fromUrl = params.get('train');
     if (fromUrl && /^\d{5}$/.test(fromUrl.replace(/\D/g, ''))) {
-      fetchLive(fromUrl.replace(/\D/g, ''), { updateUrl: false });
+      fetchLive(fromUrl.replace(/\D/g, ''), { updateUrl: false, scrollToCurrent: true });
     }
   }, [params, fetchLive]);
 
@@ -118,13 +120,17 @@ export default function LiveTrainPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    fetchLive(trainNumber);
+    fetchLive(trainNumber, { scrollToCurrent: true });
   };
 
   const handleSelectTrain = (number) => {
     fetchLive(number);
+  };
+
+  const handleTrackTrain = (number) => {
+    fetchLive(number, { scrollToCurrent: true });
     if (window.innerWidth < 960) {
-      document.getElementById('live-detail-panel')?.scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('live-detail-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -197,6 +203,7 @@ export default function LiveTrainPage() {
             }}
             selectedTrainNumber={trainNumber}
             onSelectTrain={handleSelectTrain}
+            onTrackTrain={handleTrackTrain}
             journeyDate={journeyDate}
           />
 
@@ -204,7 +211,7 @@ export default function LiveTrainPage() {
             {error && <div className="alert alert-error" role="alert">{error}</div>}
 
             {loading && (
-              <div className="page-loading"><div className="spinner" aria-label="Loading live status" /></div>
+              <div className="page-loading live-trains-loading"><div className="spinner" aria-label="Loading live status" /></div>
             )}
 
             {!loading && trains.map((train) => (
@@ -213,7 +220,8 @@ export default function LiveTrainPage() {
                 train={train}
                 lastFetched={lastFetched}
                 loading={loading}
-                onRefresh={() => fetchLive(train.trainNumber, { updateUrl: false })}
+                scrollToCurrentKey={scrollToCurrentKey}
+                onRefresh={() => fetchLive(train.trainNumber, { updateUrl: false, scrollToCurrent: true })}
               />
             ))}
 
@@ -228,7 +236,7 @@ export default function LiveTrainPage() {
                   <button
                     type="button"
                     className="btn btn-primary"
-                    onClick={() => handleSelectTrain(catalog.items[0].trainNumber)}
+                    onClick={() => handleTrackTrain(catalog.items[0].trainNumber)}
                   >
                     Track {catalog.items[0].trainNumber} — {catalog.items[0].trainName}
                   </button>

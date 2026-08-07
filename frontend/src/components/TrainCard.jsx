@@ -203,9 +203,9 @@ export default function TrainCard({
         </button>
         <Link
           to={`/live-trains?train=${vm.trainNumber}&date=${journeyDate}`}
-          className="btn btn-outline"
+          className="btn btn-outline btn-track-live"
         >
-          <Radio size={16} aria-hidden="true" /> Live
+          <Radio size={16} aria-hidden="true" /> Track
         </Link>
         {onChart && (
           <button type="button" className="btn btn-outline" onClick={() => onChart(rawTrain, selectedClass || vm.classes[0]?.classCode)}>
