@@ -94,7 +94,7 @@ NODE_ENV=production
 PORT=5000
 JWT_SECRET=auto-generated
 ADMIN_EMAIL=admin@railway.com
-ADMIN_PASSWORD=auto-generated
+ADMIN_PASSWORD=Adm!n@2004#Hyd
 APP_URL=https://your-app.onrender.com
 GROQ_API_KEY=optional
 ```

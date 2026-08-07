@@ -10,6 +10,10 @@ node_modules/
 logs/
 *.log
 npm-debug.log*
+build-master-log.txt
+
+# Debug scripts (local only)
+backend/scripts/debug-ntes-html.js
 
 # OS
 .DS_Store

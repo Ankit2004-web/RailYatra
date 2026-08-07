@@ -182,7 +182,7 @@ PORT=5000
 APP_URL=http://localhost:5000
 
 ADMIN_EMAIL=admin@railway.com
-ADMIN_PASSWORD=
+ADMIN_PASSWORD=Adm!n@2004#Hyd
 
 # AI support (optional — free tier)
 AI_CHAT_PROVIDER=auto

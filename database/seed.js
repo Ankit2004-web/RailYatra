@@ -219,13 +219,14 @@ async function seedDatabase() {
                 .query('INSERT INTO Users (name, email, password, phone, isAdmin, role) VALUES (@name, @email, @password, @phone, @isAdmin, @role)');
 
             console.log(`Admin user created: ${adminEmail}`);
-        } else if (!adminResult.recordset[0].isAdmin) {
+        } else {
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(adminPassword, salt);
             await pool.request()
                 .input('email', 'NVarChar', adminEmail)
-                .query('UPDATE Users SET isAdmin = 1, role = \'admin\' WHERE email = @email');
-            console.log(`Existing user promoted to admin: ${adminEmail}`);
-        } else {
-            console.log('Admin user already exists.');
+                .input('password', 'NVarChar', hashedPassword)
+                .query('UPDATE Users SET password = @password, isAdmin = 1, role = \'admin\' WHERE email = @email');
+            console.log(`Admin user synced: ${adminEmail}`);
         }
 
         console.log('Seed completed successfully.');

@@ -11,15 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { getMaxBookingDate, getTodayIso } from '../utils/bookingPolicy';
 
-const CLASS_OPTIONS = [
-  { value: '', label: 'All Classes' },
-  { value: 'SL', label: 'SL - Sleeper' },
-  { value: '3A', label: '3A - AC 3 Tier' },
-  { value: '2A', label: '2A - AC 2 Tier' },
-  { value: '1A', label: '1A - AC First' },
-  { value: '2S', label: '2S - Second Sitting' },
-  { value: 'CC', label: 'CC - Chair Car' }
-];
+import { CLASS_OPTIONS } from '../constants/search';
 
 const RECENT_KEY = 'railyatra_recent_searches';
 const MAX_RECENT = 5;
@@ -111,7 +103,7 @@ export default function HomePage() {
     if (cls) params.set('class', cls);
     if (routeAware) params.set('routeAware', '1');
     if (flexDays > 0) params.set('flexDays', String(flexDays));
-    saveRecent({ source: src, destination: dest, date: dt });
+    saveRecent({ source: src, destination: dest, date: dt, classCode: cls || '' });
     setRecent(loadRecent());
     navigate(`/search?${params}`);
   };
@@ -224,8 +216,9 @@ export default function HomePage() {
               </div>
             </div>
 
-            <label className="route-aware-toggle">
+            <label className="route-aware-toggle" htmlFor="route-aware">
               <input
+                id="route-aware"
                 type="checkbox"
                 checked={routeAware}
                 onChange={(e) => setRouteAware(e.target.checked)}
@@ -256,7 +249,7 @@ export default function HomePage() {
                       key={`${r.source}-${r.destination}-${r.date}`}
                       type="button"
                       className="recent-chip"
-                      onClick={() => runSearch(r.source, r.destination, r.date, classCode)}
+                      onClick={() => runSearch(r.source, r.destination, r.date, r.classCode || classCode)}
                     >
                       {r.source} → {r.destination}
                     </button>

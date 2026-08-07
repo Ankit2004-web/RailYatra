@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
-  TrainFront, ChevronRight, Heart, MapPin, Gauge
+  TrainFront, ChevronRight, Heart, MapPin, Gauge, Radio, AlertTriangle
 } from 'lucide-react';
 import { mapTrainApiResponseToViewModel, runningDayCircles } from '../utils/trainMapper';
 import { formatIrctcAvailability, irctcAvailabilityClass } from '../utils/irctcAvailability';
@@ -42,7 +43,8 @@ export default function TrainCard({
   onRoute,
   onChart,
   selectedClass,
-  onClassSelect
+  onClassSelect,
+  scheduleUpdate
 }) {
   const vm = mapTrainApiResponseToViewModel(rawTrain, journeyDate, searchContext);
   const dayCircles = runningDayCircles(rawTrain);
@@ -74,6 +76,15 @@ export default function TrainCard({
             <h3 className="train-name" title={vm.trainName}>{vm.trainName}</h3>
             {vm.trainTypeCode && (
               <span className="badge-type">{vm.trainTypeCode}</span>
+            )}
+            {scheduleUpdate?.delayMinutes > 0 && (
+              <span className="badge-delay" role="status">
+                <AlertTriangle size={12} aria-hidden="true" />
+                {scheduleUpdate.delayMinutes}m late
+              </span>
+            )}
+            {scheduleUpdate?.cancelled && (
+              <span className="badge-cancel" role="status">Cancelled</span>
             )}
           </div>
         </div>
@@ -190,6 +201,12 @@ export default function TrainCard({
         <button type="button" className="btn btn-outline" onClick={() => onRoute(vm.id)}>
           <TrainFront size={16} aria-hidden="true" /> Route
         </button>
+        <Link
+          to={`/live-trains?train=${vm.trainNumber}&date=${journeyDate}`}
+          className="btn btn-outline"
+        >
+          <Radio size={16} aria-hidden="true" /> Live
+        </Link>
         {onChart && (
           <button type="button" className="btn btn-outline" onClick={() => onChart(rawTrain, selectedClass || vm.classes[0]?.classCode)}>
             Chart / Vacancy

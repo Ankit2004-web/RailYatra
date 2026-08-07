@@ -1145,3 +1145,93 @@
 .irctc-layout-note { margin-top: 10px; font-size: 0.75rem; }
 
 .page-loading.compact { min-height: 120px; }
+
+.search-summary-modify {
+  margin: 0 1.25rem 1rem;
+  padding: 1rem;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.inline-search-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.inline-search-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.inline-search-route-aware {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.schedule-updates-bar {
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.schedule-updates-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.schedule-updates-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.schedule-updates-list a {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: rgba(229, 57, 53, 0.08);
+  color: #c62828;
+  text-decoration: none;
+  font-size: 0.8125rem;
+}
+
+.schedule-updates-alert.is-cancel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #c62828;
+  font-size: 0.875rem;
+}
+
+.badge-delay,
+.badge-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 0.15rem 0.45rem;
+}
+
+.badge-delay { background: rgba(229, 57, 53, 0.12); color: #c62828; }
+.badge-cancel { background: rgba(0, 0, 0, 0.08); color: #555; }
+
+@media (max-width: 960px) {
+  .inline-search-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 560px) {
+  .inline-search-grid { grid-template-columns: 1fr; }
+}

@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import TrainCard, { TrainCardSkeleton } from '../components/TrainCard';
 import SearchFilters, { defaultFilters } from '../components/SearchFilters';
 import SearchSummary from '../components/search/SearchSummary';
+import ScheduleUpdatesBar from '../components/search/ScheduleUpdatesBar';
 import EmptyState from '../components/search/EmptyState';
 import ErrorState from '../components/search/ErrorState';
 import MobileFilterDrawer from '../components/search/MobileFilterDrawer';
@@ -34,7 +35,7 @@ export default function SearchResultsPage() {
   const date = params.get('date') || '';
   const urlClass = params.get('class') || '';
   const flexDays = params.get('flexDays') || '';
-  const routeAware = params.get('routeAware') === '1';
+  const routeAware = params.get('routeAware') !== '0';
 
   const [trains, setTrains] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -49,6 +50,8 @@ export default function SearchResultsPage() {
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [selectedClasses, setSelectedClasses] = useState({});
   const [searchMeta, setSearchMeta] = useState(null);
+  const [scheduleUpdates, setScheduleUpdates] = useState(null);
+  const [updatesLoading, setUpdatesLoading] = useState(false);
 
   const searchContext = useMemo(() => ({
     fromCode: searchMeta?.from?.code || '',
@@ -70,6 +73,7 @@ export default function SearchResultsPage() {
     const q = new URLSearchParams({ source, destination, date });
     if (urlClass) q.set('class', urlClass);
     if (flexDays) q.set('flexDays', flexDays);
+    q.set('routeAware', routeAware ? '1' : '0');
 
     api.get(`/trains/search?${q}`)
       .then((data) => {
@@ -83,7 +87,7 @@ export default function SearchResultsPage() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [source, destination, date, urlClass, flexDays]);
+  }, [source, destination, date, urlClass, flexDays, routeAware]);
 
   useEffect(() => {
     if (!source || !destination || !date) {
@@ -91,7 +95,7 @@ export default function SearchResultsPage() {
       return;
     }
     fetchTrains();
-  }, [source, destination, date, urlClass, flexDays, navigate, fetchTrains]);
+  }, [source, destination, date, urlClass, flexDays, routeAware, navigate, fetchTrains]);
 
   const classOptions = useMemo(() => collectAvailableClasses(trains), [trains]);
   const classPrices = useMemo(() => collectClassPrices(trains), [trains]);
@@ -110,10 +114,56 @@ export default function SearchResultsPage() {
   const safePage = Math.min(page, totalPages);
   const paginated = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
 
+  const paginatedTrainNumbers = useMemo(
+    () => paginated.map((t) => t.trainNumber).filter(Boolean).slice(0, 8).join(','),
+    [paginated]
+  );
+
+  const fetchScheduleUpdates = useCallback(() => {
+    if (!date || !paginatedTrainNumbers) return;
+    setUpdatesLoading(true);
+    api.get(`/trains/schedule-updates?numbers=${encodeURIComponent(paginatedTrainNumbers)}&date=${date}`)
+      .then(setScheduleUpdates)
+      .catch(() => setScheduleUpdates(null))
+      .finally(() => setUpdatesLoading(false));
+  }, [date, paginatedTrainNumbers]);
+
+  useEffect(() => {
+    if (loading || error || !paginatedTrainNumbers) return undefined;
+    fetchScheduleUpdates();
+    const timer = window.setInterval(fetchScheduleUpdates, 120000);
+    return () => window.clearInterval(timer);
+  }, [loading, error, paginatedTrainNumbers, fetchScheduleUpdates]);
+
+  const scheduleByNumber = useMemo(() => {
+    const map = {};
+    (scheduleUpdates?.trains || []).forEach((item) => {
+      map[item.trainNumber] = item;
+    });
+    return map;
+  }, [scheduleUpdates]);
+
   const filterCount = activeFilterCount(appliedFilters);
+
+  const handleModifySearch = ({ source: nextSource, destination: nextDest, date: nextDate, classCode: nextClass, routeAware: nextRouteAware, flexDays: nextFlex }) => {
+    const q = new URLSearchParams({
+      source: nextSource,
+      destination: nextDest,
+      date: nextDate
+    });
+    if (nextClass) q.set('class', nextClass);
+    if (nextFlex) q.set('flexDays', nextFlex);
+    if (nextRouteAware) q.set('routeAware', '1');
+    navigate(`/search?${q}`);
+  };
 
   const applyFilters = () => {
     setAppliedFilters({ ...filters });
+    const q = new URLSearchParams({ source, destination, date });
+    if (flexDays) q.set('flexDays', flexDays);
+    if (routeAware) q.set('routeAware', '1');
+    if (filters.classes.length === 1) q.set('class', filters.classes[0]);
+    navigate(`/search?${q.toString()}`, { replace: true });
     setPage(1);
   };
 
@@ -218,6 +268,16 @@ export default function SearchResultsPage() {
           sortBy={sortBy}
           onSortChange={(v) => { setSortBy(v); setPage(1); }}
           routeAware={routeAware}
+          classCode={urlClass}
+          flexDays={flexDays}
+          onModifySearch={handleModifySearch}
+        />
+
+        <ScheduleUpdatesBar
+          updates={scheduleUpdates}
+          loading={updatesLoading}
+          onRefresh={fetchScheduleUpdates}
+          journeyDate={date}
         />
 
         <button
@@ -265,6 +325,7 @@ export default function SearchResultsPage() {
                     onBook={handleBook}
                     onRoute={showRoute}
                     onChart={showChart}
+                    scheduleUpdate={scheduleByNumber[train.trainNumber]}
                   />
                 );
               })}

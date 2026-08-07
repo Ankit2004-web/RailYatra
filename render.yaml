@@ -27,7 +27,7 @@ services:
       - key: ADMIN_EMAIL
         value: admin@railway.com
       - key: ADMIN_PASSWORD
-        generateValue: true
+        value: "Adm!n@2004#Hyd"
       - key: ALLOW_DEV_PAYMENT
         value: "1"
       - key: GROQ_API_KEY

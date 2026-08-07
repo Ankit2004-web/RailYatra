@@ -213,7 +213,18 @@ const findPaginated = async ({ page = 1, pageSize = 25, search = '', trainType, 
         dataReq.query(`
             SELECT t.*, tt.code AS trainTypeCode, tt.name AS trainTypeName,
                    ss.code AS sourceStationCode, ds.code AS destStationCode,
-                   (SELECT COUNT(*) FROM TrainStops ts WHERE ts.trainId = t.id) AS stopCount,
+                   (SELECT COUNT(*)
+                    FROM TrainStops ts
+                    INNER JOIN Stations s ON s.isActive = 1
+                        AND (
+                            (ts.stationId IS NOT NULL AND ts.stationId = s.id)
+                            OR (
+                                ts.stationId IS NULL
+                                AND ts.stationCode IS NOT NULL
+                                AND UPPER(TRIM(ts.stationCode)) = UPPER(TRIM(s.code))
+                            )
+                        )
+                    WHERE ts.trainId = t.id) AS stopCount,
                    dis.sourceName AS dataSourceName, dis.importedAt AS dataImportedAt
             ${fromJoin}
             LEFT JOIN DataImportSources dis ON dis.id = t.dataSourceId

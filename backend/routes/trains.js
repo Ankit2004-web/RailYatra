@@ -6,6 +6,7 @@ const validate = require('../middleware/validate');
 const { trainRules } = require('../validators/trainValidator');
 const trainRepository = require('../repositories/trainRepository');
 const trainSearchService = require('../services/trainSearchService');
+const scheduleUpdateService = require('../services/scheduleUpdateService');
 const trainClassRepository = require('../repositories/trainClassRepository');
 const trainStopRepository = require('../repositories/trainStopRepository');
 const seatRepository = require('../repositories/seatRepository');
@@ -41,7 +42,7 @@ router.get('/autocomplete', async (req, res) => {
 });
 
 router.get('/search', async (req, res) => {
-    const { source, destination, from, to, date, class: classCode, quota, flexDays } = req.query;
+    const { source, destination, from, to, date, class: classCode, quota, flexDays, routeAware } = req.query;
 
     try {
         const result = await trainSearchService.search({
@@ -52,12 +53,28 @@ router.get('/search', async (req, res) => {
             date,
             classCode,
             quota,
-            flexDays: flexDays ? Number(flexDays) : 0
+            flexDays: flexDays ? Number(flexDays) : 0,
+            routeAware
         });
         res.json(result);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.get('/schedule-updates', async (req, res) => {
+    try {
+        const numbers = req.query.numbers || req.query.trainNumbers || req.query.q;
+        const date = req.query.date;
+        if (!numbers) {
+            return res.status(400).json({ msg: 'numbers query param required (comma-separated 5-digit train numbers)' });
+        }
+        const payload = await scheduleUpdateService.getScheduleUpdates(numbers, date);
+        res.json(payload);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: err.message || 'Server error' });
     }
 });
 

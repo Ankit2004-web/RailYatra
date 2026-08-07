@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Shield } from 'lucide-react';
+import { Mail, Lock, Shield, Eye, EyeOff } from 'lucide-react';
 import CaptchaField from '../components/CaptchaField';
 import AuthShell from '../components/AuthShell';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,7 @@ export default function AdminLoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,7 +63,23 @@ export default function AdminLoginPage() {
           <label htmlFor="admin-password">Password</label>
           <div className="auth-input-wrap">
             <Lock size={18} className="auth-input-icon" aria-hidden="true" />
-            <input id="admin-password" type="password" className="input auth-input" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <input
+              id="admin-password"
+              type={showPassword ? 'text' : 'password'}
+              className="input auth-input"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              className="auth-toggle-password"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
         </div>
         <CaptchaField onChange={setCaptcha} />

@@ -261,6 +261,128 @@ function parseTrainStatusHtml(html) {
     };
 }
 
+function parseTimeColumn(htmlChunk) {
+    if (!htmlChunk) {
+        return { scheduled: null, actual: null, delayLabel: null, onTime: null };
+    }
+
+    const text = stripHtml(htmlChunk);
+    if (!text || text === '&nbsp;') {
+        return { scheduled: null, actual: null, delayLabel: null, onTime: null };
+    }
+
+    const timeMatches = [...text.matchAll(/(\d{1,2}:\d{2})\s+(\d{1,2}-[A-Za-z]{3})(\*?)/g)]
+        .map((match) => `${match[1]} ${match[2]}${match[3] ? '*' : ''}`.trim());
+
+    const scheduled = timeMatches[0]?.replace('*', '') || null;
+    const actual = (timeMatches[1] || timeMatches[0] || null)?.replace('*', '') || null;
+    const onTime = /on time/i.test(text);
+    let delayLabel = null;
+
+    if (onTime) {
+        delayLabel = 'On Time';
+    } else {
+        const delayMatch = text.match(/Delay[^0-9]*(\d{1,2}:\d{2})/i)
+            || text.match(/(\d{1,2}:\d{2})/);
+        delayLabel = delayMatch?.[1] || null;
+    }
+
+    return { scheduled, actual, delayLabel, onTime: onTime || null };
+}
+
+function parseTrainRouteHtml(html) {
+    const routeHeaderMatch = html.match(/<h5>\s*([A-Z0-9\s.\-/]+)\s*-\s*([A-Z0-9\s.\-/]+)\s*</i);
+    const statusBannerMatch = html.match(/<font size="2" color="[^"]*"><b>([^<]+)<\/b>/i)
+        || html.match(/Yet to start from its source/i)
+        || html.match(/Arrived at [^<]+/i)
+        || html.match(/Departed from [^<]+/i);
+    const upcomingMatch = stripHtml(html).match(/Upcoming Station\s*:\s*([^\n]+)/i);
+
+    const blocks = html.split(/class=" w3-card-2 stopRow"/i).slice(1);
+    const stops = [];
+
+    for (const block of blocks) {
+        const chunk = block.slice(0, 5000);
+        const nameMatch = chunk.match(/<font size="1"><b>([^<]+)<\/b><br>/i);
+        const stationName = nameMatch?.[1]?.trim();
+        if (!stationName) continue;
+
+        const codeMatch = chunk.match(/<b>([A-Z]{2,6})\s*<span class="w3-round w3-orange"[^>]*>([^<]+)<\/span>/i)
+            || chunk.match(/<b>([A-Z]{2,6})\b/i);
+        const platformMatch = codeMatch?.[2]?.match(/PF\s*([^*<]+)/i);
+        const distanceMatch = chunk.match(/<br><b>(\d+)<\/b>\s*KMs/i);
+        const trackColorMatch = chunk.match(/fa-circle[^>]*color:\s*([^;"']+)/i);
+
+        const leftCol = chunk.match(
+            /float:left;width:100px;text-align:right[^>]*>([\s\S]*?)<\/div>\s*<div class="w3-bar-block/i
+        );
+        const rightCol = chunk.match(
+            /float:right;text-align:right;width:100px[^>]*>([\s\S]*?)<\/div>\s*(?:<\/div>\s*)*(?:<!-- Modal|<\/div>\s*<\/div>\s*<\/div>)/i
+        );
+
+        const arrival = parseTimeColumn(leftCol?.[1] || '');
+        const departure = parseTimeColumn(rightCol?.[1] || '');
+
+        stops.push({
+            order: stops.length + 1,
+            stationName,
+            stationCode: codeMatch?.[1] || null,
+            platform: platformMatch?.[1]?.trim() || null,
+            distanceKm: distanceMatch ? Number(distanceMatch[1]) : null,
+            arrival: arrival.scheduled || arrival.actual ? arrival : null,
+            departure: departure.scheduled || departure.actual ? departure : null,
+            trackColor: (trackColorMatch?.[1] || 'gray').trim(),
+            phase: 'upcoming',
+            isCurrent: false,
+            coachPositionAvailable: /Coach Position/i.test(chunk)
+        });
+    }
+
+    let currentIdx = stops.findIndex((stop) => /orange/i.test(stop.trackColor));
+    if (currentIdx < 0) {
+        const passedCount = stops.filter((stop) => /green/i.test(stop.trackColor)).length;
+        currentIdx = passedCount > 0 ? passedCount - 1 : 0;
+    }
+
+    stops.forEach((stop, idx) => {
+        if (/green/i.test(stop.trackColor) || idx < currentIdx) {
+            stop.phase = 'passed';
+        } else if (idx === currentIdx) {
+            stop.phase = 'current';
+            stop.isCurrent = true;
+        } else {
+            stop.phase = 'upcoming';
+        }
+    });
+
+    if (stops.length) {
+        stops[0].phase = stops[0].phase || 'passed';
+        const last = stops[stops.length - 1];
+        last.trackColor = /red/i.test(last.trackColor) ? last.trackColor : 'red';
+        if (last.phase === 'upcoming') last.phase = 'upcoming';
+    }
+
+    const currentStop = stops[currentIdx] || stops[0] || null;
+    const nextStop = stops[currentIdx + 1] || null;
+
+    let journeyStatus = 'Running';
+    const bannerText = statusBannerMatch
+        ? (typeof statusBannerMatch === 'string' ? statusBannerMatch : statusBannerMatch[1])
+        : '';
+    if (/yet to start/i.test(bannerText)) journeyStatus = 'Scheduled';
+    if (/reached destination|terminated/i.test(bannerText)) journeyStatus = 'Arrived';
+
+    return {
+        source: routeHeaderMatch?.[1]?.trim() || stops[0]?.stationName || null,
+        destination: routeHeaderMatch?.[2]?.trim() || stops[stops.length - 1]?.stationName || null,
+        journeyStatus,
+        statusBanner: bannerText || null,
+        upcomingStation: upcomingMatch?.[1]?.trim()
+            || (nextStop ? `${nextStop.stationName}${nextStop.stationCode ? ` (${nextStop.stationCode})` : ''}` : null),
+        stops
+    };
+}
+
 function deriveStatus(parsed) {
     const text = (parsed.events[parsed.events.length - 1]?.raw || '').toLowerCase();
     if (/yet to start|not started/.test(text)) return 'Scheduled';
@@ -269,33 +391,47 @@ function deriveStatus(parsed) {
     return 'Running';
 }
 
-function mapParsedToLiveStatus(parsed, trainNumber, localMeta = {}) {
+function mapParsedToLiveStatus(parsed, trainNumber, localMeta = {}, routeTimeline = null) {
     const lastEvent = parsed.events[parsed.events.length - 1] || null;
+    const timelineCurrent = routeTimeline?.stops?.find((s) => s.isCurrent)
+        || routeTimeline?.stops?.filter((s) => s.phase === 'passed').pop();
+    const timelineNext = routeTimeline?.stops?.[
+        routeTimeline.stops.findIndex((s) => s.isCurrent) + 1
+    ] || routeTimeline?.stops?.find((s) => s.phase === 'upcoming');
+
     const currentLocation = parsed.currentPosition
+        || (timelineCurrent
+            ? `${timelineCurrent.stationName}${timelineCurrent.stationCode ? ` (${timelineCurrent.stationCode})` : ''}`
+            : null)
         || (lastEvent ? `${lastEvent.station}${lastEvent.code ? ` (${lastEvent.code})` : ''}` : null)
         || localMeta.source
         || '—';
 
-    const currentCode = lastEvent?.code || localMeta.fromCode || null;
+    const currentCode = timelineCurrent?.stationCode || lastEvent?.code || localMeta.fromCode || null;
 
     return {
         trainId: localMeta.id || null,
         trainNumber: String(trainNumber),
         trainName: parsed.trainName || localMeta.trainName || '—',
+        source: routeTimeline?.source || localMeta.source || null,
+        destination: routeTimeline?.destination || localMeta.destination || null,
         currentLocation,
         currentStationCode: currentCode,
-        nextStation: parsed.nextStation || '—',
-        nextStationCode: parsed.nextStationCode || null,
+        nextStation: parsed.nextStation || timelineNext?.stationName || '—',
+        nextStationCode: parsed.nextStationCode || timelineNext?.stationCode || null,
         delayMinutes: parsed.delayMinutes || 0,
         speedKmph: null,
-        platform: parsed.platform || null,
-        status: deriveStatus(parsed),
+        platform: timelineCurrent?.platform || parsed.platform || null,
+        status: routeTimeline?.journeyStatus || deriveStatus(parsed),
         lastUpdated: parsed.lastUpdate || new Date().toISOString(),
         provider: 'ntes',
         dataSource: 'ntes',
         startDate: parsed.startDate || null,
+        statusBanner: routeTimeline?.statusBanner || null,
+        upcomingStation: routeTimeline?.upcomingStation || null,
         events: parsed.events,
-        routeStops: parsed.events.map((ev, index) => ({
+        routeTimeline: routeTimeline || null,
+        routeStops: routeTimeline?.stops || parsed.events.map((ev, index) => ({
             stationName: ev.station,
             stationCode: ev.code,
             order: index + 1,
@@ -312,10 +448,15 @@ function mapParsedToLiveStatus(parsed, trainNumber, localMeta = {}) {
 async function getLiveStatus(trainNumber, journeyDate) {
     const html = await fetchTrainStatusHtml(trainNumber, journeyDate);
     const parsed = parseTrainStatusHtml(html);
-    if (!parsed.events.length && !parsed.currentPosition && !parsed.trainName) {
+    const routeTimeline = parseTrainRouteHtml(html);
+    const hasTimeline = routeTimeline?.stops?.length > 0;
+    const hasSummary = parsed.events.length || parsed.currentPosition || parsed.trainName;
+
+    if (!hasTimeline && !hasSummary) {
         throw new NtesError('No live running status returned from NTES for this train/date', 404);
     }
-    return mapParsedToLiveStatus(parsed, trainNumber);
+
+    return mapParsedToLiveStatus(parsed, trainNumber, {}, hasTimeline ? routeTimeline : null);
 }
 
 module.exports = {
@@ -324,6 +465,8 @@ module.exports = {
     formatNtesDate,
     fetchTrainStatusHtml,
     parseTrainStatusHtml,
+    parseTrainRouteHtml,
+    parseTimeColumn,
     mapParsedToLiveStatus,
     getLiveStatus
 };

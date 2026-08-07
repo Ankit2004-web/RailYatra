@@ -662,7 +662,7 @@ async function legacySearch({ source, destination, date, fromStationMeta, toStat
     });
 }
 
-async function search({ source, destination, date, classCode, from, to, flexDays = 0 }) {
+async function search({ source, destination, date, classCode, from, to, flexDays = 0, routeAware = true }) {
     const fromQuery = from || source;
     const toQuery = to || destination;
 
@@ -671,8 +671,8 @@ async function search({ source, destination, date, classCode, from, to, flexDays
     }
 
     const cacheKey = searchCacheRepository.buildKey({
-        v: 8,
-        from: fromQuery, to: toQuery, date, classCode, flexDays
+        v: 9,
+        from: fromQuery, to: toQuery, date, classCode, flexDays, routeAware: routeAware === false || routeAware === '0' ? 0 : 1
     });
 
     const fromStation = fromQuery ? await resolveStation(fromQuery) : null;
@@ -715,11 +715,16 @@ async function search({ source, destination, date, classCode, from, to, flexDays
     const seen = new Set();
     const merged = [];
     const stopsAvailable = await hasNormalizedStops();
-    const routeAware = stopsAvailable && fromStation && toStation;
+    const useRouteStops = routeAware !== false
+        && routeAware !== '0'
+        && routeAware !== 0
+        && stopsAvailable
+        && fromStation
+        && toStation;
 
     for (const journeyDate of [...new Set(dates)]) {
         let batch = [];
-        if (routeAware) {
+        if (useRouteStops) {
             batch = await searchViaStops({
                 fromStationId: fromStation.id,
                 toStationId: toStation.id,

@@ -1,12 +1,42 @@
 const { getPool } = require('../../database/connection');
 
-const findByTrainId = async (trainId) => {
+/** Train stops joined to active Stations — app catalog stations only. */
+const findAppStopsByTrainId = async (trainId) => {
     const pool = await getPool();
     const result = await pool.request()
         .input('trainId', 'Int', trainId)
-        .query(`SELECT * FROM TrainStops WHERE trainId = @trainId ORDER BY stopOrder ASC`);
+        .query(`
+            SELECT
+                ts.stopOrder,
+                ts.arrivalTime,
+                ts.departureTime,
+                ts.arrivalDayOffset,
+                ts.departureDayOffset,
+                ts.haltMinutes,
+                ts.distanceKm,
+                ts.platformHint,
+                ts.isTechnicalStop,
+                s.id AS stationId,
+                s.code AS stationCode,
+                s.name AS stationName,
+                s.city AS stationCity
+            FROM TrainStops ts
+            INNER JOIN Stations s ON s.isActive = 1
+                AND (
+                    (ts.stationId IS NOT NULL AND ts.stationId = s.id)
+                    OR (
+                        ts.stationId IS NULL
+                        AND ts.stationCode IS NOT NULL
+                        AND UPPER(TRIM(ts.stationCode)) = UPPER(TRIM(s.code))
+                    )
+                )
+            WHERE ts.trainId = @trainId
+            ORDER BY ts.stopOrder ASC
+        `);
     return result.recordset;
 };
+
+const findByTrainId = async (trainId) => findAppStopsByTrainId(trainId);
 
 const getSegmentMetrics = async (trainId, fromStationId, toStationId) => {
     if (!trainId || !fromStationId || !toStationId) return null;
@@ -63,4 +93,4 @@ const replaceForTrain = async (trainId, stops) => {
     }
 };
 
-module.exports = { findByTrainId, getSegmentMetrics, createMany, replaceForTrain };
+module.exports = { findByTrainId, findAppStopsByTrainId, getSegmentMetrics, createMany, replaceForTrain };

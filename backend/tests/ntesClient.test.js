@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseTrainStatusHtml, mapParsedToLiveStatus } = require('../services/ntesClient');
+const { parseTrainStatusHtml, mapParsedToLiveStatus, parseTrainRouteHtml } = require('../services/ntesClient');
 
 const SAMPLE_HTML = `
 <html><body>
@@ -34,4 +34,52 @@ test('mapParsedToLiveStatus returns live train view model', () => {
     assert.equal(vm.dataSource, 'ntes');
     assert.equal(vm.trainName, 'KOLKATA RAJDHANI');
     assert.equal(vm.status, 'Running');
+});
+
+const ROUTE_HTML = `
+<h5>HOWRAH JN - BARBIL</h5>
+<div class=" w3-card-2 w3-sand"><div><font size="2" color="green"><b>Yet to start from its source</b></font></div></div>
+<div class=" w3-card-2 stopRow" style="width:100%;">
+ <div class="w3-container" style="float:left;width:100px;text-align:right;">
+  <span><b><font size="1">06:00 08-Aug</font></b></span>
+ </div>
+ <div class="w3-bar-block"><div class="w3-bar-item"><i class="fa fa-circle" style="color:green;"></i></div></div>
+ <div class="w3-container" style="float:right;flex:1;display:flex;">
+  <div class="w3-container" style="float:left;flex:1;">
+   <span><font size="1"><b>HOWRAH JN</b><br>
+   <div><b>HWH <span class="w3-round w3-orange">PF 9*</span></b></div>
+   <br><b>0</b> KMs</font></span>
+  </div>
+  <div class="w3-container" style="float:right;text-align:right;width:100px;">
+   <span><b><font size="1">06:00 08-Aug</font></b></span>
+  </div>
+ </div>
+</div>
+<div class=" w3-card-2 stopRow" style="width:100%;">
+ <div class="w3-container" style="float:left;width:100px;text-align:right;">
+  <span><b><font size="1">07:55 08-Aug</font></b></span><br>
+  <span><font size="1" color="green"><b>07:55 08-Aug*</b><br><span class="w3-round w3-green">On Time</span></font></span>
+ </div>
+ <div class="w3-bar-block"><div class="w3-bar-item"><i class="fa fa-circle" style="color:orange;"></i></div></div>
+ <div class="w3-container" style="float:right;flex:1;display:flex;">
+  <div class="w3-container" style="float:left;flex:1;">
+   <span><font size="1"><b>KHARAGPUR JN</b><br>
+   <div><b>KGP <span class="w3-round w3-orange">PF 1*</span></b></div>
+   <br><b>116</b> KMs</font></span>
+  </div>
+  <div class="w3-container" style="float:right;text-align:right;width:100px;">
+   <span><b><font size="1">08:00 08-Aug</font></b></span>
+  </div>
+ </div>
+</div>
+`;
+
+test('parseTrainRouteHtml extracts full station timeline', () => {
+    const route = parseTrainRouteHtml(ROUTE_HTML);
+    assert.equal(route.stops.length, 2);
+    assert.equal(route.stops[0].stationCode, 'HWH');
+    assert.equal(route.stops[1].stationName, 'KHARAGPUR JN');
+    assert.equal(route.stops[1].distanceKm, 116);
+    assert.equal(route.stops[1].arrival.onTime, true);
+    assert.match(route.statusBanner, /Yet to start/i);
 });

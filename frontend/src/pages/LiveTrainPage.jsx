@@ -1,82 +1,132 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { TrainFront, MapPin, Clock, Radio, Search, RefreshCw } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Radio, Search } from 'lucide-react';
 import { api } from '../api/client';
+import LiveTrainTimeline from '../components/LiveTrainTimeline';
+import LiveTrainCatalog from '../components/LiveTrainCatalog';
+
+const REFRESH_MS = 120000;
+const CATALOG_PAGE_SIZE = 24;
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function formatUpdatedAt(value) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  return d.toLocaleString('en-IN', {
-    day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', hour12: false
-  });
+function useDebouncedValue(value, delayMs = 350) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebounced(value), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
 }
 
 export default function LiveTrainPage() {
-  const [trainNumber, setTrainNumber] = useState('');
-  const [journeyDate, setJourneyDate] = useState(todayIso());
+  const [params, setParams] = useSearchParams();
+  const [trainNumber, setTrainNumber] = useState(params.get('train') || '');
+  const [journeyDate, setJourneyDate] = useState(params.get('date') || todayIso());
+  const [catalogSearch, setCatalogSearch] = useState(params.get('q') || '');
+  const debouncedCatalogSearch = useDebouncedValue(catalogSearch);
+  const [catalog, setCatalog] = useState({ items: [], totalItems: 0, totalPages: 1, page: 1 });
+  const [catalogLoading, setCatalogLoading] = useState(true);
   const [trains, setTrains] = useState([]);
-  const [suggestions, setSuggestions] = useState([]);
-  const [hint, setHint] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [lastFetched, setLastFetched] = useState(null);
+  const autoRefreshRef = useRef(null);
+  const [catalogPage, setCatalogPage] = useState(Number(params.get('page') || 1));
 
-  const loadSuggestions = async () => {
+  const syncUrl = useCallback((nextTrain, nextDate, nextQ, nextPage) => {
+    const q = new URLSearchParams();
+    if (nextTrain) q.set('train', nextTrain);
+    if (nextDate) q.set('date', nextDate);
+    if (nextQ) q.set('q', nextQ);
+    if (nextPage && nextPage > 1) q.set('page', String(nextPage));
+    setParams(q, { replace: true });
+  }, [setParams]);
+
+  const loadCatalog = useCallback(async (page, search) => {
+    setCatalogLoading(true);
     try {
-      const data = await api.get('/live-trains');
-      if (data.mode === 'suggestions') {
-        setSuggestions(data.suggestions || []);
-        setHint(data.message || '');
-      }
+      const q = new URLSearchParams({
+        page: String(page),
+        pageSize: String(CATALOG_PAGE_SIZE)
+      });
+      if (search) q.set('q', search);
+      const data = await api.get(`/live-trains/catalog?${q}`);
+      setCatalog({
+        items: data.items || [],
+        totalItems: data.totalItems || 0,
+        totalPages: data.totalPages || 1,
+        page: data.page || page
+      });
     } catch {
-      setSuggestions([]);
+      setCatalog({ items: [], totalItems: 0, totalPages: 1, page: 1 });
+    } finally {
+      setCatalogLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadSuggestions();
   }, []);
 
-  const fetchLive = async (e, overrideNumber) => {
-    if (e) e.preventDefault();
+  useEffect(() => {
+    loadCatalog(catalogPage, debouncedCatalogSearch);
+  }, [catalogPage, debouncedCatalogSearch, loadCatalog]);
+
+  useEffect(() => {
+    setCatalogPage(1);
+  }, [debouncedCatalogSearch]);
+
+  const fetchLive = useCallback(async (overrideNumber, { updateUrl = true } = {}) => {
     const digits = String(overrideNumber ?? trainNumber).replace(/\D/g, '');
     if (digits.length !== 5) {
       setError('Enter a valid 5-digit train number.');
       return;
     }
 
+    setTrainNumber(digits);
     setLoading(true);
     setError('');
-    setTrains([]);
     try {
-      const q = new URLSearchParams({ q: digits, date: journeyDate });
-      const data = await api.get(`/live-trains?${q}`);
-      if (data.mode === 'live') {
-        setTrains(data.trains || []);
-        setLastFetched(new Date());
-        if (!data.trains?.length) setError('No live status found for this train on the selected date.');
-      } else {
-        setSuggestions(data.suggestions || []);
-        setHint(data.message || '');
-        setError('Could not fetch live status.');
-      }
+      const data = await api.get(`/live-trains/${digits}?date=${journeyDate}`);
+      setTrains([data]);
+      setLastFetched(new Date());
+      if (updateUrl) syncUrl(digits, journeyDate, catalogSearch, catalogPage);
     } catch (err) {
-      setError(err.message || 'Could not fetch live status from NTES');
+      setTrains([]);
+      setError(err.message || 'Could not fetch live status for this train.');
     } finally {
       setLoading(false);
     }
+  }, [trainNumber, journeyDate, catalogSearch, catalogPage, syncUrl]);
+
+  useEffect(() => {
+    const fromUrl = params.get('train');
+    if (fromUrl && /^\d{5}$/.test(fromUrl.replace(/\D/g, ''))) {
+      fetchLive(fromUrl.replace(/\D/g, ''), { updateUrl: false });
+    }
+  }, [params, fetchLive]);
+
+  useEffect(() => {
+    if (autoRefreshRef.current) window.clearInterval(autoRefreshRef.current);
+    if (!trains.length) return undefined;
+    autoRefreshRef.current = window.setInterval(() => {
+      fetchLive(trains[0]?.trainNumber, { updateUrl: false });
+    }, REFRESH_MS);
+    return () => {
+      if (autoRefreshRef.current) window.clearInterval(autoRefreshRef.current);
+    };
+  }, [trains, fetchLive]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    fetchLive(trainNumber);
   };
 
-  const providerLabel = useMemo(
-    () => (trains[0]?.provider === 'ntes' ? 'Indian Railways NTES' : 'Live feed'),
-    [trains]
-  );
+  const handleSelectTrain = (number) => {
+    fetchLive(number);
+    if (window.innerWidth < 960) {
+      document.getElementById('live-detail-panel')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="live-train-page page-shell">
@@ -84,130 +134,109 @@ export default function LiveTrainPage() {
         <div className="page-hero-inner page-hero-split">
           <div className="page-hero-copy">
             <span className="page-hero-badge">
-              <Radio size={14} aria-hidden="true" /> Live from NTES
+              <Radio size={14} aria-hidden="true" /> Live for every train
             </span>
             <h1 className="page-hero-title">Live Train Status</h1>
             <p className="page-hero-subtitle">
-              Real-time running position, delay, and next station from Indian Railways
-              National Train Enquiry System (NTES).
+              Browse all {catalog.totalItems > 0 ? catalog.totalItems.toLocaleString('en-IN') : ''} trains in RailYatra.
+              Every route uses verified stations from the app catalog, with optional live NTES delay overlay.
             </p>
           </div>
         </div>
       </section>
 
       <div className="page-body">
-        <form className="card live-train-search" onSubmit={fetchLive}>
+        <form className="card live-train-search" onSubmit={handleSubmit}>
           <div className="live-train-search-row">
-            <label className="field">
-              <span>Train number</span>
+            <label className="field" htmlFor="live-train-number">
+              <span>Quick track by number</span>
               <input
+                id="live-train-number"
                 className="input"
-                placeholder="e.g. 12301"
+                placeholder="e.g. 12021"
                 inputMode="numeric"
                 maxLength={5}
                 value={trainNumber}
-                onChange={(e) => setTrainNumber(e.target.value.replace(/\D/g, '').slice(0, 5))}
-                required
+                onChange={(ev) => setTrainNumber(ev.target.value.replace(/\D/g, '').slice(0, 5))}
+                aria-describedby="live-train-number-hint"
               />
+              <span id="live-train-number-hint" className="sr-only">
+                Enter a 5 digit train number, or pick any train from the catalog
+              </span>
             </label>
-            <label className="field">
+            <label className="field" htmlFor="live-journey-date">
               <span>Journey start date</span>
               <input
+                id="live-journey-date"
                 type="date"
                 className="input"
                 value={journeyDate}
-                onChange={(e) => setJourneyDate(e.target.value)}
+                onChange={(ev) => setJourneyDate(ev.target.value)}
                 required
               />
             </label>
             <button type="submit" className="btn btn-primary" disabled={loading}>
               <Search size={16} aria-hidden="true" />
-              {loading ? 'Fetching…' : 'Track Train'}
+              {loading ? 'Tracking…' : 'Track Train'}
             </button>
           </div>
         </form>
 
-        {error && <div className="alert alert-error" role="alert">{error}</div>}
+        <div className="live-trains-layout">
+          <LiveTrainCatalog
+            items={catalog.items}
+            totalItems={catalog.totalItems}
+            page={catalog.page}
+            totalPages={catalog.totalPages}
+            loading={catalogLoading}
+            search={catalogSearch}
+            onSearchChange={setCatalogSearch}
+            onPageChange={(p) => {
+              setCatalogPage(p);
+              syncUrl(trainNumber, journeyDate, catalogSearch, p);
+            }}
+            selectedTrainNumber={trainNumber}
+            onSelectTrain={handleSelectTrain}
+            journeyDate={journeyDate}
+          />
 
-        {loading && (
-          <div className="page-loading"><div className="spinner" aria-label="Loading" /></div>
-        )}
+          <div id="live-detail-panel" className="live-trains-detail">
+            {error && <div className="alert alert-error" role="alert">{error}</div>}
 
-        {!loading && trains.length > 0 && (
-          <>
-            <div className="live-train-meta-bar">
-              <span>Source: <strong>{providerLabel}</strong></span>
-              {lastFetched && <span>Fetched: {formatUpdatedAt(lastFetched.toISOString())}</span>}
-              <button type="button" className="btn btn-outline btn-sm" onClick={fetchLive}>
-                <RefreshCw size={14} aria-hidden="true" /> Refresh
-              </button>
-            </div>
-            <div className="live-train-grid">
-              {trains.map((train) => (
-                <article key={`${train.trainNumber}-${train.lastUpdated}`} className="live-train-card card">
-                  <div className="live-train-top">
-                    <TrainFront size={18} aria-hidden="true" />
-                    <strong>{train.trainNumber}</strong>
-                    <span className={`status status-${train.status?.toLowerCase()}`}>{train.status}</span>
-                  </div>
-                  <h3>{train.trainName}</h3>
-                  {train.source && train.destination && (
-                    <p className="muted live-train-route">{train.source} → {train.destination}</p>
-                  )}
-                  {train.notice && (
-                    <p className="alert alert-info" style={{ marginTop: '0.5rem', fontSize: '0.875rem' }}>
-                      {train.notice}
-                    </p>
-                  )}
-                  <ul className="live-train-meta">
-                    <li><MapPin size={14} aria-hidden="true" /> Current: {train.currentLocation}</li>
-                    <li><MapPin size={14} aria-hidden="true" /> Next: {train.nextStation}</li>
-                    <li><Clock size={14} aria-hidden="true" /> Delay: {train.delayMinutes} min</li>
-                    {train.platform && <li>Platform: {train.platform}</li>}
-                    <li>Last NTES update: {formatUpdatedAt(train.lastUpdated)}</li>
-                  </ul>
-                  {train.events?.length > 0 && (
-                    <div className="live-train-events">
-                      <strong>Recent updates</strong>
-                      <ul>
-                        {train.events.slice(-5).reverse().map((ev) => (
-                          <li key={`${ev.type}-${ev.station}-${ev.raw}`}>
-                            {ev.type} — {ev.station}{ev.code ? ` (${ev.code})` : ''}
-                            {ev.delay ? ` · delay ${ev.delay}` : ''}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </article>
-              ))}
-            </div>
-          </>
-        )}
+            {loading && (
+              <div className="page-loading"><div className="spinner" aria-label="Loading live status" /></div>
+            )}
 
-        {!loading && !trains.length && suggestions.length > 0 && (
-          <div className="card live-train-suggestions">
-            <h3>Popular trains</h3>
-            {hint && <p className="muted">{hint}</p>}
-            <div className="live-train-suggestion-grid">
-              {suggestions.map((s) => (
-                <button
-                  key={s.trainNumber}
-                  type="button"
-                  className="live-train-suggestion"
-                  onClick={() => {
-                    setTrainNumber(s.trainNumber);
-                    fetchLive(undefined, s.trainNumber);
-                  }}
-                >
-                  <strong>{s.trainNumber}</strong>
-                  <span>{s.trainName}</span>
-                  <small>{s.route}</small>
-                </button>
-              ))}
-            </div>
+            {!loading && trains.map((train) => (
+              <LiveTrainTimeline
+                key={`${train.trainNumber}-${train.lastUpdated}`}
+                train={train}
+                lastFetched={lastFetched}
+                loading={loading}
+                onRefresh={() => fetchLive(train.trainNumber, { updateUrl: false })}
+              />
+            ))}
+
+            {!loading && !trains.length && (
+              <div className="card live-trains-empty">
+                <h3>Select a train to track</h3>
+                <p className="muted">
+                  Choose any train from the catalog on the left, or search by number or name.
+                  Timelines show RailYatra stations only — not external NTES-only routes.
+                </p>
+                {catalog.items[0] && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleSelectTrain(catalog.items[0].trainNumber)}
+                  >
+                    Track {catalog.items[0].trainNumber} — {catalog.items[0].trainName}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
         <p className="muted" style={{ marginTop: '1rem' }}>
           Need PNR details? <Link to="/pnr">Check PNR status</Link>

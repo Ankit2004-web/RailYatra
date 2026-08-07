@@ -92,6 +92,7 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-link">Skip to main content</a>
       <header className="app-header">
         <div className="header-topbar">
           <div className="header-inner header-topbar-inner">
@@ -119,7 +120,7 @@ export default function Layout() {
           </Link>
 
           <div className="header-end">
-            <nav className={`main-nav ${menuOpen ? 'open' : ''}`} aria-label="Main">
+            <nav id="main-navigation" className={`main-nav ${menuOpen ? 'open' : ''}`} aria-label="Main">
               <NavItem to="/home" end icon={Search} label="Search" className="nav-link nav-link--cta" onNavigate={closeMenu} />
               <NavItem to="/pnr" icon={Ticket} label="PNR Status" shortLabel="PNR" onNavigate={closeMenu} />
               <NavItem to="/live-trains" icon={Radio} label="Live Trains" shortLabel="Live" onNavigate={closeMenu} />
@@ -151,7 +152,14 @@ export default function Layout() {
                 )}
               </div>
 
-              <button type="button" className="menu-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">
+              <button
+                type="button"
+                className="menu-toggle"
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label="Menu"
+                aria-expanded={menuOpen}
+                aria-controls="main-navigation"
+              >
                 {menuOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
             </div>
@@ -160,7 +168,7 @@ export default function Layout() {
         </div>
       </header>
 
-      <main className="app-main">
+      <main id="main-content" className="app-main" tabIndex={-1}>
         <Outlet />
       </main>
 
