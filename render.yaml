@@ -6,7 +6,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: NPM_CONFIG_PRODUCTION=false npm run install:all && npm run frontend:build && npm run build:sqlite-master && node backend/scripts/verify-master-db.js
+    buildCommand: NPM_CONFIG_PRODUCTION=false npm run install:all && npm run frontend:build && node backend/scripts/verify-master-db.js
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:

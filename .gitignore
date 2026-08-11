@@ -42,6 +42,7 @@ coverage/
 # Large railway raw datasets (place locally, do not commit)
 backend/data/*.db
 backend/data/*.db-*
+!backend/data/railyatra-master.db
 database/data/railway/archive/**
 database/data/railway/raw/*.json
 !database/data/railway/raw/.gitkeep
