@@ -5,6 +5,33 @@ const { requireFromBackend } = require('./bootstrap');
 function resolveDbPath() {
     const projectRoot = path.join(__dirname, '..');
     const configured = process.env.SQLITE_PATH;
+    const isSqlite = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    if (isSqlite && isProduction) {
+        const runtimePath = process.env.SQLITE_RUNTIME_PATH
+            || (process.platform === 'win32'
+                ? path.join(projectRoot, 'backend/data/railyatra-runtime.db')
+                : '/tmp/railyatra-runtime.db');
+        const masterCandidate = process.env.SQLITE_MASTER_PATH
+            || configured
+            || 'backend/data/railyatra-master.db';
+        const masterPath = path.isAbsolute(masterCandidate)
+            ? masterCandidate
+            : path.join(projectRoot, masterCandidate);
+
+        if (!fs.existsSync(runtimePath) && fs.existsSync(masterPath)) {
+            fs.mkdirSync(path.dirname(runtimePath), { recursive: true });
+            fs.copyFileSync(masterPath, runtimePath);
+            console.log(`SQLite: initialized runtime database from master (${runtimePath})`);
+        } else if (!fs.existsSync(runtimePath)) {
+            console.log(`SQLite: using new runtime database at ${runtimePath}`);
+        } else {
+            console.log(`SQLite: using existing runtime database at ${runtimePath}`);
+        }
+        return runtimePath;
+    }
+
     if (!configured) {
         return path.join(projectRoot, 'backend/data/railyatra.db');
     }

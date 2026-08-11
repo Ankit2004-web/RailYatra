@@ -59,20 +59,20 @@ router.post('/register', authLimiter, normalizeLoginBody, registerRules, validat
             resolvedEmail = normalizeEmail(loginId);
             normalizedPhone = await allocateSyntheticPhone(resolvedEmail);
         } else {
-            normalizedPhone = String(loginId).replace(/\D/g, '').slice(-10);
+            normalizedPhone = userRepository.normalizePhone(loginId);
             if (normalizedPhone.length !== 10) {
                 return res.status(400).json({ msg: 'Enter a valid 10-digit mobile number' });
             }
             const existingPhone = await userRepository.findByPhone(normalizedPhone);
             if (existingPhone) {
-                return res.status(400).json({ msg: 'Mobile number already registered' });
+                return res.status(400).json({ msg: 'Mobile number already registered. Please sign in instead.' });
             }
             resolvedEmail = `${normalizedPhone}@railyatra.local`;
         }
 
         const existingUser = await userRepository.findByEmail(resolvedEmail);
         if (existingUser) {
-            return res.status(400).json({ msg: loginId.includes('@') ? 'Email already registered' : 'User already exists' });
+            return res.status(400).json({ msg: 'Account already exists. Please sign in instead.' });
         }
 
         const user = await userRepository.create({ name, email: resolvedEmail, password, phone: normalizedPhone });
@@ -96,10 +96,12 @@ router.post('/login', authLimiter, normalizeLoginBody, loginRules, validate, val
     const loginId = String(phone || '').trim();
 
     try {
-        const user = loginId.includes('@')
-            ? await userRepository.findByEmail(loginId)
-            : await userRepository.findByPhone(loginId);
+        const user = await userRepository.resolveLoginUser(loginId);
         if (!user) {
+            return res.status(400).json({ msg: 'Invalid credentials' });
+        }
+
+        if (!user.password) {
             return res.status(400).json({ msg: 'Invalid credentials' });
         }
 
@@ -147,9 +149,7 @@ router.post('/forgot-password', authLimiter, normalizeLoginBody, forgotPasswordR
     const loginId = String(req.body.phone || req.body.email || '').trim();
 
     try {
-        const user = loginId.includes('@')
-            ? await userRepository.findByEmail(loginId)
-            : await userRepository.findByPhone(loginId);
+        const user = await userRepository.resolveLoginUser(loginId);
         if (!user) {
             return res.json({ msg: 'If an account exists, a reset link has been sent.' });
         }

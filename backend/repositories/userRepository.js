@@ -3,6 +3,8 @@ const { getPool } = require('../../database/connection');
 const { resolveRole } = require('../constants/roles');
 const { normalizeEmail } = require('../utils/email');
 
+const normalizePhone = (value) => String(value || '').replace(/\D/g, '').slice(-10);
+
 const toSafeUser = (user) => {
     if (!user) return null;
     const { password, ...safe } = user;
@@ -21,9 +23,16 @@ const findByEmail = async (email) => {
     const needle = normalizeEmail(input);
 
     const exact = await pool.request()
-        .input('email', 'NVarChar', input)
-        .query('SELECT TOP 1 * FROM Users WHERE LOWER(LTRIM(RTRIM(email))) = @email');
+        .input('email', 'NVarChar', needle)
+        .query('SELECT TOP 1 * FROM Users WHERE LOWER(TRIM(email)) = @email');
     if (exact.recordset[0]) return exact.recordset[0];
+
+    if (needle !== input) {
+        const raw = await pool.request()
+            .input('email', 'NVarChar', input)
+            .query('SELECT TOP 1 * FROM Users WHERE LOWER(TRIM(email)) = @email');
+        if (raw.recordset[0]) return raw.recordset[0];
+    }
 
     const candidates = await pool.request()
         .input('gmail', 'NVarChar', '%@gmail.com')
@@ -35,6 +44,35 @@ const findByEmail = async (email) => {
     return candidates.recordset.find((user) => normalizeEmail(user.email) === needle) || null;
 };
 
+const findByPhone = async (phone) => {
+    const normalized = normalizePhone(phone);
+    if (normalized.length !== 10) return null;
+    const pool = await getPool();
+    const localEmail = `${normalized}@railyatra.local`;
+    const result = await pool.request()
+        .input('phone', 'NVarChar', normalized)
+        .input('localEmail', 'NVarChar', localEmail)
+        .query(`SELECT TOP 1 * FROM Users
+            WHERE phone = @phone
+               OR LOWER(TRIM(email)) = LOWER(@localEmail)`);
+    return result.recordset[0] || null;
+};
+
+/** Resolve a login id (mobile or email) to a stored user row. */
+const resolveLoginUser = async (loginId) => {
+    const raw = String(loginId || '').trim();
+    if (!raw) return null;
+
+    if (raw.includes('@')) {
+        return findByEmail(raw);
+    }
+
+    const phone = normalizePhone(raw);
+    if (phone.length !== 10) return null;
+
+    return findByPhone(phone);
+};
+
 const findById = async (id) => {
     const pool = await getPool();
     const result = await pool.request()
@@ -43,27 +81,18 @@ const findById = async (id) => {
     return result.recordset[0] || null;
 };
 
-const findByPhone = async (phone) => {
-    const normalized = String(phone || '').replace(/\D/g, '').slice(-10);
-    if (normalized.length !== 10) return null;
-    const pool = await getPool();
-    const result = await pool.request()
-        .input('phone', 'NVarChar', normalized)
-        .query('SELECT TOP 1 * FROM Users WHERE phone = @phone');
-    return result.recordset[0] || null;
-};
-
 const create = async ({ name, email, password, phone, isAdmin = false, role = 'passenger' }) => {
     const pool = await getPool();
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     const resolvedRole = isAdmin ? 'admin' : role;
+    const normalizedPhone = normalizePhone(phone);
 
     const result = await pool.request()
         .input('name', 'NVarChar', name)
         .input('email', 'NVarChar', email)
         .input('password', 'NVarChar', hashedPassword)
-        .input('phone', 'NVarChar', phone)
+        .input('phone', 'NVarChar', normalizedPhone.length === 10 ? normalizedPhone : phone)
         .input('isAdmin', 'Bit', resolvedRole === 'admin')
         .input('role', 'NVarChar', resolvedRole)
         .query(`INSERT INTO Users (name, email, password, phone, isAdmin, role)
@@ -230,6 +259,8 @@ const setMfaEnabled = async (userId, enabled) => {
 module.exports = {
     findByEmail,
     findByPhone,
+    resolveLoginUser,
+    normalizePhone,
     findById,
     create,
     comparePassword,

@@ -19,6 +19,8 @@ services:
       - key: DB_DRIVER
         value: sqlite
       - key: SQLITE_PATH
+        value: /tmp/railyatra-runtime.db
+      - key: SQLITE_MASTER_PATH
         value: backend/data/railyatra-master.db
       - key: JWT_SECRET
         generateValue: true
