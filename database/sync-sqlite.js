@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { runQuery, closePool, resetDatabase } = require('./connection');
 
-const CORE_TABLES = ['Users', 'Stations', 'Trains', 'TrainClasses', 'Bookings', 'Passengers', 'Seats', 'TrainStops', 'BookingSeatAllocations'];
+const CORE_TABLES = ['Users', 'Stations', 'Trains', 'TrainClasses', 'Bookings', 'Passengers', 'Seats', 'TrainStops'];
 
 const BOOKING_SEAT_ALLOCATIONS_DDL = `CREATE TABLE IF NOT EXISTS BookingSeatAllocations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -182,6 +182,12 @@ async function verifyCoreTables() {
     return true;
 }
 
+async function countStations() {
+    if (!(await tableExists('Stations'))) return 0;
+    const rows = await runQuery('SELECT COUNT(*) AS c FROM Stations');
+    return Number(rows[0]?.c || 0);
+}
+
 async function syncSqliteDatabase() {
     try {
         console.log('Using SQLite (free cloud demo mode)...');
@@ -191,15 +197,21 @@ async function syncSqliteDatabase() {
         console.log('SQLite connected.');
 
         const statements = loadSchemaStatements();
+        const stationsBeforeSync = await countStations();
 
         console.log('Syncing tables...');
         await applySchema(statements);
 
         if (!(await verifyCoreTables())) {
-            console.log('Core tables missing — rebuilding SQLite database from scratch...');
-            await resetDatabase();
-            await runQuery('SELECT 1 AS ok');
-            await applySchema(statements);
+            if (stationsBeforeSync > 100) {
+                console.warn('Core tables missing but master data present — applying schema without wiping data.');
+                await applySchema(statements);
+            } else {
+                console.log('Core tables missing — rebuilding empty SQLite database...');
+                await resetDatabase();
+                await runQuery('SELECT 1 AS ok');
+                await applySchema(statements);
+            }
             if (!(await verifyCoreTables())) {
                 throw new Error('SQLite rebuild failed — core tables still missing (check schema-sqlite.sql)');
             }

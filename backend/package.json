@@ -21,6 +21,7 @@
     "import:wikipedia-pages": "node scripts/run.js ../database/import/run-wikipedia-pages-import.js",
         "download:railway": "node scripts/download-railway-data.js",
     "build:sqlite-master": "node scripts/build-sqlite-master.js",
+    "verify:sqlite-master": "node scripts/verify-master-db.js",
         "fix:driver": "npm install msnodesqlv8",
         "test": "node --test tests/*.test.js"
     },

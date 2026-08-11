@@ -14,6 +14,23 @@ if (nodeExecutable === process.execPath) {
     assertSupportedNodeVersion();
 }
 
+const isSqliteProduction = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite'
+    && (process.env.RENDER || process.env.SQLITE_USE_RUNTIME_COPY === '1');
+
+if (isSqliteProduction) {
+    const { resolveMasterPath } = require('../../database/sqlite-production-bootstrap');
+    const masterPath = resolveMasterPath();
+    const minBytes = 5 * 1024 * 1024;
+    if (!fs.existsSync(masterPath) || fs.statSync(masterPath).size < minBytes) {
+        console.log('SQLite master database missing or incomplete — building before server start...');
+        execSync('node scripts/build-sqlite-master.js', {
+            cwd: path.join(projectRoot, 'backend'),
+            stdio: 'inherit',
+            env: process.env
+        });
+    }
+}
+
 if (!fs.existsSync(path.join(frontendDist, 'index.html'))) {
     console.log('React frontend not built — building now...');
     execSync('npm run build --prefix frontend', { cwd: projectRoot, stdio: 'inherit' });
