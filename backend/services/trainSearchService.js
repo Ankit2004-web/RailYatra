@@ -8,6 +8,7 @@ const runningDayService = require('./runningDayService');
 const { computeAvgSpeedKmh } = require('../utils/trainSpeed');
 const { applyFaresToClasses, calculateClassFare } = require('../utils/irctcFareTable2025');
 const searchCacheRepository = require('../repositories/searchCacheRepository');
+const seatRepository = require('../repositories/seatRepository');
 const { enrichClassesFromTrainMeta } = require('./coachCompositionService');
 const { synthesizeMissingClasses } = require('./trainClassSynthesisService');
 
@@ -204,24 +205,57 @@ function applySearchSegmentToTrain(train, fromMeta, toMeta, segmentRow) {
     };
 }
 
+async function applyLiveAvailability(trains) {
+    if (!trains?.length) return trains;
+
+    const byDate = new Map();
+    for (const train of trains) {
+        const journeyDate = train.journeyDate || train.date;
+        if (!journeyDate) continue;
+        if (!byDate.has(journeyDate)) byDate.set(journeyDate, []);
+        byDate.get(journeyDate).push(train);
+    }
+
+    for (const [journeyDate, dateTrains] of byDate) {
+        const trainIds = [...new Set(dateTrains.map((t) => t.trainId || t.id).filter(Boolean))];
+        const countsMap = await seatRepository.getAvailableCountsForTrains(trainIds, journeyDate);
+
+        for (const train of dateTrains) {
+            const trainId = train.trainId || train.id;
+            const classCounts = countsMap[trainId] || {};
+            if (!train.classes?.length) continue;
+
+            train.classes = train.classes.map((cls) => ({
+                ...cls,
+                availableSeats: classCounts[cls.classCode] ?? Math.max(0, Number(cls.availableSeats ?? 0))
+            }));
+        }
+    }
+
+    return trains;
+}
+
 async function finalizeSearchResults(trains, fromStation, toStation, fromQuery, toQuery) {
     const fromMeta = stationMeta(fromStation, fromQuery);
     const toMeta = stationMeta(toStation, toQuery);
+    let results;
     if (!fromMeta || !toMeta) {
-        return trains.map((train) => applySearchSegmentToTrain(train, fromMeta || { code: '', name: fromQuery || '' }, toMeta || { code: '', name: toQuery || '' }));
+        results = trains.map((train) => applySearchSegmentToTrain(train, fromMeta || { code: '', name: fromQuery || '' }, toMeta || { code: '', name: toQuery || '' }));
+    } else {
+        const trainIds = trains.map((t) => t.trainId || t.id).filter(Boolean);
+        const segmentMap = fromStation?.id && toStation?.id
+            ? await batchLoadSegmentTimes(trainIds, fromStation.id, toStation.id)
+            : {};
+
+        results = trains.map((train) => applySearchSegmentToTrain(
+            train,
+            fromMeta,
+            toMeta,
+            segmentMap[train.trainId || train.id]
+        ));
     }
 
-    const trainIds = trains.map((t) => t.trainId || t.id).filter(Boolean);
-    const segmentMap = fromStation?.id && toStation?.id
-        ? await batchLoadSegmentTimes(trainIds, fromStation.id, toStation.id)
-        : {};
-
-    return trains.map((train) => applySearchSegmentToTrain(
-        train,
-        fromMeta,
-        toMeta,
-        segmentMap[train.trainId || train.id]
-    ));
+    return applyLiveAvailability(results);
 }
 
 async function resolveStation(query) {

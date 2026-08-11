@@ -147,7 +147,7 @@ export default function TrainCard({
                 <span
                   key={i}
                   role="listitem"
-                  className={`run-day ${d.active ? 'active' : ''} ${d.unknown ? 'unknown' : 'inactive'}`}
+                  className={`run-day${d.active ? ' active' : d.unknown ? ' unknown' : ' inactive'}`}
                   title={
                     d.unknown
                       ? `${d.fullName} — schedule not available`

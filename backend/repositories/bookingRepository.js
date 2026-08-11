@@ -284,28 +284,52 @@ const getNextWaitlistPosition = async (query, trainId, classCode, journeyDate, s
     return rows[0].maxPos + 1;
 };
 
-const decrementAvailability = async (query, train, classRow, count) => {
+const decrementAvailability = async (query, train, classRow, count, journeyDate) => {
+    const passengerCount = Math.max(0, Number(count) || 0);
+    if (!passengerCount) return;
+
+    if (journeyDate && classRow) {
+        await seatRepository.syncAvailabilityAfterSeatChange(query, train.id, classRow.classCode, journeyDate);
+        return;
+    }
+
     if (classRow) {
         await query(
-            'UPDATE TrainClasses SET availableSeats = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?',
-            [classRow.availableSeats - count, classRow.id]
+            `UPDATE TrainClasses
+             SET availableSeats = CASE WHEN availableSeats - ? < 0 THEN 0 ELSE availableSeats - ? END,
+                 updatedAt = SYSUTCDATETIME()
+             WHERE id = ?`,
+            [passengerCount, passengerCount, classRow.id]
         );
     }
-    await query(
-        'UPDATE Trains SET availableSeats = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?',
-        [train.availableSeats - count, train.id]
-    );
+    if (train) {
+        await query(
+            `UPDATE Trains
+             SET availableSeats = CASE WHEN availableSeats - ? < 0 THEN 0 ELSE availableSeats - ? END,
+                 updatedAt = SYSUTCDATETIME()
+             WHERE id = ?`,
+            [passengerCount, passengerCount, train.id]
+        );
+    }
 };
 
-const restoreAvailability = async (query, trainId, classCode, count) => {
+const restoreAvailability = async (query, trainId, classCode, count, journeyDate) => {
+    if (journeyDate && classCode) {
+        await seatRepository.syncAvailabilityAfterSeatChange(query, trainId, classCode, journeyDate);
+        return;
+    }
+
+    const passengerCount = Math.max(0, Number(count) || 0);
+    if (!passengerCount) return;
+
     await query(
-        'UPDATE Trains SET availableSeats = availableSeats + ?, updatedAt = SYSUTCDATETIME() WHERE id = ?',
-        [count, trainId]
+        `UPDATE Trains SET availableSeats = availableSeats + ?, updatedAt = SYSUTCDATETIME() WHERE id = ?`,
+        [passengerCount, trainId]
     );
     if (classCode) {
         await query(
-            'UPDATE TrainClasses SET availableSeats = availableSeats + ?, updatedAt = SYSUTCDATETIME() WHERE trainId = ? AND classCode = ?',
-            [count, trainId, classCode]
+            `UPDATE TrainClasses SET availableSeats = availableSeats + ?, updatedAt = SYSUTCDATETIME() WHERE trainId = ? AND classCode = ?`,
+            [passengerCount, trainId, classCode]
         );
     }
 };
@@ -491,7 +515,7 @@ const createBooking = async ({
                         bookingId: booking.id
                     });
                     if (seatResult.error) return seatResult;
-                    await decrementAvailability(query, train, classRow, passengers.length);
+                    await decrementAvailability(query, train, classRow, passengers.length, journeyDate);
                 }
                 break;
             } catch (err) {
@@ -741,7 +765,7 @@ const failBooking = async (bookingId) => {
         if (booking.status === 'Pending' && booking.paymentStatus === 'Pending') {
             await seatRepository.releaseSeatsForBooking(query, bookingId);
             const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [bookingId]);
-            await restoreAvailability(query, booking.trainId, booking.classCode, passengerRows[0].count);
+            await restoreAvailability(query, booking.trainId, booking.classCode, passengerRows[0].count, booking.journeyDate);
         }
 
         await query(
@@ -772,7 +796,7 @@ const deletePendingBooking = async (bookingId, userId, isAdmin) => {
 
         await seatRepository.releaseSeatsForBooking(query, bookingId);
         const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [bookingId]);
-        await restoreAvailability(query, booking.trainId, booking.classCode, passengerRows[0].count);
+        await restoreAvailability(query, booking.trainId, booking.classCode, passengerRows[0].count, booking.journeyDate);
         await query('DELETE FROM Passengers WHERE bookingId = ?', [bookingId]);
         await query('DELETE FROM Bookings WHERE id = ?', [bookingId]);
         return { ok: true };
@@ -824,7 +848,7 @@ const promoteWaitlist = async (query, trainId, classCode, journeyDate) => {
     });
 
     const trains = await query('SELECT * FROM Trains WHERE id = ?', [trainId]);
-    await decrementAvailability(query, trains[0], classRows[0], needed);
+    await decrementAvailability(query, trains[0], classRows[0], needed, journeyDate);
 
     const newStatus = booking.paymentStatus === 'Paid' ? 'Confirmed' : 'Pending';
     await query(
@@ -884,7 +908,7 @@ const promoteRac = async (query, trainId, classCode, journeyDate) => {
     });
 
     const trains = await query('SELECT * FROM Trains WHERE id = ?', [trainId]);
-    await decrementAvailability(query, trains[0], classRows[0], needed);
+    await decrementAvailability(query, trains[0], classRows[0], needed, journeyDate);
 
     await query(
         `UPDATE Bookings SET status = 'Confirmed', waitlistPosition = NULL, seatNumbers = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?`,
@@ -925,7 +949,7 @@ const updateStatus = async (id, status, userId, isAdmin) => {
 
             if (['Confirmed', 'Pending'].includes(booking.status)) {
                 await seatRepository.releaseSeatsForBooking(query, booking.id);
-                await restoreAvailability(query, booking.trainId, booking.classCode, passengerCount);
+                await restoreAvailability(query, booking.trainId, booking.classCode, passengerCount, booking.journeyDate);
             }
 
             const refundCalc = calculateRefund({
@@ -1067,7 +1091,7 @@ const releaseExpiredPaymentHolds = async () => withTransaction(async ({ query })
         const passengerRows = await query('SELECT COUNT(*) AS count FROM Passengers WHERE bookingId = ?', [row.id]);
         const bookingRows = await query('SELECT trainId, classCode FROM Bookings WHERE id = ?', [row.id]);
         if (bookingRows[0]) {
-            await restoreAvailability(query, bookingRows[0].trainId, bookingRows[0].classCode, passengerRows[0].count);
+            await restoreAvailability(query, bookingRows[0].trainId, bookingRows[0].classCode, passengerRows[0].count, bookingRows[0].journeyDate);
         }
         await query(
             `UPDATE Bookings SET status = 'Cancelled', paymentStatus = 'Failed', updatedAt = SYSUTCDATETIME() WHERE id = ?`,

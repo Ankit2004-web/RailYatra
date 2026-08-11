@@ -43,5 +43,6 @@ coverage/
 backend/data/*.db
 backend/data/*.db-*
 database/data/railway/archive/**
+database/data/railway/raw/*.json
 !database/data/railway/raw/.gitkeep
 !database/data/railway/archive/.gitkeep

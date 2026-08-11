@@ -33,6 +33,7 @@ const mfaRoutes = require('./routes/mfa');
 const oauthRoutes = require('./routes/oauth');
 const recommendationRoutes = require('./routes/recommendations');
 const contactRoutes = require('./routes/contact');
+const offersRoutes = require('./routes/offers');
 const { startBackgroundJobs } = require('./services/jobScheduler');
 const { errorHandler } = require('./middleware/errorHandler');
 const { UPLOAD_DIR: AVATAR_UPLOAD_DIR } = require('./services/avatarService');
@@ -82,6 +83,7 @@ app.use('/api/mfa', mfaRoutes);
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/offers', offersRoutes);
 
 app.get('/api/health', async (req, res) => {
     const isSqlite = (process.env.DB_DRIVER || '').toLowerCase() === 'sqlite';

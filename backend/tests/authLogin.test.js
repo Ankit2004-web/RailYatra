@@ -31,8 +31,8 @@ const fetchCaptcha = async (agent) => {
     };
 };
 
-test('register then login with same mobile credentials', async () => {
-    if (!dbReady) return;
+test('register then login with same mobile credentials', { skip: dbReady ? false : 'Database driver unavailable' }, async () => {
+    await require('../../database/sync')();
 
     const runId = Date.now();
     const agent = request(app);
@@ -61,8 +61,8 @@ test('register then login with same mobile credentials', async () => {
     assert.ok(loginResponse.body.token);
 });
 
-test('resolveLoginUser finds phone account by number and local email alias', async () => {
-    if (!dbReady) return;
+test('resolveLoginUser finds phone account by number and local email alias', { skip: dbReady ? false : 'Database driver unavailable' }, async () => {
+    await require('../../database/sync')();
 
     const phone = `7${String(Date.now()).slice(-9)}`;
     const user = await userRepository.resolveLoginUser(phone);
@@ -72,8 +72,8 @@ test('resolveLoginUser finds phone account by number and local email alias', asy
     assert.equal(byAlias, null);
 });
 
-test('duplicate register tells user to sign in', async () => {
-    if (!dbReady) return;
+test('duplicate register tells user to sign in', { skip: dbReady ? false : 'Database driver unavailable' }, async () => {
+    await require('../../database/sync')();
 
     const runId = Date.now();
     const agent = request(app);

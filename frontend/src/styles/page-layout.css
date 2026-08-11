@@ -170,7 +170,7 @@
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: #fff;
+  background: var(--surface);
   cursor: pointer;
   text-align: left;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
@@ -588,6 +588,11 @@
   margin-bottom: 0.75rem;
 }
 
+.live-catalog-search svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
 .live-catalog-search .input {
   flex: 1;
 }
@@ -701,6 +706,12 @@
   margin-top: 0.75rem;
   font-size: 0.8125rem;
   flex-shrink: 0;
+  color: var(--muted);
+}
+
+.live-catalog-pagination span {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .live-catalog-empty,

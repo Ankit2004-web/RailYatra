@@ -222,6 +222,84 @@ const countAvailableSeats = async (trainId, classCode, journeyDate) => {
     return classResult.recordset[0]?.availableSeats || 0;
 };
 
+async function getAvailableCountsForTrains(trainIds, journeyDate) {
+    if (!trainIds?.length || !journeyDate) return {};
+
+    const pool = await getPool();
+    const uniqueIds = [...new Set(trainIds.map(Number).filter(Boolean))];
+    const placeholders = uniqueIds.map((_, i) => `@tid${i}`).join(',');
+    const request = pool.request().input('journeyDate', 'Date', journeyDate);
+    uniqueIds.forEach((id, i) => request.input(`tid${i}`, 'Int', id));
+
+    const seatResult = await request.query(`
+        SELECT trainId, classCode, COUNT(*) AS available
+        FROM Seats
+        WHERE trainId IN (${placeholders}) AND journeyDate = @journeyDate AND status = 'Available'
+        GROUP BY trainId, classCode
+    `);
+
+    const map = {};
+    for (const row of seatResult.recordset) {
+        if (!map[row.trainId]) map[row.trainId] = {};
+        map[row.trainId][row.classCode] = row.available;
+    }
+
+    const classRequest = pool.request();
+    uniqueIds.forEach((id, i) => classRequest.input(`cid${i}`, 'Int', id));
+    const classPlaceholders = uniqueIds.map((_, i) => `@cid${i}`).join(',');
+    const classResult = await classRequest.query(`
+        SELECT trainId, classCode, availableSeats, totalSeats
+        FROM TrainClasses
+        WHERE trainId IN (${classPlaceholders})
+    `);
+
+    for (const row of classResult.recordset) {
+        if (!map[row.trainId]) map[row.trainId] = {};
+        if (map[row.trainId][row.classCode] == null) {
+            map[row.trainId][row.classCode] = row.availableSeats ?? row.totalSeats ?? 0;
+        }
+    }
+
+    return map;
+}
+
+const syncClassAvailabilityFromSeats = async (query, trainId, classCode, journeyDate) => {
+    const rows = await query(
+        `SELECT COUNT(*) AS cnt FROM Seats
+         WHERE trainId = ? AND classCode = ? AND journeyDate = ? AND status = 'Available'`,
+        [trainId, classCode, journeyDate]
+    );
+    const seeded = await query(
+        `SELECT COUNT(*) AS cnt FROM Seats WHERE trainId = ? AND classCode = ? AND journeyDate = ?`,
+        [trainId, classCode, journeyDate]
+    );
+
+    if (!seeded[0]?.cnt) return;
+
+    const available = Math.max(0, Number(rows[0]?.cnt || 0));
+    await query(
+        `UPDATE TrainClasses SET availableSeats = ?, updatedAt = SYSUTCDATETIME()
+         WHERE trainId = ? AND classCode = ?`,
+        [available, trainId, classCode]
+    );
+};
+
+const syncTrainAvailabilityFromClasses = async (query, trainId) => {
+    const rows = await query(
+        `SELECT COALESCE(SUM(availableSeats), 0) AS total FROM TrainClasses WHERE trainId = ?`,
+        [trainId]
+    );
+    await query(
+        `UPDATE Trains SET availableSeats = ?, updatedAt = SYSUTCDATETIME() WHERE id = ?`,
+        [rows[0]?.total || 0, trainId]
+    );
+};
+
+const syncAvailabilityAfterSeatChange = async (query, trainId, classCode, journeyDate) => {
+    await syncClassAvailabilityFromSeats(query, trainId, classCode, journeyDate);
+    await syncTrainAvailabilityFromClasses(query, trainId);
+};
+
 module.exports = {
     BERTH_TYPES,
     getBerthType,
@@ -233,5 +311,9 @@ module.exports = {
     validateAndLockSeats,
     releaseSeatsForBooking,
     countAvailableSeats,
+    getAvailableCountsForTrains,
+    syncClassAvailabilityFromSeats,
+    syncTrainAvailabilityFromClasses,
+    syncAvailabilityAfterSeatChange,
     pickAvailableSeats
 };

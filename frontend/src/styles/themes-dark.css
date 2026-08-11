@@ -1,0 +1,593 @@
+/**
+ * Comprehensive dark theme overrides — loaded last so all pages stay readable.
+ */
+
+[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] a {
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] a:hover {
+  color: var(--brand);
+}
+
+/* ===== Global forms ===== */
+[data-theme="dark"] .input,
+[data-theme="dark"] select.input,
+[data-theme="dark"] textarea.input {
+  background: var(--input-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .input::placeholder,
+[data-theme="dark"] textarea.input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+[data-theme="dark"] .btn-outline {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+[data-theme="dark"] .btn-outline:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand-light);
+  background: rgba(18, 184, 184, 0.1);
+}
+
+[data-theme="dark"] .btn-outline svg {
+  color: currentColor;
+}
+
+[data-theme="dark"] .btn-outline:disabled {
+  opacity: 0.45;
+  color: var(--muted);
+}
+
+[data-theme="dark"] .btn-ghost {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .btn-ghost:hover {
+  color: var(--text);
+  background: var(--muted-bg);
+}
+
+[data-theme="dark"] .modal-overlay {
+  background: var(--overlay);
+}
+
+[data-theme="dark"] .data-table th {
+  background: var(--muted-bg);
+  color: var(--text);
+}
+
+[data-theme="dark"] .data-table tbody tr:hover {
+  background: rgba(18, 184, 184, 0.06);
+}
+
+/* ===== Header & navigation ===== */
+[data-theme="dark"] .nav-mega-panel {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .nav-mega-head strong,
+[data-theme="dark"] .nav-mega-copy strong {
+  color: var(--text);
+}
+
+[data-theme="dark"] .nav-mega-icon {
+  background: rgba(18, 184, 184, 0.12);
+}
+
+[data-theme="dark"] .nav-mega-footer {
+  background: var(--muted-bg);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .nav-mega-footer a {
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .notification-item {
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .notification-item.unread {
+  background: rgba(18, 184, 184, 0.08);
+}
+
+[data-theme="dark"] .header-auth-btns .btn-outline {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+[data-theme="dark"] .header-auth-btns .btn-outline:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+/* ===== Home page ===== */
+[data-theme="dark"] .home-search-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--brand);
+}
+
+[data-theme="dark"] .home-search-card h2 {
+  color: var(--text);
+}
+
+[data-theme="dark"] .home-swap-btn,
+[data-theme="dark"] .recent-chip,
+[data-theme="dark"] .route-aware-toggle .toggle-track {
+  background: var(--muted-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .home-swap-btn:hover {
+  background: rgba(18, 184, 184, 0.12);
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .home-feature-card,
+[data-theme="dark"] .home-dash-card {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .home-upcoming,
+[data-theme="dark"] .home-popular-routes {
+  background: var(--surface);
+}
+
+/* ===== Search results ===== */
+[data-theme="dark"] .filters-sidebar,
+[data-theme="dark"] .filter-drawer,
+[data-theme="dark"] .mobile-filter-trigger {
+  background: var(--surface);
+  color: var(--text);
+}
+
+[data-theme="dark"] .filter-drawer-overlay {
+  background: var(--overlay);
+}
+
+[data-theme="dark"] .page-btn {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .page-btn:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .train-card-premium {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .train-meta-panel {
+  background: var(--muted-bg);
+}
+
+[data-theme="dark"] .side-route {
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .side-speed strong {
+  color: var(--text);
+}
+
+[data-theme="dark"] .train-class-row .class-option {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .co-price {
+  color: var(--text);
+}
+
+[data-theme="dark"] .class-tone-2a { background: rgba(59, 130, 246, 0.12) !important; }
+[data-theme="dark"] .class-tone-3a { background: rgba(34, 197, 94, 0.12) !important; }
+[data-theme="dark"] .class-tone-sl { background: rgba(139, 92, 246, 0.12) !important; }
+[data-theme="dark"] .class-tone-cc { background: rgba(18, 184, 184, 0.12) !important; }
+[data-theme="dark"] .class-tone-1a { background: rgba(168, 85, 247, 0.12) !important; }
+[data-theme="dark"] .class-tone-ec { background: rgba(20, 184, 166, 0.12) !important; }
+[data-theme="dark"] .class-tone-3e { background: rgba(59, 130, 246, 0.1) !important; }
+[data-theme="dark"] .class-tone-2s { background: rgba(148, 163, 184, 0.12) !important; }
+
+[data-theme="dark"] .route-modal-num {
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .route-modal-name {
+  color: var(--text);
+}
+
+[data-theme="dark"] .route-modal-stops,
+[data-theme="dark"] .route-stop-title strong {
+  color: var(--text);
+}
+
+[data-theme="dark"] .irctc-table th {
+  background: var(--muted-bg);
+}
+
+[data-theme="dark"] .irctc-class-tab,
+[data-theme="dark"] .irctc-rake-coach {
+  background: var(--surface);
+  color: var(--text);
+}
+
+[data-theme="dark"] .irctc-class-tab.active {
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .badge-cancel {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .badge-delay {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+[data-theme="dark"] .sk-line,
+[data-theme="dark"] .sk-track,
+[data-theme="dark"] .sk-class,
+[data-theme="dark"] .sk-btn {
+  background: linear-gradient(90deg, var(--muted-bg), var(--border), var(--muted-bg));
+}
+
+[data-theme="dark"] .sk-btn-primary {
+  background: rgba(18, 184, 184, 0.2);
+}
+
+[data-theme="dark"] .schedule-updates-bar {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+}
+
+/* ===== Booking flow ===== */
+[data-theme="dark"] .booking-hero {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .booking-hero-gradient {
+  background: linear-gradient(
+    90deg,
+    var(--surface) 0%,
+    var(--surface) 34%,
+    rgba(20, 28, 38, 0.98) 42%,
+    rgba(20, 28, 38, 0.88) 50%,
+    rgba(20, 28, 38, 0.62) 58%,
+    rgba(20, 28, 38, 0.28) 66%,
+    transparent 72%
+  );
+}
+
+[data-theme="dark"] .booking-hero-meta strong {
+  color: var(--text);
+}
+
+[data-theme="dark"] .booking-step-circle {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .booking-step.done .booking-step-circle {
+  background: rgba(18, 184, 184, 0.15);
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .booking-step.active .booking-step-label {
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .booking-card,
+[data-theme="dark"] .booking-summary-card,
+[data-theme="dark"] .passenger-block,
+[data-theme="dark"] .payment-offers-panel,
+[data-theme="dark"] .payment-method-chip,
+[data-theme="dark"] .booking-review-section {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .payment-method-chip.active {
+  background: rgba(18, 184, 184, 0.12);
+  border-color: var(--brand);
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .payment-offer-rec {
+  background: var(--muted-bg);
+}
+
+[data-theme="dark"] .booking-fare-row.total {
+  color: var(--text);
+}
+
+/* ===== PNR page ===== */
+[data-theme="dark"] .pnr-input {
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+[data-theme="dark"] .pnr-input:focus {
+  background: var(--input-bg);
+}
+
+[data-theme="dark"] .pnr-digit-count {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .pnr-digit-count.ready {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+[data-theme="dark"] .pnr-alert-error {
+  background: var(--error-bg);
+  border-color: var(--error-border);
+  color: var(--error-text);
+}
+
+[data-theme="dark"] .pnr-result-card,
+[data-theme="dark"] .pnr-passenger-row,
+[data-theme="dark"] .pnr-chart-panel {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .pnr-passenger-row:nth-child(even) {
+  background: var(--muted-bg);
+}
+
+/* ===== My bookings ===== */
+[data-theme="dark"] .my-bookings-toast {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+[data-theme="dark"] .my-bookings-alert {
+  background: var(--error-bg);
+  color: var(--error-text);
+  border-color: var(--error-border);
+}
+
+[data-theme="dark"] .booking-card-premium,
+[data-theme="dark"] .my-bookings-empty {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .booking-card-premium .booking-route strong,
+[data-theme="dark"] .booking-card-premium .pnr {
+  color: var(--brand-light);
+}
+
+/* ===== Offers ===== */
+[data-theme="dark"] .offer-card {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .offers-filter {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .offers-filter.active {
+  background: var(--brand);
+  color: #fff;
+}
+
+[data-theme="dark"] .offer-card-skeleton {
+  background: linear-gradient(90deg, var(--muted-bg), var(--border), var(--muted-bg));
+}
+
+/* ===== Profile ===== */
+[data-theme="dark"] .profile-card,
+[data-theme="dark"] .profile-section,
+[data-theme="dark"] .profile-stat {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .profile-nav-item.active {
+  background: rgba(18, 184, 184, 0.12);
+  color: var(--brand-light);
+}
+
+/* ===== Admin ===== */
+[data-theme="dark"] .admin-stat-card,
+[data-theme="dark"] .admin-panel,
+[data-theme="dark"] .admin-table-wrap {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .admin-filters .input {
+  background: var(--input-bg);
+}
+
+/* ===== Static / contact / about pages ===== */
+[data-theme="dark"] .static-content-card,
+[data-theme="dark"] .contact-card,
+[data-theme="dark"] .about-card,
+[data-theme="dark"] .terms-section {
+  background: var(--surface);
+}
+
+/* ===== Support (extra) ===== */
+[data-theme="dark"] .support-quick-link {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .support-faq-item,
+[data-theme="dark"] .support-category-chip,
+[data-theme="dark"] .chat-agent {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .support-chat-messages {
+  background: linear-gradient(180deg, var(--muted-bg) 0%, var(--bg) 100%);
+}
+
+[data-theme="dark"] .support-toast {
+  background: var(--success-bg);
+  color: var(--success-text);
+  border-color: var(--success-border);
+}
+
+/* ===== Live trains catalog ===== */
+[data-theme="dark"] .live-catalog-search svg {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .live-catalog-pagination span {
+  color: var(--text);
+}
+
+[data-theme="dark"] .live-catalog-item.is-active {
+  background: rgba(18, 184, 184, 0.1);
+}
+
+[data-theme="dark"] .live-train-suggestion {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .live-train-search {
+  background: var(--surface);
+}
+
+/* ===== Auth pages — keep readable panels on dark bg ===== */
+[data-theme="dark"] .auth-page {
+  background: var(--bg);
+}
+
+[data-theme="dark"] .auth-card {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .auth-shell--enterprise .auth-panel-form {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .auth-shell--enterprise .auth-field > .input,
+[data-theme="dark"] .auth-shell--enterprise .auth-input {
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+[data-theme="dark"] .auth-shell--enterprise .auth-input::placeholder {
+  color: var(--muted);
+}
+
+/* ===== Misc ===== */
+[data-theme="dark"] .journey-track {
+  background: var(--muted-bg);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .train-card-footer {
+  background: var(--muted-bg);
+}
+
+[data-theme="dark"] .fare-default {
+  background: var(--muted-bg);
+  color: var(--text);
+}
+
+[data-theme="dark"] .empty-state-panel {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .state-panel {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .link-btn {
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .link-muted {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .icon-btn:hover {
+  color: var(--text);
+  background: var(--muted-bg);
+}
+
+[data-theme="dark"] .heart-btn {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .heart-btn.liked {
+  color: #f87171;
+}
+
+[data-theme="dark"] .app-footer {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .app-footer a {
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .my-bookings-filter.active {
+  background: rgba(18, 184, 184, 0.12);
+  color: var(--brand-light);
+  border-color: var(--brand);
+}
+
+[data-theme="dark"] .my-bookings-filter:hover {
+  border-color: var(--brand);
+  color: var(--text);
+}
+
+[data-theme="dark"] .notification-panel {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .user-menu-dropdown a,
+[data-theme="dark"] .user-menu-dropdown button {
+  color: var(--text);
+}
+
+[data-theme="dark"] .search-summary-bar,
+[data-theme="dark"] .modify-search-panel {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .irctc-compartment {
+  background: var(--surface);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .payment-promo-success {
+  color: var(--success-text);
+}
+
+[data-theme="dark"] .payment-promo-error {
+  color: var(--error-text);
+}
+
+[data-theme="dark"] .route-tag {
+  background: rgba(18, 184, 184, 0.15);
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .offers-stat-card strong {
+  color: #fff;
+}

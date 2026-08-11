@@ -59,7 +59,7 @@
 
 .admin-tabs button {
   border: 1px solid var(--border);
-  background: #ffffff;
+  background: var(--surface);
   color: var(--muted);
   border-radius: 999px;
   padding: 8px 16px;

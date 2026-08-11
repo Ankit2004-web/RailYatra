@@ -17,6 +17,19 @@
   --warning-bg: rgba(18, 184, 184, 0.15);
   --warning-border: rgba(18, 184, 184, 0.35);
   --warning-text: #7ddfe1;
+  --success: #86efac;
+  --danger: #fca5a5;
+  --error-bg: rgba(239, 68, 68, 0.14);
+  --error-text: #fca5a5;
+  --error-border: rgba(239, 68, 68, 0.35);
+  --success-bg: rgba(74, 222, 128, 0.12);
+  --success-text: #86efac;
+  --success-border: rgba(74, 222, 128, 0.3);
+  --info-bg: rgba(56, 189, 248, 0.12);
+  --info-text: #7dd3fc;
+  --info-border: rgba(56, 189, 248, 0.28);
+  --overlay: rgba(0, 0, 0, 0.65);
+  --input-bg: #1a2430;
 }
 
 [data-theme="ocean"] {
@@ -182,4 +195,145 @@
 
 [data-theme="dark"] .live-timeline-header {
   background: linear-gradient(180deg, rgba(18, 184, 184, 0.1), transparent);
+}
+
+/* Forms & buttons — dark theme readability */
+[data-theme="dark"] .input,
+[data-theme="dark"] select.input,
+[data-theme="dark"] textarea.input {
+  background: var(--input-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .input::placeholder,
+[data-theme="dark"] textarea.input::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+[data-theme="dark"] .btn-outline {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+[data-theme="dark"] .btn-outline:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand-light);
+  background: rgba(18, 184, 184, 0.1);
+}
+
+[data-theme="dark"] .btn-outline svg {
+  color: currentColor;
+}
+
+[data-theme="dark"] .btn-outline:disabled {
+  opacity: 0.45;
+  color: var(--muted);
+}
+
+/* Support page — dark theme */
+[data-theme="dark"] .support-quick-link {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .support-quick-link:hover {
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .support-faq-item {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .support-faq-item summary {
+  color: var(--text);
+}
+
+[data-theme="dark"] .support-category-chip {
+  background: var(--surface);
+  color: var(--text);
+}
+
+[data-theme="dark"] .support-category-chip.active {
+  background: rgba(18, 184, 184, 0.15);
+  color: var(--brand-light);
+}
+
+[data-theme="dark"] .support-ticket-item strong {
+  color: var(--text);
+}
+
+[data-theme="dark"] .support-helpline h3 {
+  color: var(--text);
+}
+
+[data-theme="dark"] .support-toast {
+  background: rgba(74, 222, 128, 0.12);
+  border-color: rgba(74, 222, 128, 0.3);
+  color: #86efac;
+}
+
+[data-theme="dark"] .support-chat-messages {
+  background: linear-gradient(180deg, var(--muted-bg) 0%, var(--bg) 100%);
+}
+
+[data-theme="dark"] .support-chat-input {
+  background: var(--surface);
+}
+
+[data-theme="dark"] .chat-agent {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .support-panel {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+}
+
+/* Live train catalog — search & pagination */
+[data-theme="dark"] .live-catalog-search svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .live-catalog-pagination {
+  color: var(--muted);
+}
+
+[data-theme="dark"] .live-catalog-pagination span {
+  color: var(--text);
+}
+
+[data-theme="dark"] .live-catalog-item:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .live-catalog-item.is-active {
+  background: rgba(18, 184, 184, 0.1);
+}
+
+/* Home search card — dark theme */
+[data-theme="dark"] .home-search-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 4px solid var(--brand);
+}
+
+[data-theme="dark"] .home-search-card h2 {
+  color: var(--text);
+}
+
+[data-theme="dark"] .home-swap-btn,
+[data-theme="dark"] .recent-chip {
+  background: var(--muted-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .home-swap-btn:hover {
+  background: rgba(18, 184, 184, 0.12);
+  color: var(--brand-light);
 }

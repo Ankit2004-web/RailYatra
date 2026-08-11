@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Percent, Tag } from 'lucide-react';
+import { Sparkles, Percent, Tag, RefreshCw } from 'lucide-react';
 import OffersSection from '../components/OffersSection';
-import { OFFERS } from '../data/offers';
+import { useDailyOffers } from '../hooks/useDailyOffers';
 
 export default function OffersPage() {
   const navigate = useNavigate();
+  const { totalActive, refreshedLabel, loading } = useDailyOffers();
 
   return (
     <div className="offers-page page-shell">
@@ -16,7 +17,14 @@ export default function OffersPage() {
           <h1 className="page-hero-title">Offers &amp; Deals</h1>
           <p className="offers-hero-subtitle page-hero-subtitle">
             Save on train bookings with coupon codes, bank rewards, and UPI cashback.
+            Deals refresh automatically every day — no manual updates needed.
           </p>
+          {refreshedLabel && (
+            <p className="offers-hero-refresh">
+              <RefreshCw size={14} aria-hidden="true" />
+              Refreshed for {refreshedLabel}
+            </p>
+          )}
           <div className="offers-hero-stats">
             <div className="offers-stat-card">
               <Percent size={18} aria-hidden="true" />
@@ -24,7 +32,9 @@ export default function OffersPage() {
             </div>
             <div className="offers-stat-card">
               <Tag size={18} aria-hidden="true" />
-              <span><strong>{OFFERS.length}</strong> active offers available</span>
+              <span>
+                <strong>{loading ? '…' : totalActive}</strong> active offers available
+              </span>
             </div>
           </div>
         </div>

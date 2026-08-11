@@ -292,7 +292,7 @@
   padding: 12px 16px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: white;
+  background: var(--surface);
   font-weight: 600;
   font-size: 0.875rem;
   color: var(--text);
@@ -321,7 +321,7 @@
 .filter-drawer {
   width: 100%;
   max-height: 85vh;
-  background: white;
+  background: var(--surface);
   border-radius: 16px 16px 0 0;
   display: flex;
   flex-direction: column;
@@ -632,8 +632,8 @@
 }
 
 .run-day.inactive {
-  background: #ffffff;
-  color: #64748b;
+  background: #e2e8f0;
+  color: #94a3b8;
   border-color: #cbd5e1;
 }
 
@@ -642,6 +642,25 @@
   color: #cbd5e1;
   border-color: #e2e8f0;
   border-style: dashed;
+}
+
+[data-theme="dark"] .run-day.active {
+  background: var(--brand);
+  color: #ffffff;
+  border-color: #14d4d4;
+  box-shadow: 0 2px 10px rgba(18, 184, 184, 0.35);
+}
+
+[data-theme="dark"] .run-day.inactive {
+  background: rgba(148, 163, 184, 0.12);
+  color: #64748b;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+[data-theme="dark"] .run-day.unknown {
+  background: rgba(148, 163, 184, 0.08);
+  color: #475569;
+  border-color: rgba(148, 163, 184, 0.2);
 }
 
 .train-class-row {
@@ -662,7 +681,7 @@
   padding: 10px 12px;
   border-radius: 10px;
   border: 1.5px solid var(--border);
-  background: white;
+  background: var(--surface);
   cursor: pointer;
   text-align: left;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
@@ -784,7 +803,7 @@
   height: 36px;
   border-radius: 50%;
   border: 1px solid var(--border);
-  background: white;
+  background: var(--surface);
   color: var(--text);
   font-weight: 600;
   font-size: 0.8125rem;
@@ -1043,7 +1062,7 @@
   padding: 6px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
+  background: var(--surface);
   font-weight: 700;
   font-size: 0.8125rem;
   cursor: pointer;
@@ -1073,7 +1092,7 @@
   padding: 8px 6px;
   border: 2px solid var(--coach-color, #64748b);
   border-radius: 8px;
-  background: white;
+  background: var(--surface);
   text-align: center;
   cursor: pointer;
 }
@@ -1133,7 +1152,7 @@
   padding: 8px;
   border: 1px dashed #cbd5e1;
   border-radius: 8px;
-  background: white;
+  background: var(--surface);
 }
 .irctc-comp-main {
   display: grid;

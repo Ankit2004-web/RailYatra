@@ -197,7 +197,9 @@ function enrichClassesFromRakeCoaches(classes, rakeCoaches, { includeSeats = tru
         return {
             ...cls,
             totalSeats: totalFromRake || cls.totalSeats,
-            availableSeats: totalFromRake || cls.availableSeats,
+            availableSeats: cls.availableSeats != null
+                ? cls.availableSeats
+                : (totalFromRake || cls.totalSeats),
             coachCount: classCoaches.length,
             coaches: classCoaches.map((c) => ({
                 coachNumber: c.coachNumber,
