@@ -536,8 +536,22 @@
   max-height: calc(100vh - 220px);
   display: flex;
   flex-direction: column;
-  position: sticky;
-  top: 88px;
+}
+
+.live-train-page-footer {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  clear: both;
+}
+
+.live-train-page-footer p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 .live-catalog-head {
@@ -686,11 +700,7 @@
   gap: 0.75rem;
   margin-top: 0.75rem;
   font-size: 0.8125rem;
-}
-
-.live-catalog-foot {
-  margin: 0.75rem 0 0;
-  font-size: 0.75rem;
+  flex-shrink: 0;
 }
 
 .live-catalog-empty,
@@ -720,7 +730,6 @@
   }
 
   .live-catalog {
-    position: static;
     max-height: 420px;
   }
 }

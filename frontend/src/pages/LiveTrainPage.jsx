@@ -246,9 +246,12 @@ export default function LiveTrainPage() {
           </div>
         </div>
 
-        <p className="muted" style={{ marginTop: '1rem' }}>
-          Need PNR details? <Link to="/pnr">Check PNR status</Link>
-        </p>
+        <footer className="live-train-page-footer">
+          <p className="muted">Routes use verified RailYatra catalog stations only.</p>
+          <p className="muted">
+            Need PNR details? <Link to="/pnr">Check PNR status</Link>
+          </p>
+        </footer>
       </div>
     </div>
   );

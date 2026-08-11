@@ -20,7 +20,7 @@ export default function LiveTrainCatalog({
         <div>
           <h2>All Trains</h2>
           <p className="muted">
-            {totalItems.toLocaleString('en-IN')} trains · RailYatra stations only
+            {totalItems.toLocaleString('en-IN')} trains · Tracking for {journeyDate}
           </p>
         </div>
         <span className="live-catalog-badge">
@@ -120,10 +120,6 @@ export default function LiveTrainCatalog({
           </button>
         </nav>
       )}
-
-      <p className="muted live-catalog-foot">
-        Tracking for {journeyDate}. Routes use RailYatra catalog stations only.
-      </p>
     </aside>
   );
 }
