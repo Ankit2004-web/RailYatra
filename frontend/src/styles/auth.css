@@ -354,16 +354,29 @@
   opacity: 0.7;
 }
 
-.google-signin-host {
-  display: flex;
-  justify-content: center;
+.google-signin-custom-wrap {
+  position: relative;
   width: 100%;
-  min-height: 44px;
 }
 
-.google-signin-host > div,
-.google-signin-host iframe {
-  max-width: 100%;
+.google-signin-custom {
+  width: 100%;
+}
+
+.google-signin-hit {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  z-index: 2;
+}
+
+.google-signin-hit > div,
+.google-signin-hit iframe {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 40px;
 }
 
 @media (max-width: 900px) {

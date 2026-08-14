@@ -812,8 +812,10 @@ html:has(.auth-shell--enterprise) #root {
   margin-top: 4px;
 }
 
-.auth-shell--enterprise .google-signin-host {
-  display: flex;
-  justify-content: center;
+.auth-shell--enterprise .google-signin-custom-wrap {
   width: 100%;
+}
+
+.auth-shell--enterprise .google-signin-custom.auth-register-btn {
+  min-height: 40px;
 }
