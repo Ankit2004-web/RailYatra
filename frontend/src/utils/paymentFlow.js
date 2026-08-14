@@ -8,7 +8,24 @@ function resolveBooking(booking) {
   return null;
 }
 
-export async function completeBookingPayment(booking, user, trainMeta = {}, { idempotencyKey, paymentMethod } = {}) {
+function indianMobile(value) {
+  const digits = String(value || '').replace(/\D/g, '').slice(-10);
+  return /^[6-9]\d{9}$/.test(digits) ? digits : '';
+}
+
+function checkoutContact(user, booking, extraPassengers = []) {
+  const fromPassengers = [
+    ...(extraPassengers || []),
+    ...(booking?.passengers || [])
+  ]
+    .map((p) => indianMobile(p?.mobile || p?.phone))
+    .find(Boolean);
+  if (fromPassengers) return fromPassengers;
+  if (user?.placeholderPhone) return '';
+  return indianMobile(user?.phone);
+}
+
+export async function completeBookingPayment(booking, user, trainMeta = {}, { idempotencyKey, paymentMethod, passengers } = {}) {
   const paidBooking = resolveBooking(booking);
   if (!paidBooking?.id && !paidBooking?._id) {
     throw new Error('Booking was created but payment could not start. Open My Bookings to complete payment.');
@@ -31,7 +48,7 @@ export async function completeBookingPayment(booking, user, trainMeta = {}, { id
     prefill: {
       name: user?.name || '',
       email: user?.email || '',
-      contact: user?.phone || '',
+      contact: checkoutContact(user, paidBooking, passengers),
       method: paymentMethod || undefined
     },
     notes: {

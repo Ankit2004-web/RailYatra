@@ -6,15 +6,33 @@ const { normalizeEmail } = require('../utils/email');
 
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '').slice(-10);
 
+const syntheticPhoneForSeed = (seed, attempt = 0) => {
+    const hash = crypto.createHash('sha256').update(`${String(seed || '').toLowerCase()}:${attempt}`).digest('hex');
+    const digits = hash.replace(/[^0-9]/g, '').slice(0, 9);
+    return `8${digits.padStart(9, '0')}`;
+};
+
+const isPlaceholderPhone = (phone, email) => {
+    const normalized = normalizePhone(phone);
+    if (normalized.length !== 10 || !email) return false;
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+        if (syntheticPhoneForSeed(email, attempt) === normalized) return true;
+    }
+    return false;
+};
+
 const toSafeUser = (user) => {
     if (!user) return null;
     const { password, ...safe } = user;
     const role = resolveRole(safe);
+    const placeholderPhone = isPlaceholderPhone(safe.phone, safe.email);
     return {
         ...safe,
         role,
         isAdmin: role === 'admin' || !!safe.isAdmin,
-        isBlocked: !!safe.isBlocked
+        isBlocked: !!safe.isBlocked,
+        placeholderPhone,
+        phone: placeholderPhone ? '' : safe.phone
     };
 };
 
@@ -84,9 +102,7 @@ const findById = async (id) => {
 
 const allocateSyntheticPhone = async (seed) => {
     for (let attempt = 0; attempt < 8; attempt += 1) {
-        const hash = crypto.createHash('sha256').update(`${String(seed || '').toLowerCase()}:${attempt}`).digest('hex');
-        const digits = hash.replace(/[^0-9]/g, '').slice(0, 9);
-        const candidate = `8${digits.padStart(9, '0')}`;
+        const candidate = syntheticPhoneForSeed(seed, attempt);
         const existing = await findByPhone(candidate);
         if (!existing) return candidate;
     }

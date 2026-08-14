@@ -188,7 +188,7 @@ function BookingContent() {
   const payAndConfirm = async (booking) => completeBookingPayment(booking, user, {
     trainNumber: train.trainNumber,
     description: `${train.trainName} (${train.trainNumber}) · ${classCode}`
-  }, { idempotencyKey: bookingIdempotencyKey.current, paymentMethod });
+  }, { idempotencyKey: bookingIdempotencyKey.current, paymentMethod, passengers });
 
   const submit = async (e) => {
     e.preventDefault();

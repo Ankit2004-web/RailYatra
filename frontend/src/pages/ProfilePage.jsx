@@ -330,6 +330,11 @@ function ProfileContent() {
                       required
                     />
                   </div>
+                  {user?.placeholderPhone && (
+                    <p className="muted" style={{ marginTop: 6 }}>
+                      Google Sign-In does not share your mobile. Add your real number so Razorpay can show it at checkout.
+                    </p>
+                  )}
                 </div>
               </div>
 
