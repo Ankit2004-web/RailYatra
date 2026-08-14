@@ -12,14 +12,16 @@ const calculateBookingFare = ({
     if (quotaCheck.error) return quotaCheck;
 
     let classPrice = Number(basePrice);
-    if (bookingType === 'Tatkal') {
+    const tatkal = bookingType === 'Tatkal' || quota === 'Tatkal' || quota === 'PremiumTatkal';
+    if (tatkal) {
         classPrice = getTatkalPrice(classPrice);
     }
 
     const { totalPrice, pricePerTicket } = calculateTotalFare({
         basePrice: classPrice,
         quota,
-        passengers
+        passengers,
+        bookingType
     });
 
     return { totalPrice, pricePerTicket };

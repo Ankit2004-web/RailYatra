@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS Users (
     role TEXT NOT NULL DEFAULT 'passenger',
     mfaEnabled INTEGER NOT NULL DEFAULT 0,
     mfaSecret TEXT,
+    aadhaarVerified INTEGER NOT NULL DEFAULT 0,
+    aadhaarVerifiedAt TEXT,
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -93,6 +95,7 @@ CREATE TABLE IF NOT EXISTS Bookings (
     fromStationId INTEGER,
     toStationId INTEGER,
     paymentHoldExpiresAt TEXT,
+    chartPrepared INTEGER NOT NULL DEFAULT 0,
     bookingDate TEXT NOT NULL DEFAULT (datetime('now')),
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -110,6 +113,8 @@ CREATE TABLE IF NOT EXISTS Passengers (
     email TEXT,
     idType TEXT,
     idNumber TEXT,
+    idToken TEXT,
+    idFingerprint TEXT,
     foodPreference TEXT,
     insuranceOptIn INTEGER NOT NULL DEFAULT 0,
     isSeniorCitizen INTEGER NOT NULL DEFAULT 0,
@@ -200,6 +205,10 @@ CREATE TABLE IF NOT EXISTS SavedPassengers (
     age INTEGER NOT NULL,
     gender TEXT NOT NULL,
     berthPreference TEXT,
+    idType TEXT,
+    idNumber TEXT,
+    idToken TEXT,
+    idFingerprint TEXT,
     createdAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -323,3 +332,46 @@ CREATE TABLE IF NOT EXISTS OAuthAccounts (
     createdAt TEXT NOT NULL DEFAULT (datetime('now')),
     UNIQUE (provider, providerUserId)
 );
+
+CREATE TABLE IF NOT EXISTS IdentityVault (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT NOT NULL UNIQUE,
+    userId INTEGER,
+    idType TEXT NOT NULL,
+    fingerprint TEXT NOT NULL,
+    last4 TEXT,
+    maskedNumber TEXT NOT NULL,
+    ciphertext TEXT,
+    iv TEXT,
+    authTag TEXT,
+    purpose TEXT NOT NULL,
+    saveForLater INTEGER NOT NULL DEFAULT 0,
+    consentVersion TEXT,
+    expiresAt TEXT,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS IdentityConsents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    purpose TEXT NOT NULL,
+    documentType TEXT,
+    granted INTEGER NOT NULL DEFAULT 1,
+    noticeVersion TEXT,
+    grantedAt TEXT NOT NULL DEFAULT (datetime('now')),
+    withdrawnAt TEXT
+);
+
+CREATE TABLE IF NOT EXISTS IdentityBreachIncidents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    summary TEXT NOT NULL,
+    detectedAt TEXT NOT NULL,
+    reportedBy INTEGER,
+    userCount INTEGER NOT NULL DEFAULT 0,
+    usersNotified INTEGER NOT NULL DEFAULT 0,
+    usersNotifiedAt TEXT,
+    dpbiDeadline TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    createdAt TEXT NOT NULL DEFAULT (datetime('now'))
+);
+

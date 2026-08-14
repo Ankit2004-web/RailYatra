@@ -146,7 +146,7 @@ router.get('/:id/seats', async (req, res) => {
             trainId: Number(req.params.id),
             classCode,
             journeyDate,
-            tatkalEligible: isTatkalEligible(journeyDate),
+            tatkalEligible: isTatkalEligible(journeyDate, classCode, train.departureTime),
             coachCount: coaches.length || seatMap.coaches?.length || 0,
             coaches,
             seats

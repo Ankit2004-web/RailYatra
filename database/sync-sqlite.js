@@ -69,7 +69,18 @@ const COLUMN_PATCHES = {
         ['paymentBreakdown', 'TEXT'],
         ['fromStationId', 'INTEGER'],
         ['toStationId', 'INTEGER'],
-        ['paymentHoldExpiresAt', 'TEXT']
+        ['paymentHoldExpiresAt', 'TEXT'],
+        ['chartPrepared', 'INTEGER NOT NULL DEFAULT 0']
+    ],
+    Users: [
+        ['aadhaarVerified', 'INTEGER NOT NULL DEFAULT 0'],
+        ['aadhaarVerifiedAt', 'TEXT']
+    ],
+    SavedPassengers: [
+        ['idType', 'TEXT'],
+        ['idNumber', 'TEXT'],
+        ['idToken', 'TEXT'],
+        ['idFingerprint', 'TEXT']
     ],
     Passengers: [
         ['nationality', "TEXT DEFAULT 'Indian'"],
@@ -77,6 +88,8 @@ const COLUMN_PATCHES = {
         ['email', 'TEXT'],
         ['idType', 'TEXT'],
         ['idNumber', 'TEXT'],
+        ['idToken', 'TEXT'],
+        ['idFingerprint', 'TEXT'],
         ['foodPreference', 'TEXT'],
         ['insuranceOptIn', 'INTEGER NOT NULL DEFAULT 0'],
         ['isSeniorCitizen', 'INTEGER NOT NULL DEFAULT 0'],
@@ -238,6 +251,16 @@ async function syncSqliteDatabase() {
         await ensureOAuthAccountsTable();
         await ensureIndexes();
         await repairTrainStopsTable();
+
+        try {
+            const identityVaultRepository = require('../backend/repositories/identityVaultRepository');
+            const scrubbed = await identityVaultRepository.scrubPlaintextPassengers();
+            if (scrubbed) {
+                console.log(`Identity vault: moved ${scrubbed} plaintext ID number(s) out of Passengers.`);
+            }
+        } catch (scrubErr) {
+            console.warn('Identity plaintext scrub skipped:', scrubErr.message);
+        }
 
         console.log('Database schema is up to date.');
     } catch (error) {

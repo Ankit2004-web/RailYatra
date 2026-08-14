@@ -589,6 +589,8 @@ a:hover { text-decoration: underline; }
 .alert-error { background: var(--error-bg); color: var(--error-text); border: 1px solid var(--error-border); }
 .alert-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
 .alert-warning { background: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning-border); }
+.irctc-rules-banner ul { margin: 8px 0 0; padding-left: 18px; }
+.irctc-rules-banner li { margin: 4px 0; }
 .status { padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
 .status-confirmed { background: var(--success-bg); color: var(--success-text); }
 .status-pending { background: var(--warning-bg); color: var(--warning-text); }

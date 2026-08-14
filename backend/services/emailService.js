@@ -130,6 +130,7 @@ module.exports = {
     isEmailConfigured,
     isSmtpConfigured,
     isWeb3FormsConfigured,
+    deliverEmail,
     sendPasswordResetEmail,
     sendBookingConfirmationEmail,
     sendContactEmail

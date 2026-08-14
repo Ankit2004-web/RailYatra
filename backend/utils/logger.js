@@ -12,6 +12,21 @@ const logger = winston.createLogger({
     format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.errors({ stack: true }),
+        winston.format((info) => {
+            const { redactIdentityText, maskIdentity } = require('./identityPrivacy');
+            if (typeof info.message === 'string') {
+                info.message = redactIdentityText(info.message);
+            }
+            for (const key of Object.keys(info)) {
+                const value = info[key];
+                if (typeof value === 'string' && /idNumber|aadhaar|aadhar|panNumber|passport|voter/i.test(key)) {
+                    info[key] = maskIdentity(key, value);
+                } else if (typeof value === 'string') {
+                    info[key] = redactIdentityText(value);
+                }
+            }
+            return info;
+        })(),
         winston.format.json()
     ),
     defaultMeta: { service: 'railway-api' },

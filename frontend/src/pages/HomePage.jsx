@@ -196,7 +196,7 @@ export default function HomePage() {
                   required
                 />
               </div>
-              <p className="muted home-date-hint">Book up to 60 days in advance. Only trains running on the selected day are shown.</p>
+              <p className="muted home-date-hint">Book up to 60 days in advance. Opening day (day 60) from 8:00 AM IST is for Aadhaar-verified users only. Only trains running on the selected day are shown.</p>
               <div className="field">
                 <label htmlFor="class">Class</label>
                 <select id="class" className="input" value={classCode} onChange={(e) => setClassCode(e.target.value)}>

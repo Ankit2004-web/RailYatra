@@ -235,8 +235,8 @@ function BookingsContent() {
     try {
       const preview = await api.get(`/bookings/${id}/refund-preview`);
       const refundText = preview.refundAmount > 0
-        ? `Estimated refund: ₹${Number(preview.refundAmount).toLocaleString('en-IN')} (${preview.refundPercent}%)`
-        : 'No refund applicable for this cancellation.';
+        ? `Estimated refund: ₹${Number(preview.refundAmount).toLocaleString('en-IN')} (${preview.refundPercent}%)${preview.rule ? `\n${preview.rule}` : ''}`
+        : `No refund applicable for this cancellation.${preview.rule ? `\n${preview.rule}` : ''}`;
       if (!window.confirm(`Cancel this booking?\n\n${refundText}`)) return;
 
       const result = await api.put(`/bookings/${id}`, { status: 'Cancelled' });

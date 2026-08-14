@@ -17,6 +17,7 @@ const logger = require('../utils/logger');
 const auditRepository = require('../repositories/auditRepository');
 const { resolveRole } = require('../constants/roles');
 const { normalizeEmail } = require('../utils/email');
+const otpService = require('../services/otpService');
 
 function syntheticPhoneForEmail(email, attempt = 0) {
     const hash = crypto.createHash('sha256').update(`${String(email).toLowerCase()}:${attempt}`).digest('hex');
@@ -361,6 +362,60 @@ router.put('/change-password', auth, changePasswordRules, validate, async (req, 
     } catch (err) {
         logger.error('Change password failed', { error: err.message });
         res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.post('/aadhaar/send-otp', auth, authLimiter, async (req, res) => {
+    try {
+        const user = await userRepository.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+        const phone = userRepository.normalizePhone(user.phone);
+        if (phone.length !== 10) {
+            return res.status(400).json({ msg: 'Add a valid 10-digit mobile number on Profile before Aadhaar OTP.' });
+        }
+        const result = await otpService.createOtp(phone);
+        if (result.error) {
+            return res.status(400).json({ msg: result.error });
+        }
+        logger.info('Aadhaar OTP sent', { userId: req.user.id });
+        res.json({
+            otpId: result.otpId,
+            phone: `******${phone.slice(-4)}`,
+            expiresInSec: result.expiresInSec,
+            msg: 'Aadhaar OTP sent to your registered mobile number',
+            ...(result.devOtp ? { devOtp: result.devOtp } : {})
+        });
+    } catch (err) {
+        logger.error('Aadhaar OTP send failed', { error: err.message });
+        res.status(500).json({ msg: 'Could not send Aadhaar OTP' });
+    }
+});
+
+router.post('/aadhaar/verify', auth, authLimiter, async (req, res) => {
+    try {
+        const { otpId, otp } = req.body || {};
+        if (!otpId || !otp) {
+            return res.status(400).json({ msg: 'OTP id and code are required' });
+        }
+        const user = await userRepository.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+        const ok = otpService.verifyOtp(otpId, otp, user.phone);
+        if (!ok) {
+            return res.status(400).json({ msg: 'Invalid or expired Aadhaar OTP' });
+        }
+        const updated = await userRepository.setAadhaarVerified(req.user.id, true);
+        logger.info('Aadhaar verified', { userId: req.user.id });
+        res.json({
+            msg: 'Aadhaar authentication successful',
+            user: updated
+        });
+    } catch (err) {
+        logger.error('Aadhaar verify failed', { error: err.message });
+        res.status(500).json({ msg: 'Could not verify Aadhaar OTP' });
     }
 });
 

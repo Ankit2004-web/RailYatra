@@ -413,6 +413,72 @@ BEGIN
 END
 GO
 
+IF COL_LENGTH('dbo.Passengers', 'idToken') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD idToken NVARCHAR(80) NULL;
+END
+GO
+
+IF COL_LENGTH('dbo.Passengers', 'idFingerprint') IS NULL
+BEGIN
+    ALTER TABLE dbo.Passengers ADD idFingerprint NVARCHAR(64) NULL;
+END
+GO
+
+IF OBJECT_ID('dbo.IdentityVault', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.IdentityVault (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        token NVARCHAR(80) NOT NULL UNIQUE,
+        userId INT NULL,
+        idType NVARCHAR(30) NOT NULL,
+        fingerprint NVARCHAR(64) NOT NULL,
+        last4 NVARCHAR(8) NULL,
+        maskedNumber NVARCHAR(40) NOT NULL,
+        ciphertext NVARCHAR(MAX) NULL,
+        iv NVARCHAR(64) NULL,
+        authTag NVARCHAR(64) NULL,
+        purpose NVARCHAR(40) NOT NULL,
+        saveForLater BIT NOT NULL DEFAULT 0,
+        consentVersion NVARCHAR(20) NULL,
+        expiresAt DATETIME2 NULL,
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.IdentityConsents', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.IdentityConsents (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        userId INT NOT NULL,
+        purpose NVARCHAR(40) NOT NULL,
+        documentType NVARCHAR(30) NULL,
+        granted BIT NOT NULL DEFAULT 1,
+        noticeVersion NVARCHAR(20) NULL,
+        grantedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        withdrawnAt DATETIME2 NULL
+    );
+END
+GO
+
+IF OBJECT_ID('dbo.IdentityBreachIncidents', 'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.IdentityBreachIncidents (
+        id INT IDENTITY(1,1) PRIMARY KEY,
+        summary NVARCHAR(2000) NOT NULL,
+        detectedAt DATETIME2 NOT NULL,
+        reportedBy INT NULL,
+        userCount INT NOT NULL DEFAULT 0,
+        usersNotified INT NOT NULL DEFAULT 0,
+        usersNotifiedAt DATETIME2 NULL,
+        dpbiDeadline DATETIME2 NULL,
+        status NVARCHAR(40) NOT NULL DEFAULT 'open',
+        createdAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+END
+GO
+
 IF COL_LENGTH('dbo.Passengers', 'foodPreference') IS NULL
 BEGIN
     ALTER TABLE dbo.Passengers ADD foodPreference NVARCHAR(30) NULL;
@@ -545,6 +611,18 @@ GO
 IF COL_LENGTH('dbo.Bookings', 'chartPrepared') IS NULL
 BEGIN
     ALTER TABLE dbo.Bookings ADD chartPrepared BIT NOT NULL DEFAULT 0;
+END
+GO
+
+IF COL_LENGTH('dbo.Users', 'aadhaarVerified') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD aadhaarVerified BIT NOT NULL DEFAULT 0;
+END
+GO
+
+IF COL_LENGTH('dbo.Users', 'aadhaarVerifiedAt') IS NULL
+BEGIN
+    ALTER TABLE dbo.Users ADD aadhaarVerifiedAt DATETIME2 NULL;
 END
 GO
 

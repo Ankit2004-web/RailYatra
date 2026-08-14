@@ -13,7 +13,7 @@ const bookingRules = [
     body('joinRac').optional().isBoolean().withMessage('joinRac must be boolean'),
     body('seatNumbers').optional().isArray().withMessage('seatNumbers must be an array'),
     body('seatNumbers.*').optional().isInt({ min: 1 }).withMessage('Invalid seat number'),
-    body('passengers').isArray({ min: 1 }).withMessage('At least one passenger is required'),
+    body('passengers').isArray({ min: 1, max: 6 }).withMessage('A ticket can have between 1 and 6 passengers'),
     body('passengers.*.name').trim().notEmpty().withMessage('Passenger name is required'),
     body('passengers.*.age').isInt({ min: 1, max: 120 }).withMessage('Passenger age must be between 1 and 120'),
     body('passengers.*.gender').isIn(['Male', 'Female', 'Other']).withMessage('Invalid gender value'),
@@ -25,11 +25,16 @@ const bookingRules = [
     body('fromStationCode').optional().trim().notEmpty().withMessage('fromStationCode cannot be empty'),
     body('toStationCode').optional().trim().notEmpty().withMessage('toStationCode cannot be empty'),
     body('captchaId').notEmpty().withMessage('Captcha is required'),
-    body('captchaAnswer').notEmpty().withMessage('Captcha answer is required')
+    body('captchaAnswer').notEmpty().withMessage('Captcha answer is required'),
+    body('aadhaarOtpId').optional({ values: 'falsy' }).isString().withMessage('Invalid Aadhaar OTP id'),
+    body('aadhaarOtp').optional({ values: 'falsy' }).isString().withMessage('Invalid Aadhaar OTP'),
+    body('saveIdentity').optional().isBoolean().withMessage('saveIdentity must be boolean'),
+    body('identityConsent.granted').optional().isBoolean()
 ];
 
 const updateBookingRules = [
-    body('status').isIn(['Confirmed', 'Cancelled']).withMessage('Status must be Confirmed or Cancelled')
+    body('status').isIn(['Confirmed', 'Cancelled']).withMessage('Status must be Confirmed or Cancelled'),
+    body('cause').optional({ values: 'falsy' }).isIn(['voluntary', 'train_cancelled', 'delay', 'diverted']).withMessage('Invalid refund cause')
 ];
 
 module.exports = { bookingRules, updateBookingRules };

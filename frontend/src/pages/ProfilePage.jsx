@@ -24,6 +24,190 @@ const THEME_OPTIONS = [
 
 const fileToDataUrl = (file) => compressImageForAvatar(file);
 
+function AadhaarVerifyCard({ user, refreshUser }) {
+  const [otpId, setOtpId] = useState('');
+  const [otp, setOtp] = useState('');
+  const [hint, setHint] = useState('');
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  const sendOtp = async () => {
+    setError('');
+    setHint('');
+    setSending(true);
+    try {
+      const data = await api.post('/auth/aadhaar/send-otp', {});
+      setOtpId(data.otpId);
+      setHint(data.msg || 'OTP sent to your registered mobile.');
+      if (data.devOtp) setOtp(data.devOtp);
+    } catch (err) {
+      setError(err.message || 'Could not send OTP');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const verifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setHint('');
+    setVerifying(true);
+    try {
+      const data = await api.post('/auth/aadhaar/verify', { otpId, otp });
+      await refreshUser();
+      setHint(data.msg || 'Aadhaar verified.');
+      setOtp('');
+    } catch (err) {
+      setError(err.message || 'Could not verify OTP');
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  return (
+    <section className="profile-card card">
+      <div className="profile-card-head">
+        <Shield size={20} aria-hidden="true" />
+        <div>
+          <h2>Aadhaar authentication</h2>
+          <p>
+            Simulated IRCTC-style Aadhaar OTP on your registered mobile. Required for opening-day ARP booking,
+            a 24-ticket monthly cap, and Tatkal.
+          </p>
+        </div>
+      </div>
+      {user?.aadhaarVerified ? (
+        <div className="alert alert-success">This account is Aadhaar-authenticated.</div>
+      ) : (
+        <form className="profile-form" onSubmit={verifyOtp}>
+          <p className="muted">
+            Add a real 10-digit mobile number above, then send OTP. This does not call UIDAI — it verifies
+            the number on your RailYatra profile.
+          </p>
+          <div className="profile-form-grid">
+            <div className="field">
+              <label htmlFor="aadhaar-otp">OTP</label>
+              <input
+                id="aadhaar-otp"
+                className="input"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="6-digit OTP"
+                required
+              />
+            </div>
+          </div>
+          {error && <div className="alert alert-error">{error}</div>}
+          {hint && <div className="alert alert-success">{hint}</div>}
+          <div className="booking-btn-row" style={{ gap: 10 }}>
+            <button type="button" className="btn btn-outline" onClick={sendOtp} disabled={sending}>
+              {sending ? 'Sending…' : otpId ? 'Resend OTP' : 'Send OTP'}
+            </button>
+            <button type="submit" className="btn btn-primary" disabled={verifying || !otpId}>
+              {verifying ? 'Verifying…' : 'Verify Aadhaar'}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  );
+}
+
+function IdentityVaultPanel() {
+  const [items, setItems] = useState([]);
+  const [notices, setNotices] = useState(null);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [vault, notice] = await Promise.all([
+        api.get('/identity/vault'),
+        api.get('/identity/notices')
+      ]);
+      setItems(Array.isArray(vault) ? vault : []);
+      setNotices(notice);
+    } catch (err) {
+      setError(err.message || 'Could not load identity vault');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const unlink = async (token) => {
+    setError('');
+    setMessage('');
+    try {
+      await api.del(`/identity/vault/${token}`);
+      setMessage('Identity unlinked.');
+      await load();
+    } catch (err) {
+      setError(err.message || 'Could not unlink identity');
+    }
+  };
+
+  const withdrawSaveConsent = async () => {
+    setError('');
+    try {
+      await api.del('/identity/consents/saved_passenger_id');
+      setMessage('Saved-ID consent withdrawn. Linked tokens were removed.');
+      await load();
+    } catch (err) {
+      setError(err.message || 'Could not withdraw consent');
+    }
+  };
+
+  return (
+    <section className="profile-card card">
+      <div className="profile-card-head">
+        <Shield size={20} aria-hidden="true" />
+        <div>
+          <h2>Identity vault</h2>
+          <p>Aadhaar and PAN are stored as encrypted tokens, never as plaintext. Unlink is one click.</p>
+        </div>
+      </div>
+      {notices?.rules?.aadhaar && <p className="muted">{notices.rules.aadhaar}</p>}
+      {loading ? (
+        <div className="page-loading-inline"><div className="spinner" aria-label="Loading identity vault" /></div>
+      ) : (
+        <>
+          {items.length === 0 ? (
+            <p className="muted">No saved identity tokens. IDs entered only for a ticket are not kept for later use unless you opted in.</p>
+          ) : (
+            <ul className="saved-passenger-list">
+              {items.map((item) => (
+                <li key={item.token} className="saved-passenger-item">
+                  <div>
+                    <strong>{item.idType}</strong>
+                    <span className="muted">{item.masked} · {item.purpose}</span>
+                  </div>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => unlink(item.token)}>
+                    Unlink
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <button type="button" className="btn btn-outline btn-sm" onClick={withdrawSaveConsent}>
+            Withdraw saved-ID consent
+          </button>
+        </>
+      )}
+      {error && <div className="alert alert-error">{error}</div>}
+      {message && <div className="alert alert-success">{message}</div>}
+    </section>
+  );
+}
+
 function ProfileContent() {
   const { user, refreshUser } = useAuth();
   const { theme, setTheme } = useTheme();
@@ -347,6 +531,9 @@ function ProfileContent() {
               </button>
             </form>
           </section>
+
+          <AadhaarVerifyCard user={user} refreshUser={refreshUser} />
+          <IdentityVaultPanel />
 
           <SavedPassengersPanel />
 

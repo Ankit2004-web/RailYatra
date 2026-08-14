@@ -16,12 +16,17 @@ const trainClassRepository = require('../repositories/trainClassRepository');
 const trainStopRepository = require('../repositories/trainStopRepository');
 const seatRepository = require('../repositories/seatRepository');
 const stationRepository = require('../repositories/stationRepository');
-const { isTatkalEligible, getTatkalPrice } = require('../utils/tatkal');
 const { calculateBookingFare } = require('../utils/fare');
 const { calculatePaymentBreakdown } = require('../utils/paymentBreakdown');
 const { calculateClassFare } = require('../utils/irctcFareTable2025');
 const runningDayService = require('../services/runningDayService');
 const { validateAdvanceBookingDate } = require('../utils/bookingPolicy');
+const { evaluateBookingRules, describeBookingWindows } = require('../utils/irctcRules');
+const { looksLikePlainIdentity } = require('../utils/identityPrivacy');
+const identityVaultRepository = require('../repositories/identityVaultRepository');
+const identityConsentRepository = require('../repositories/identityConsentRepository');
+const otpService = require('../services/otpService');
+const userRepository = require('../repositories/userRepository');
 const {
     calculateMealTotal,
     normalizePassengerFoodPreferences,
@@ -91,6 +96,25 @@ router.get('/all', auth, admin, async (req, res) => {
     try {
         const bookings = await bookingRepository.findAll();
         res.json(bookings);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ msg: 'Server error' });
+    }
+});
+
+router.get('/rules', auth, async (req, res) => {
+    try {
+        const user = await userRepository.findById(req.user.id);
+        const monthlyTicketCount = await bookingRepository.countMonthlyTickets(req.user.id);
+        const snapshot = describeBookingWindows({
+            journeyDate: req.query.journeyDate,
+            classCode: req.query.classCode,
+            departureTime: req.query.departureTime,
+            bookingType: req.query.bookingType || 'General',
+            user,
+            monthlyTicketCount
+        });
+        res.json(snapshot);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ msg: 'Server error' });
@@ -203,7 +227,11 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
         fromStationId,
         toStationId,
         fromStationCode,
-        toStationCode
+        toStationCode,
+        aadhaarOtpId,
+        aadhaarOtp,
+        identityConsent,
+        saveIdentity
     } = req.body;
 
     try {
@@ -237,8 +265,10 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
         const mealsAvailable = trainProvidesMeals(train.trainName, train.trainTypeCode, classCode);
         const normalizedPassengers = normalizePassengerFoodPreferences(passengers, mealsAvailable);
 
-        if (bookingType === 'Tatkal' && !isTatkalEligible(journeyDate)) {
-            return res.status(400).json({ msg: 'Tatkal booking is only available 1-2 days before journey' });
+        if (req.body.idImage || req.body.idDocument || req.body.aadhaarQr || req.body.passportScan) {
+            return res.status(400).json({
+                msg: 'Do not upload Aadhaar, PAN, passport, or Voter ID images or QR codes. Enter the number only, or use DigiLocker. Aadhaar QR codes contain unmasked data and are not accepted.'
+            });
         }
 
         if (!VALID_QUOTAS.includes(quota)) {
@@ -249,6 +279,64 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
         if (advanceCheck.error) {
             return res.status(advanceCheck.status).json({ msg: advanceCheck.error });
         }
+
+        const user = await userRepository.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        const isTatkal = bookingType === 'Tatkal' || quota === 'Tatkal' || quota === 'PremiumTatkal';
+        let aadhaarOtpOk = false;
+        if (isTatkal) {
+            aadhaarOtpOk = otpService.verifyOtp(aadhaarOtpId, aadhaarOtp, user.phone);
+            if (aadhaarOtpOk && !user.aadhaarVerified) {
+                await userRepository.setAadhaarVerified(user.id, true);
+                user.aadhaarVerified = true;
+            }
+        }
+
+        const monthlyTicketCount = await bookingRepository.countMonthlyTickets(req.user.id);
+        const rules = evaluateBookingRules({
+            journeyDate: advanceCheck.journeyDate,
+            bookingType,
+            quota,
+            classCode,
+            passengers: normalizedPassengers,
+            user,
+            departureTime: train.departureTime,
+            monthlyTicketCount,
+            aadhaarOtpOk,
+            now: new Date()
+        });
+        if (rules.error) {
+            return res.status(rules.status || 400).json({ msg: rules.error });
+        }
+
+        const hasPlainId = normalizedPassengers.some((p) => looksLikePlainIdentity(p.idType, p.idNumber));
+        const saveForLater = saveIdentity === true;
+        if (hasPlainId) {
+            const consentOk = identityConsent?.granted === true || identityConsent?.granted === 'true';
+            if (!consentOk) {
+                return res.status(400).json({
+                    msg: 'Provide explicit identity consent before sending Aadhaar, PAN, Passport, or Voter ID. Consent cannot be bundled into Terms & Conditions or pre-ticked.'
+                });
+            }
+            const purpose = isTatkal ? 'tatkal_verification' : 'journey_id_proof';
+            await identityConsentRepository.grant(req.user.id, {
+                purpose,
+                documentType: normalizedPassengers.find((p) => p.idType)?.idType || null
+            });
+            if (saveForLater) {
+                await identityConsentRepository.grant(req.user.id, { purpose: 'saved_passenger_id' });
+            }
+        }
+
+        const storedPassengers = hasPlainId
+            ? await identityVaultRepository.protectPassengerIdentities(req.user.id, normalizedPassengers, {
+                purpose: isTatkal ? 'tatkal_verification' : 'journey_id_proof',
+                saveForLater
+            })
+            : normalizedPassengers;
 
         const pool = await getPool();
         const runningDaysResult = await pool.request()
@@ -314,7 +402,7 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
         const result = await bookingRepository.createBooking({
             userId: req.user.id,
             trainId,
-            passengers: normalizedPassengers,
+            passengers: storedPassengers,
             journeyDate: advanceCheck.journeyDate,
             totalPrice: ticketFare,
             paymentBreakdown: JSON.stringify(paymentBreakdown),
@@ -390,7 +478,8 @@ router.put('/:id', auth, auditLogger('booking.update', 'booking'), updateBooking
             req.params.id,
             status,
             req.user.id,
-            req.user.isAdmin
+            req.user.isAdmin,
+            { cause: req.body.cause }
         );
 
         if (result.error) {

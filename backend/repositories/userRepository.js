@@ -31,6 +31,7 @@ const toSafeUser = (user) => {
         role,
         isAdmin: role === 'admin' || !!safe.isAdmin,
         isBlocked: !!safe.isBlocked,
+        aadhaarVerified: Boolean(safe.aadhaarVerified),
         placeholderPhone,
         phone: placeholderPhone ? '' : safe.phone
     };
@@ -284,6 +285,33 @@ const setMfaEnabled = async (userId, enabled) => {
         .query('UPDATE Users SET mfaEnabled = @enabled, updatedAt = SYSUTCDATETIME() WHERE id = @id');
 };
 
+const setAadhaarVerified = async (userId, verified = true) => {
+    const pool = await getPool();
+    if (verified) {
+        await pool.request()
+            .input('id', 'Int', userId)
+            .query(`
+                UPDATE Users
+                SET aadhaarVerified = 1,
+                    aadhaarVerifiedAt = SYSUTCDATETIME(),
+                    updatedAt = SYSUTCDATETIME()
+                WHERE id = @id
+            `);
+    } else {
+        await pool.request()
+            .input('id', 'Int', userId)
+            .query(`
+                UPDATE Users
+                SET aadhaarVerified = 0,
+                    aadhaarVerifiedAt = NULL,
+                    updatedAt = SYSUTCDATETIME()
+                WHERE id = @id
+            `);
+    }
+    const user = await findById(userId);
+    return user ? toSafeUser(user) : null;
+};
+
 module.exports = {
     findByEmail,
     findByPhone,
@@ -304,5 +332,6 @@ module.exports = {
     listDevices,
     setMfaSecret,
     setMfaEnabled,
+    setAadhaarVerified,
     allocateSyntheticPhone
 };

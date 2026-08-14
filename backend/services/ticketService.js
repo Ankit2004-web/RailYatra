@@ -130,6 +130,7 @@ const buildQrPayload = (booking) => {
     const { boarding, alighting } = getBoardingAlighting(booking);
     const { boardingTime, reachTime } = getJourneyTimes(booking);
     const appUrl = process.env.APP_URL || 'http://localhost:5000';
+    // Never embed Aadhaar, PAN, passport, or Voter ID in ticket QR codes.
     return JSON.stringify({
         app: 'RailYatra',
         pnr: booking.pnrNumber,

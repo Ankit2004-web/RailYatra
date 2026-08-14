@@ -76,6 +76,7 @@ app.use('/api/captcha', captchaRoutes);
 app.use('/api/fares', fareRoutes);
 app.use('/api/availability', availabilityRoutes);
 app.use('/api/passengers', passengerRoutes);
+app.use('/api/identity', require('./routes/identity'));
 app.use('/api/otp', otpRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/support', supportRoutes);
@@ -284,3 +285,4 @@ if (require.main === module) {
 }
 
 module.exports = app;
+module.exports.startServer = startServer;

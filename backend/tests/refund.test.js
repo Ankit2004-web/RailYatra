@@ -37,3 +37,42 @@ test('100% refund minus charge when cancelled 48h+ before journey', () => {
     assert.equal(result.refundPercent, 100);
     assert.equal(result.refundAmount, 960);
 });
+
+test('confirmed Tatkal cancelled by passenger has zero refund', () => {
+    const result = calculateRefund({
+        totalPrice: 1800,
+        journeyDate: '2030-01-01',
+        paymentStatus: 'Paid',
+        bookingStatus: 'Confirmed',
+        bookingType: 'Tatkal',
+        passengerCount: 1
+    });
+    assert.equal(result.refundAmount, 0);
+    assert.equal(result.refundPercent, 0);
+});
+
+test('Tatkal waitlist after chart refunds fare minus clerkage', () => {
+    const result = calculateRefund({
+        totalPrice: 1800,
+        journeyDate: '2030-01-01',
+        paymentStatus: 'Paid',
+        bookingStatus: 'Waitlisted',
+        bookingType: 'Tatkal',
+        passengerCount: 2
+    });
+    assert.equal(result.refundAmount, 1780);
+    assert.equal(result.cancellationCharge, 20);
+});
+
+test('train disruption grants full refund even for confirmed Tatkal', () => {
+    const result = calculateRefund({
+        totalPrice: 1800,
+        journeyDate: '2030-01-01',
+        paymentStatus: 'Paid',
+        bookingStatus: 'Confirmed',
+        bookingType: 'Tatkal',
+        cause: 'train_cancelled'
+    });
+    assert.equal(result.refundAmount, 1800);
+    assert.equal(result.refundPercent, 100);
+});

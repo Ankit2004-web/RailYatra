@@ -45,14 +45,15 @@ const validateQuota = (quota, passengers) => {
     return { ok: true };
 };
 
-const getPassengerFare = (basePrice, quota, passenger) => {
+const getPassengerFare = (basePrice, quota, passenger, bookingType = 'General') => {
     let fare = basePrice;
+    const tatkal = bookingType === 'Tatkal' || quota === 'Tatkal' || quota === 'PremiumTatkal';
 
-    if ((quota === 'SeniorCitizen' || passenger.isSeniorCitizen) && Number(passenger.age) >= SENIOR_AGE) {
+    if (!tatkal && (quota === 'SeniorCitizen' || passenger.isSeniorCitizen) && Number(passenger.age) >= SENIOR_AGE) {
         fare = Math.round(fare * (1 - SENIOR_DISCOUNT));
     }
 
-    if (quota === 'Divyang' || passenger.isDivyang) {
+    if (!tatkal && (quota === 'Divyang' || passenger.isDivyang)) {
         fare = Math.round(fare * (1 - DIVYANG_DISCOUNT));
     }
 
@@ -63,9 +64,9 @@ const getPassengerFare = (basePrice, quota, passenger) => {
     return fare;
 };
 
-const calculateTotalFare = ({ basePrice, quota, passengers }) => {
+const calculateTotalFare = ({ basePrice, quota, passengers, bookingType = 'General' }) => {
     const totalPrice = passengers.reduce(
-        (sum, passenger) => sum + getPassengerFare(basePrice, quota, passenger),
+        (sum, passenger) => sum + getPassengerFare(basePrice, quota, passenger, bookingType),
         0
     );
 

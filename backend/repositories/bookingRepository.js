@@ -2,7 +2,7 @@ const { withTransaction, getPool } = require('../../database/connection');
 const seatRepository = require('./seatRepository');
 const refundRepository = require('./refundRepository');
 const bookingSeatAllocationRepository = require('./bookingSeatAllocationRepository');
-const { calculateRefund } = require('../utils/refund');
+const { calculateRefund, refundCauseFromTrainStatus } = require('../utils/refund');
 const { parsePaymentBreakdown } = require('../utils/paymentBreakdown');
 const { sendBookingConfirmationEmail } = require('../services/emailService');
 const runningDayService = require('../services/runningDayService');
@@ -14,6 +14,7 @@ const {
     normalizePassengerName,
     normalizePassengerPhone
 } = require('../utils/bookingPolicy');
+const { toPublicPassenger } = require('../utils/identityPrivacy');
 
 async function notifyUser(userId, type, title, message, meta) {
     if (!userId) return;
@@ -58,7 +59,8 @@ const formatTrainSummary = (train) => ({
     departureTime: train.departureTime,
     arrivalTime: train.arrivalTime,
     journeyDate: train.journeyDate,
-    date: train.journeyDate
+    date: train.journeyDate,
+    runningStatus: train.runningStatus || 'Running'
 });
 
 const formatBooking = (booking, train, user, passengers) => {
@@ -154,7 +156,7 @@ const getPassengersByBookingIds = async (bookingIds) => {
     const result = await request.query(`SELECT * FROM Passengers WHERE bookingId IN (${placeholders})`);
     return result.recordset.reduce((acc, passenger) => {
         if (!acc[passenger.bookingId]) acc[passenger.bookingId] = [];
-        acc[passenger.bookingId].push(passenger);
+        acc[passenger.bookingId].push(toPublicPassenger(passenger));
         return acc;
     }, {});
 };
@@ -169,7 +171,8 @@ const mapBookingRow = (row, user, passengers) => formatBooking(
         destination: row.destination,
         departureTime: row.departureTime,
         arrivalTime: row.arrivalTime,
-        journeyDate: row.journeyDate
+        journeyDate: row.journeyDate,
+        runningStatus: row.runningStatus
     },
     user,
     passengers
@@ -200,7 +203,7 @@ const findByUserId = async (userId) => {
     const pool = await getPool();
     const bookings = await pool.request()
         .input('userId', 'Int', userId)
-        .query(`SELECT b.*, t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime,
+        .query(`SELECT b.*, t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime, t.runningStatus,
                 tc.className,
                 ${BOOKING_DETAIL_SELECT},
                 r.refundAmount, r.refundPercent, r.cancellationCharge, r.reason AS refundReason
@@ -219,7 +222,7 @@ const findByUserId = async (userId) => {
 const findAll = async () => {
     const pool = await getPool();
     const bookings = await pool.request().query(`SELECT b.*, 
-            t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime,
+            t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime, t.runningStatus,
             u.id AS user_id, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
             tc.className,
             ${BOOKING_DETAIL_SELECT},
@@ -245,7 +248,7 @@ const findById = async (id) => {
     const result = await pool.request()
         .input('id', 'Int', id)
         .query(`SELECT b.*, 
-                t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime,
+                t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime, t.runningStatus,
                 u.id AS user_id, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
                 tc.className,
                 ${BOOKING_DETAIL_SELECT},
@@ -377,9 +380,11 @@ const checkDuplicateBooking = async ({ userId, trainId, journeyDate, passengers 
             request.input('mobile', 'NVarChar', `%${mobile}`);
             identityChecks.push(`REPLACE(REPLACE(REPLACE(REPLACE(p.mobile, ' ', ''), '-', ''), '+', ''), '+91', '') LIKE @mobile`);
         }
-        if (idNumber) {
-            request.input('idNumber', 'NVarChar', idNumber);
-            identityChecks.push('p.idNumber = @idNumber');
+        const { hmacFingerprint } = require('../utils/identityPrivacy');
+        const fingerprint = passenger.idFingerprint || hmacFingerprint(passenger.idType, idNumber);
+        if (fingerprint) {
+            request.input('idFingerprint', 'NVarChar', fingerprint);
+            identityChecks.push('p.idFingerprint = @idFingerprint');
         }
 
         const duplicate = await request.query(`
@@ -540,8 +545,8 @@ const createBooking = async ({
             const passengerStatus = booking.status === 'RAC' ? 'RAC' : booking.status === 'Waitlisted' ? 'Waitlisted' : 'Confirmed';
             await query(
                 `INSERT INTO Passengers (bookingId, name, age, gender, berthPreference, passengerStatus,
-                 nationality, mobile, email, idType, idNumber, foodPreference, insuranceOptIn, isSeniorCitizen, isDivyang)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                 nationality, mobile, email, idType, idNumber, idToken, idFingerprint, foodPreference, insuranceOptIn, isSeniorCitizen, isDivyang)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     booking.id,
                     passenger.name,
@@ -554,6 +559,8 @@ const createBooking = async ({
                     passenger.email || null,
                     passenger.idType || null,
                     passenger.idNumber || null,
+                    passenger.idToken || null,
+                    passenger.idFingerprint || null,
                     passenger.foodPreference || null,
                     passenger.insuranceOptIn ? 1 : 0,
                     passenger.isSeniorCitizen || Number(passenger.age) >= 60 ? 1 : 0,
@@ -762,10 +769,29 @@ const getRefundPreview = async (id, userId, isAdmin) => {
         journeyDate: booking.journeyDate,
         paymentStatus: booking.paymentStatus,
         bookingStatus: booking.status,
-        passengerCount: booking.passengers.length
+        passengerCount: booking.passengers.length,
+        bookingType: booking.bookingType,
+        quota: booking.quota,
+        cause: refundCauseFromTrainStatus(booking.train?.runningStatus)
     });
 
     return { refund };
+};
+
+const countMonthlyTickets = async (userId, now = new Date()) => {
+    const { start, next } = monthRangeIso(now);
+    const pool = await getPool();
+    const result = await pool.request()
+        .input('userId', 'Int', userId)
+        .input('start', 'NVarChar', start)
+        .input('next', 'NVarChar', next)
+        .query(`SELECT COUNT(*) AS ticketCount
+            FROM Bookings
+            WHERE userId = @userId
+              AND ISNULL(status, '') <> 'Failed'
+              AND bookingDate >= @start
+              AND bookingDate < @next`);
+    return Number(result.recordset[0]?.ticketCount || 0);
 };
 
 const failBooking = async (bookingId) => {
@@ -934,14 +960,14 @@ const promoteRac = async (query, trainId, classCode, journeyDate) => {
     return booking.id;
 };
 
-const updateStatus = async (id, status, userId, isAdmin) => {
+const updateStatus = async (id, status, userId, isAdmin, options = {}) => {
     if (status === 'Confirmed') {
         await ensureConfirmedBookingHasSeats(id);
     }
 
     const txResult = await withTransaction(async ({ query }) => {
         const rows = await query(
-            `SELECT b.*, t.id AS train_id
+            `SELECT b.*, t.id AS train_id, t.runningStatus AS trainRunningStatus
              FROM Bookings b WITH (UPDLOCK, ROWLOCK)
              INNER JOIN Trains t ON b.trainId = t.id
              WHERE b.id = ?`,
@@ -969,7 +995,10 @@ const updateStatus = async (id, status, userId, isAdmin) => {
                 journeyDate: booking.journeyDate,
                 paymentStatus: booking.paymentStatus,
                 bookingStatus: booking.status,
-                passengerCount
+                passengerCount,
+                bookingType: booking.bookingType,
+                quota: booking.quota,
+                cause: options.cause || refundCauseFromTrainStatus(booking.trainRunningStatus)
             });
 
             if (refundCalc.refundAmount > 0 && booking.paymentStatus === 'Paid') {
@@ -1041,7 +1070,7 @@ const findAllFiltered = async ({ pnr, trainId, status, fromDate, toDate }) => {
     const pool = await getPool();
     const request = pool.request();
     let query = `SELECT b.*, 
-            t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime, t.journeyDate,
+            t.id AS train_id, t.trainNumber, t.trainName, t.source, t.destination, t.departureTime, t.arrivalTime, t.runningStatus, t.journeyDate,
             u.id AS user_id, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
             tc.className
         FROM Bookings b
@@ -1162,5 +1191,6 @@ module.exports = {
     promoteRacManually,
     releaseExpiredPaymentHolds,
     cancelPassenger,
-    getRefundPreview
+    getRefundPreview,
+    countMonthlyTickets
 };

@@ -22,10 +22,11 @@ import {
 } from '../utils/mealService';
 import {
   BOOKING_TYPE_OPTIONS,
-  QUOTA_OPTIONS,
   isSoldOut,
-  isTatkalEligible
+  isTatkalEligible,
+  quotaOptionsFor
 } from '../utils/bookingOptions';
+import { maskIdentity, isPlainIdentity } from '../utils/identityMask';
 
 const STEPS = [
   { num: 1, label: 'Class' },
@@ -78,7 +79,7 @@ function BookingContent() {
   const [train, setTrain] = useState(location.state?.train || null);
   const [classCode, setClassCode] = useState(location.state?.classCode || '');
   const [passengers, setPassengers] = useState([
-    { name: '', age: '', gender: 'Male', berthPreference: 'No Preference', nationality: 'Indian', mobile: '', email: '', idType: 'Aadhaar', idNumber: '', foodPreference: 'None', insuranceOptIn: false, isSeniorCitizen: false, isDivyang: false }
+    { name: '', age: '', gender: 'Male', berthPreference: 'No Preference', nationality: 'Indian', mobile: '', email: '', idType: '', idNumber: '', foodPreference: 'None', insuranceOptIn: false, isSeniorCitizen: false, isDivyang: false, identityConsent: false }
   ]);
   const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
@@ -94,6 +95,14 @@ function BookingContent() {
   const [bookingType, setBookingType] = useState('General');
   const [joinWaitlist, setJoinWaitlist] = useState(false);
   const [joinRac, setJoinRac] = useState(false);
+  const [bookingRules, setBookingRules] = useState(null);
+  const [aadhaarOtpId, setAadhaarOtpId] = useState('');
+  const [aadhaarOtp, setAadhaarOtp] = useState('');
+  const [aadhaarOtpHint, setAadhaarOtpHint] = useState('');
+  const [aadhaarOtpSending, setAadhaarOtpSending] = useState(false);
+  const [identityConsent, setIdentityConsent] = useState(false);
+  const [saveIdentity, setSaveIdentity] = useState(false);
+  const [identityNotices, setIdentityNotices] = useState(null);
 
   useEffect(() => {
     if (!trainId) {
@@ -122,7 +131,49 @@ function BookingContent() {
   const selectedClass = classes.find((c) => c.classCode === classCode);
   const mealsAvailable = trainProvidesMeals(train?.trainName, train?.trainTypeCode, classCode);
   const soldOut = isSoldOut(selectedClass, passengers.length);
-  const tatkalEligible = isTatkalEligible(date);
+  const tatkalEligible = isTatkalEligible(date, classCode);
+  const passengerLimit = passengerLimitFor(bookingType);
+  const quotaChoices = quotaOptionsFor(bookingType);
+  const openingDay = isOpeningDay(date);
+  const tatkalClassBlocked = bookingType === 'Tatkal' && isTatkalExcludedClass(classCode);
+
+  useEffect(() => {
+    if (!date) return;
+    const query = new URLSearchParams({
+      journeyDate: date,
+      classCode: classCode || 'SL',
+      bookingType,
+      departureTime: train?.departureTime || train?.from?.departureTime || ''
+    });
+    api.get(`/bookings/rules?${query.toString()}`)
+      .then(setBookingRules)
+      .catch(() => setBookingRules(null));
+  }, [date, classCode, bookingType, train]);
+
+  useEffect(() => {
+    api.get('/identity/notices').then(setIdentityNotices).catch(() => setIdentityNotices(null));
+  }, []);
+
+  useEffect(() => {
+    if (bookingType === 'Tatkal' && !tatkalEligible) {
+      setBookingType('General');
+      if (quota === 'Tatkal' || quota === 'PremiumTatkal') {
+        setQuota('General');
+      }
+    }
+  }, [bookingType, tatkalEligible, quota]);
+
+  useEffect(() => {
+    const limit = passengerLimitFor(bookingType);
+    const options = quotaOptionsFor(bookingType);
+    if (bookingType === 'Tatkal') {
+      setPassengers((prev) => (prev.length > limit ? prev.slice(0, limit) : prev));
+    }
+    if (options.every((option) => option.value !== quota)) {
+      setQuota('General');
+    }
+  }, [bookingType, quota]);
+
   const baseTotal = selectedClass ? Number(selectedClass.price) * passengers.length : 0;
   const mealTotal = mealsAvailable ? calculateMealTotal(passengers) : 0;
   const offerCtx = { total: baseTotal, classCode, journeyDate: date, paymentMethod };
@@ -164,15 +215,15 @@ function BookingContent() {
       setPassengers(passengers.map((p, i) => (i === emptyIndex ? mapped : p)));
       return;
     }
-    if (passengers.length >= 6) return;
+    if (passengers.length >= passengerLimit) return;
     setPassengers([...passengers, mapped]);
   };
 
   const addPassenger = () => {
-    if (passengers.length >= 6) return;
+    if (passengers.length >= passengerLimit) return;
     setPassengers([
       ...passengers,
-      { name: '', age: '', gender: 'Male', berthPreference: 'No Preference' }
+      { name: '', age: '', gender: 'Male', berthPreference: 'No Preference', nationality: 'Indian', mobile: '', email: '', idType: '', idNumber: '', foodPreference: 'None', insuranceOptIn: false }
     ]);
   };
 
@@ -183,6 +234,22 @@ function BookingContent() {
 
   const updatePassenger = (idx, key, value) => {
     setPassengers(passengers.map((p, i) => (i === idx ? { ...p, [key]: value } : p)));
+  };
+
+  const sendTatkalAadhaarOtp = async () => {
+    setAadhaarOtpHint('');
+    setError('');
+    setAadhaarOtpSending(true);
+    try {
+      const data = await api.post('/auth/aadhaar/send-otp', {});
+      setAadhaarOtpId(data.otpId);
+      setAadhaarOtpHint(data.msg || 'OTP sent to your registered mobile.');
+      if (data.devOtp) setAadhaarOtp(data.devOtp);
+    } catch (err) {
+      setError(err.message || 'Could not send Aadhaar OTP');
+    } finally {
+      setAadhaarOtpSending(false);
+    }
   };
 
   const payAndConfirm = async (booking) => completeBookingPayment(booking, user, {
@@ -202,8 +269,25 @@ function BookingContent() {
         : `book-${Date.now()}`;
     }
     try {
+      if (tatkalClassBlocked) {
+        setError('Tatkal is not available for First AC (1A) or Executive Class (EC).');
+        setLoading(false);
+        return;
+      }
+      if (bookingType === 'Tatkal' && !tatkalEligible) {
+        setError(`Tatkal opens at ${tatkalOpenLabel(classCode)} one day before departure.`);
+        setLoading(false);
+        return;
+      }
       if (soldOut && !joinWaitlist && !joinRac) {
         setError('Not enough seats available. Join waitlist or RAC to continue.');
+        setLoading(false);
+        return;
+      }
+
+      const hasId = passengers.some((p) => isPlainIdentity(p.idType, p.idNumber));
+      if (hasId && !identityConsent) {
+        setError('Tick the identity consent box (it starts unticked) before sending Aadhaar, PAN, Passport, or Voter ID.');
         setLoading(false);
         return;
       }
@@ -218,6 +302,9 @@ function BookingContent() {
         joinWaitlist: soldOut && joinWaitlist,
         joinRac: soldOut && joinRac && !joinWaitlist,
         seatNumbers: [],
+        ...(bookingType === 'Tatkal' ? { aadhaarOtpId, aadhaarOtp } : {}),
+        identityConsent: { granted: identityConsent === true, purpose: bookingType === 'Tatkal' ? 'tatkal_verification' : 'journey_id_proof' },
+        saveIdentity: saveIdentity === true,
         ...captcha
       };
 
@@ -378,6 +465,26 @@ function BookingContent() {
                 </div>
               </div>
 
+              <div className="alert alert-warning irctc-rules-banner">
+                <strong>IRCTC booking rules</strong>
+                <ul>
+                  <li>Advance reservation: up to 60 days. Opening day (day 60) from 8:00 AM IST is Aadhaar-verified users only.</li>
+                  <li>Passengers per PNR: {passengerLimit} ({bookingType === 'Tatkal' ? 'Tatkal max 4' : 'General max 6'}).</li>
+                  <li>
+                    Monthly cap: {bookingRules?.monthlyUsed ?? 0}/{bookingRules?.monthlyCap ?? (user?.aadhaarVerified ? 24 : 12)} tickets
+                    {user?.aadhaarVerified ? ' (Aadhaar account; 24 if a passenger is also Aadhaar-verified).' : ' (12 standard, 24 with Aadhaar-verified account and passenger).'}
+                  </li>
+                  <li>Tatkal opens 1 day before departure — AC 10:00 AM IST, Non-AC 11:00 AM IST. First 15 minutes Aadhaar only; agents blocked for 30 minutes. No concessions. Not available on 1A/EC. Confirmed Tatkal is non-refundable.</li>
+                  <li>Chart closes 10 hours before departure, or 8:00 PM IST the previous evening for morning trains.</li>
+                </ul>
+                {openingDay && !user?.aadhaarVerified && (
+                  <p>This date is opening day. Verify Aadhaar on Profile before booking, or choose a date within 59 days.</p>
+                )}
+                {bookingRules?.chart?.closed && (
+                  <p>{bookingRules.chart.reason}. Fresh bookings are closed for this train.</p>
+                )}
+              </div>
+
               <SavedPassengerPicker onSelect={addPassengerFromSaved} />
 
               <div className="booking-passenger-list">
@@ -448,14 +555,25 @@ function BookingContent() {
                         </div>
                       )}
                       <div className="field">
-                        <label htmlFor={`pidtype-${i}`}>ID type</label>
-                        <select id={`pidtype-${i}`} className="input" value={p.idType || 'Aadhaar'} onChange={(e) => updatePassenger(i, 'idType', e.target.value)}>
+                        <label htmlFor={`pidtype-${i}`}>ID type (optional)</label>
+                        <select id={`pidtype-${i}`} className="input" value={p.idType || ''} onChange={(e) => updatePassenger(i, 'idType', e.target.value)}>
+                          <option value="">Not provided</option>
                           <option>Aadhaar</option><option>PAN</option><option>Passport</option><option>Voter ID</option>
                         </select>
                       </div>
                       <div className="field">
                         <label htmlFor={`pidnum-${i}`}>ID number</label>
-                        <input id={`pidnum-${i}`} className="input" value={p.idNumber || ''} onChange={(e) => updatePassenger(i, 'idNumber', e.target.value)} />
+                        <input
+                          id={`pidnum-${i}`}
+                          className="input"
+                          autoComplete="off"
+                          value={p.idNumber || ''}
+                          onChange={(e) => updatePassenger(i, 'idNumber', e.target.value)}
+                          placeholder={p.idType === 'PAN' ? 'ABCDE1234F' : p.idType === 'Aadhaar' ? '12-digit Aadhaar' : 'ID number'}
+                        />
+                        {p.idNumber && (
+                          <small className="muted">Stored as {maskIdentity(p.idType, p.idNumber)}. We never keep the full number in the booking table.</small>
+                        )}
                       </div>
                       <label className="route-aware-toggle field-full">
                         <input type="checkbox" checked={!!p.insuranceOptIn} onChange={(e) => updatePassenger(i, 'insuranceOptIn', e.target.checked)} />
@@ -479,10 +597,36 @@ function BookingContent() {
                 ))}
               </div>
 
-              {passengers.length < 6 && (
+              {passengers.length < passengerLimit && (
                 <button type="button" className="btn btn-outline btn-sm booking-add-passenger" onClick={addPassenger}>
                   <UserPlus size={16} aria-hidden="true" /> Add passenger
                 </button>
+              )}
+
+              {passengers.some((p) => p.idNumber) && (
+                <div className="alert alert-warning irctc-rules-banner" style={{ marginTop: 16 }}>
+                  <strong>Identity consent (DPDPA)</strong>
+                  <p>{identityNotices?.purposes?.find((item) => item.id === (bookingType === 'Tatkal' ? 'tatkal_verification' : 'journey_id_proof'))?.why
+                    || 'ID numbers are used only to verify this journey or Tatkal rules. They are not used for marketing.'}</p>
+                  <p className="muted">{identityNotices?.rules?.aadhaar}</p>
+                  <p className="muted">Aadhaar card images and QR codes are not accepted. Prefer DigiLocker instead of uploading documents. Passport last-page parent/address data is not collected.</p>
+                  <label className="route-aware-toggle field-full">
+                    <input
+                      type="checkbox"
+                      checked={identityConsent}
+                      onChange={(e) => setIdentityConsent(e.target.checked)}
+                    />
+                    I agree to use this ID only for the purpose above. This box is not pre-ticked.
+                  </label>
+                  <label className="route-aware-toggle field-full">
+                    <input
+                      type="checkbox"
+                      checked={saveIdentity}
+                      onChange={(e) => setSaveIdentity(e.target.checked)}
+                    />
+                    Save a masked token for future journeys (optional). You can unlink it in one click on Profile.
+                  </label>
+                </div>
               )}
 
               <div className="booking-options card" style={{ marginTop: 20, padding: 16 }}>
@@ -490,8 +634,19 @@ function BookingContent() {
                 <div className="booking-form-grid">
                   <div className="field">
                     <label htmlFor="quota">Quota</label>
-                    <select id="quota" className="input" value={quota} onChange={(e) => setQuota(e.target.value)}>
-                      {QUOTA_OPTIONS.map((o) => (
+                    <select
+                      id="quota"
+                      className="input"
+                      value={quota}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setQuota(next);
+                        if (next === 'Tatkal' || next === 'PremiumTatkal') {
+                          setBookingType('Tatkal');
+                        }
+                      }}
+                    >
+                      {quotaChoices.map((o) => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                       ))}
                     </select>
@@ -510,7 +665,12 @@ function BookingContent() {
                       ))}
                     </select>
                     {!tatkalEligible && (
-                      <small className="muted">Tatkal opens 1–2 days before journey</small>
+                      <small className="muted">
+                        Tatkal opens at {tatkalOpenLabel(classCode)} one day before departure. Not available for 1A/EC.
+                      </small>
+                    )}
+                    {tatkalClassBlocked && (
+                      <small className="muted">Choose 2A/3A/SL or another eligible class for Tatkal.</small>
                     )}
                   </div>
                 </div>
@@ -550,13 +710,57 @@ function BookingContent() {
                     Seats will be auto-assigned from available inventory after payment.
                   </p>
                 )}
+
+                {bookingType === 'Tatkal' && (
+                  <div className="tatkal-otp-box" style={{ marginTop: 16 }}>
+                    <h4 style={{ margin: '0 0 8px', fontSize: '0.95rem' }}>Tatkal Aadhaar OTP</h4>
+                    <p className="muted" style={{ marginBottom: 10 }}>
+                      Live OTP on your registered mobile is required. First 15 minutes are Aadhaar-only; agents cannot book in the first 30 minutes. Confirmed Tatkal tickets have no refund.
+                    </p>
+                    {!user?.aadhaarVerified && (
+                      <p className="muted">
+                        Verify Aadhaar on <Link to="/profile">Profile</Link> first if this is your first Tatkal booking, then send OTP here.
+                      </p>
+                    )}
+                    <div className="booking-form-grid">
+                      <div className="field">
+                        <label htmlFor="tatkal-otp">OTP</label>
+                        <input
+                          id="tatkal-otp"
+                          className="input"
+                          value={aadhaarOtp}
+                          onChange={(e) => setAadhaarOtp(e.target.value)}
+                          inputMode="numeric"
+                          maxLength={6}
+                          placeholder="6-digit OTP"
+                        />
+                      </div>
+                      <div className="field" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline"
+                          onClick={sendTatkalAadhaarOtp}
+                          disabled={aadhaarOtpSending}
+                        >
+                          {aadhaarOtpSending ? 'Sending…' : aadhaarOtpId ? 'Resend OTP' : 'Send OTP'}
+                        </button>
+                      </div>
+                    </div>
+                    {aadhaarOtpHint && <p className="muted">{aadhaarOtpHint}</p>}
+                  </div>
+                )}
               </div>
 
               <div className="booking-btn-row">
                 <button type="button" className="booking-btn-back" onClick={() => setStep(1)}>
                   <ArrowLeft size={16} aria-hidden="true" /> Back
                 </button>
-                <button type="button" className="booking-btn-primary" onClick={() => setStep(3)}>
+                <button
+                  type="button"
+                  className="booking-btn-primary"
+                  onClick={() => setStep(3)}
+                  disabled={bookingType === 'Tatkal' && (!aadhaarOtpId || !aadhaarOtp)}
+                >
                   Continue to Review <ArrowRight size={18} aria-hidden="true" />
                 </button>
               </div>
@@ -577,6 +781,7 @@ function BookingContent() {
                     <span>Passenger {i + 1}</span>
                     <span>
                       {p.name}
+                      {p.idType && p.idNumber ? ` · ${p.idType} ${maskIdentity(p.idType, p.idNumber)}` : ''}
                       {mealsAvailable && p.foodPreference && p.foodPreference !== 'None'
                         ? ` · Meal: ${p.foodPreference}`
                         : ''}

@@ -1,4 +1,5 @@
 import { normalizeDateInput } from './trainMapper';
+import { isTatkalWindowOpen, isTatkalExcludedClass, CONCESSION_QUOTAS } from './irctcRules';
 
 export const QUOTA_OPTIONS = [
   { value: 'General', label: 'General' },
@@ -31,14 +32,16 @@ export const BOOKING_TYPE_OPTIONS = [
   { value: 'Tatkal', label: 'Tatkal' }
 ];
 
-export function isTatkalEligible(journeyDate) {
+export function isTatkalEligible(journeyDate, classCode) {
   const normalized = normalizeDateInput(journeyDate);
   if (!normalized) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const journey = new Date(`${normalized}T00:00:00`);
-  const days = Math.round((journey - today) / (1000 * 60 * 60 * 24));
-  return days >= 1 && days <= 2;
+  if (isTatkalExcludedClass(classCode)) return false;
+  return isTatkalWindowOpen(normalized, classCode);
+}
+
+export function quotaOptionsFor(bookingType) {
+  if (bookingType !== 'Tatkal') return QUOTA_OPTIONS;
+  return QUOTA_OPTIONS.filter((option) => !CONCESSION_QUOTAS.has(option.value));
 }
 
 export function isSoldOut(selectedClass, passengerCount) {
