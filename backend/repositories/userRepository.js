@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { getPool } = require('../../database/connection');
 const { resolveRole } = require('../constants/roles');
@@ -79,6 +80,17 @@ const findById = async (id) => {
         .input('id', 'Int', id)
         .query('SELECT * FROM Users WHERE id = @id');
     return result.recordset[0] || null;
+};
+
+const allocateSyntheticPhone = async (seed) => {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+        const hash = crypto.createHash('sha256').update(`${String(seed || '').toLowerCase()}:${attempt}`).digest('hex');
+        const digits = hash.replace(/[^0-9]/g, '').slice(0, 9);
+        const candidate = `8${digits.padStart(9, '0')}`;
+        const existing = await findByPhone(candidate);
+        if (!existing) return candidate;
+    }
+    throw new Error('Could not allocate a unique phone for this account');
 };
 
 const create = async ({ name, email, password, phone, isAdmin = false, role = 'passenger' }) => {
@@ -275,5 +287,6 @@ module.exports = {
     registerDevice,
     listDevices,
     setMfaSecret,
-    setMfaEnabled
+    setMfaEnabled,
+    allocateSyntheticPhone
 };

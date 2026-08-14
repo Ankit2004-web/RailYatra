@@ -4,8 +4,16 @@ const { body } = require('express-validator');
 const validate = require('../middleware/validate');
 const oauthService = require('../services/oauthService');
 
+router.get('/google/config', (req, res) => {
+    const clientId = oauthService.getGoogleClientId();
+    res.json({
+        enabled: Boolean(clientId),
+        clientId
+    });
+});
+
 router.post('/google', [
-    body('idToken').notEmpty()
+    body('idToken').notEmpty().withMessage('Google sign-in token is required')
 ], validate, async (req, res) => {
     try {
         const result = await oauthService.verifyGoogleToken(req.body.idToken);
@@ -30,6 +38,9 @@ router.post('/dev', [
     body('provider').isIn(['google', 'facebook']),
     body('email').optional().isEmail()
 ], validate, async (req, res) => {
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEV_OAUTH !== '1') {
+        return res.status(404).json({ msg: 'Not found' });
+    }
     try {
         const result = req.body.provider === 'google'
             ? await oauthService.verifyGoogleToken(req.body.email || 'dev@gmail.com')

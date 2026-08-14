@@ -806,3 +806,14 @@ html:has(.auth-shell--enterprise) #root {
     font-size: 0.9375rem;
   }
 }
+
+.auth-shell--enterprise .google-signin-block {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.auth-shell--enterprise .google-signin-host {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}

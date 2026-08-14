@@ -313,3 +313,13 @@ CREATE TABLE IF NOT EXISTS UserLoyalty (
     tier TEXT NOT NULL DEFAULT 'Silver',
     updatedAt TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS OAuthAccounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    provider TEXT NOT NULL,
+    providerUserId TEXT NOT NULL,
+    email TEXT,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (provider, providerUserId)
+);

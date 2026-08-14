@@ -42,3 +42,7 @@ services:
         value: f8d13fbf-80b4-4dbc-bab1-e6b5c38d84f8
       - key: VITE_WEB3FORMS_FROM_NAME
         value: RailYatra
+      - key: GOOGLE_CLIENT_ID
+        value: 104584032070-4fi354ul520vcnauol3s5go17hpd7oca.apps.googleusercontent.com
+      - key: VITE_GOOGLE_CLIENT_ID
+        value: 104584032070-4fi354ul520vcnauol3s5go17hpd7oca.apps.googleusercontent.com

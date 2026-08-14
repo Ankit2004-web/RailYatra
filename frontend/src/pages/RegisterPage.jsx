@@ -4,9 +4,10 @@ import { User, Lock, UserPlus, Eye, EyeOff, UserRound, LogIn } from 'lucide-reac
 import { useAuth } from '../context/AuthContext';
 import CaptchaField from '../components/CaptchaField';
 import AuthShell from '../components/AuthShell';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', phone: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -124,6 +125,22 @@ export default function RegisterPage() {
           <UserPlus size={18} aria-hidden="true" />
           {loading ? 'Creating account…' : 'Create Account'}
         </button>
+
+        <GoogleSignInButton
+          disabled={loading}
+          label="Continue with Google"
+          onCredential={async (idToken) => {
+            setError('');
+            setLoading(true);
+            try {
+              await loginWithGoogle(idToken);
+              navigate('/home');
+            } finally {
+              setLoading(false);
+            }
+          }}
+          onError={(err) => setError(err.message || 'Google sign-in failed')}
+        />
       </form>
 
       <div className="auth-card-footer">

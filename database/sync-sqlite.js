@@ -175,6 +175,22 @@ async function ensureBookingSeatAllocationsTable() {
     console.log('Created BookingSeatAllocations table.');
 }
 
+const OAUTH_ACCOUNTS_DDL = `CREATE TABLE IF NOT EXISTS OAuthAccounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    userId INTEGER NOT NULL,
+    provider TEXT NOT NULL,
+    providerUserId TEXT NOT NULL,
+    email TEXT,
+    createdAt TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (provider, providerUserId)
+)`;
+
+async function ensureOAuthAccountsTable() {
+    if (await tableExists('OAuthAccounts')) return;
+    await runQuery(OAUTH_ACCOUNTS_DDL);
+    console.log('Created OAuthAccounts table.');
+}
+
 async function verifyCoreTables() {
     for (const table of CORE_TABLES) {
         if (!(await tableExists(table))) return false;
@@ -219,6 +235,7 @@ async function syncSqliteDatabase() {
 
         await ensureColumns();
         await ensureBookingSeatAllocationsTable();
+        await ensureOAuthAccountsTable();
         await ensureIndexes();
         await repairTrainStopsTable();
 

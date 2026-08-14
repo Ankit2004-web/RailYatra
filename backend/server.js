@@ -46,12 +46,12 @@ app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'"],
-            scriptSrc: ["'self'", "'unsafe-inline'", 'https://checkout.razorpay.com', 'https://cdn.jsdelivr.net'],
-            styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net'],
+            scriptSrc: ["'self'", "'unsafe-inline'", 'https://checkout.razorpay.com', 'https://cdn.jsdelivr.net', 'https://accounts.google.com'],
+            styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net', 'https://accounts.google.com'],
             fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com'],
             imgSrc: ["'self'", 'data:', 'blob:'],
-            connectSrc: ["'self'", 'https://api.razorpay.com', 'https://api.web3forms.com'],
-            frameSrc: ['https://api.razorpay.com']
+            connectSrc: ["'self'", 'https://api.razorpay.com', 'https://api.web3forms.com', 'https://accounts.google.com', 'https://oauth2.googleapis.com'],
+            frameSrc: ['https://api.razorpay.com', 'https://accounts.google.com']
         }
     }
 }));

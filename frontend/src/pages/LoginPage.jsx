@@ -4,10 +4,11 @@ import { Lock, LogIn, Eye, EyeOff, UserPlus, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import CaptchaField from '../components/CaptchaField';
 import AuthShell from '../components/AuthShell';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 import { getPortalPath } from '../constants/roles';
 
 export default function LoginPage() {
-  const { login, verifyMfa } = useAuth();
+  const { login, verifyMfa, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const from = location.state?.from || '/home';
@@ -149,6 +150,22 @@ export default function LoginPage() {
             <LogIn size={18} aria-hidden="true" />
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
+
+          <GoogleSignInButton
+            disabled={loading}
+            label="Continue with Google"
+            onCredential={async (idToken) => {
+              setError('');
+              setLoading(true);
+              try {
+                const me = await loginWithGoogle(idToken);
+                afterLogin(me);
+              } finally {
+                setLoading(false);
+              }
+            }}
+            onError={(err) => setError(err.message || 'Google sign-in failed')}
+          />
         </form>
       )}
 

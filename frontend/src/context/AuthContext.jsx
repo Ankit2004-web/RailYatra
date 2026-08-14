@@ -87,6 +87,11 @@ export function AuthProvider({ children }) {
     return applySession(data.token);
   };
 
+  const loginWithGoogle = async (idToken) => {
+    const data = await api.post('/oauth/google', { idToken });
+    return applySession(data.token);
+  };
+
   const loginWithSocial = async (provider) => {
     const data = await api.post('/oauth/dev', { provider });
     return applySession(data.token);
@@ -125,6 +130,7 @@ export function AuthProvider({ children }) {
       blockedMessage,
       login,
       loginWithOtp,
+      loginWithGoogle,
       verifyMfa,
       loginWithSocial,
       register,
