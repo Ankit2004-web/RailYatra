@@ -27,6 +27,12 @@ import {
   quotaOptionsFor
 } from '../utils/bookingOptions';
 import { maskIdentity, isPlainIdentity } from '../utils/identityMask';
+import {
+  isOpeningDay,
+  isTatkalExcludedClass,
+  passengerLimitFor,
+  tatkalOpenLabel
+} from '../utils/irctcRules';
 
 const STEPS = [
   { num: 1, label: 'Class' },
