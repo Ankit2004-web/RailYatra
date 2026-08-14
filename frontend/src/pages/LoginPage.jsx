@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Lock, LogIn, Eye, EyeOff, UserPlus, UserRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import CaptchaField from '../components/CaptchaField';
 import AuthShell from '../components/AuthShell';
 import GoogleSignInButton from '../components/GoogleSignInButton';
 import { getPortalPath } from '../constants/roles';
@@ -16,7 +15,6 @@ export default function LoginPage() {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,7 +41,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const me = await login({ phone, password, ...captcha });
+      const me = await login({ phone, password });
       afterLogin(me);
     } catch (err) {
       if (err.mfaRequired) {
@@ -140,8 +138,6 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
-
-          <CaptchaField onChange={setCaptcha} />
 
           {success && <div className="alert alert-success auth-alert">{success}</div>}
           {error && <div className="alert alert-error auth-alert">{error}</div>}

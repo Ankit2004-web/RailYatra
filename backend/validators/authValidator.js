@@ -48,9 +48,7 @@ const loginRules = [
         }
         return true;
     }),
-    body('password').notEmpty().withMessage('Password is required'),
-    body('captchaId').notEmpty().withMessage('Captcha is required'),
-    body('captchaAnswer').notEmpty().withMessage('Captcha answer is required')
+    body('password').notEmpty().withMessage('Password is required')
 ];
 
 const forgotPasswordRules = [

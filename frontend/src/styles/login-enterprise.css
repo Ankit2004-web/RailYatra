@@ -422,6 +422,15 @@
   box-sizing: border-box;
 }
 
+.auth-shell--enterprise .captcha-image {
+  flex: 1;
+  display: block;
+  height: 56px;
+  width: 100%;
+  object-fit: cover;
+  background: #e7f4f6;
+}
+
 .auth-shell--enterprise .captcha-refresh {
   flex: 0 0 44px;
   width: 44px;

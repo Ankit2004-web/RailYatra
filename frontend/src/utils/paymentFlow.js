@@ -1,7 +1,7 @@
 import { api, pollBookingStatus } from '../api/client';
 import { openRazorpayCheckout } from './razorpay';
 
-export async function completeBookingPayment(booking, user, trainMeta = {}, { idempotencyKey } = {}) {
+export async function completeBookingPayment(booking, user, trainMeta = {}, { idempotencyKey, paymentMethod } = {}) {
   const payHeaders = idempotencyKey ? { idempotencyKey } : {};
   const order = await api.post('/payments/create-order', { bookingId: booking.id }, payHeaders);
 
@@ -19,7 +19,8 @@ export async function completeBookingPayment(booking, user, trainMeta = {}, { id
     prefill: {
       name: user?.name || '',
       email: user?.email || '',
-      contact: user?.phone || ''
+      contact: user?.phone || '',
+      method: paymentMethod || undefined
     },
     notes: {
       bookingId: String(booking.id),

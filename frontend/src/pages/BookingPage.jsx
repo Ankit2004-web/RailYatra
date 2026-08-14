@@ -188,7 +188,7 @@ function BookingContent() {
   const payAndConfirm = async (booking) => completeBookingPayment(booking, user, {
     trainNumber: train.trainNumber,
     description: `${train.trainName} (${train.trainNumber}) · ${classCode}`
-  }, { idempotencyKey: bookingIdempotencyKey.current });
+  }, { idempotencyKey: bookingIdempotencyKey.current, paymentMethod });
 
   const submit = async (e) => {
     e.preventDefault();
@@ -602,8 +602,8 @@ function BookingContent() {
               {paymentConfig && (
                 <div className={`booking-payment-badge ${paymentConfig.devMode ? 'dev' : 'live'}`}>
                   {paymentConfig.devMode
-                    ? 'Dev payment mode — booking will be auto-confirmed without real charges'
-                    : 'Secure payment via Razorpay — UPI, cards, net banking & wallets'}
+                    ? 'Payment keys not set — booking will be confirmed without Razorpay (demo mode)'
+                    : 'Pay securely with Razorpay — UPI, cards, net banking & wallets'}
                 </div>
               )}
 

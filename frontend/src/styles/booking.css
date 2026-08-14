@@ -593,6 +593,12 @@
   gap: 8px;
 }
 
+.payment-method-hint {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
 .payment-method-chip {
   border: 1px solid var(--border);
   background: var(--surface);

@@ -18,17 +18,16 @@ const verifyRules = [
     body('bookingId').isInt({ min: 1 }).withMessage('Valid booking ID is required'),
     body('razorpay_order_id').notEmpty().withMessage('Order ID is required'),
     body('razorpay_payment_id').notEmpty().withMessage('Payment ID is required'),
-    body('razorpay_signature').if(() => razorpayService.isConfigured() && !allowDevPayment()).notEmpty().withMessage('Payment signature is required')
+    body('razorpay_signature').if(() => razorpayService.isConfigured()).notEmpty().withMessage('Payment signature is required')
 ];
 
-const allowDevPayment = () => (
-    process.env.ALLOW_DEV_PAYMENT === '1' || process.env.ALLOW_DEV_PAYMENT === 'true' || !razorpayService.isConfigured()
-);
+const allowDevPayment = () => !razorpayService.isConfigured();
 
 router.get('/config', (req, res) => {
-    const configured = razorpayService.isConfigured() && !allowDevPayment();
+    const configured = razorpayService.isConfigured();
     res.json({
         devMode: !configured,
+        provider: configured ? 'razorpay' : 'dev',
         keyId: configured ? process.env.RAZORPAY_KEY_ID : null
     });
 });
@@ -62,7 +61,7 @@ router.post('/create-order', auth, idempotencyMiddleware('/api/payments/create-o
             amount: order.amount,
             currency: order.currency,
             key: order.key,
-            devMode: order.devMode || allowDevPayment(),
+            devMode: Boolean(order.devMode),
             bookingId: booking.id
         });
     } catch (err) {
@@ -123,7 +122,7 @@ router.post('/verify', auth, idempotencyMiddleware('/api/payments/verify'), veri
 });
 
 router.post('/dev-confirm', auth, paymentRules, validate, async (req, res) => {
-    if (razorpayService.isConfigured() && !allowDevPayment()) {
+    if (razorpayService.isConfigured()) {
         return res.status(400).json({ msg: 'Dev confirm is only available without Razorpay keys' });
     }
 

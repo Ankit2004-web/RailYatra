@@ -81,7 +81,7 @@ Follow **Option A** first. Copy your Render URL.
 - **Data:** Demo stations, trains, and seats seeded automatically on startup.
 - **AI chat:** Works if you add a free **Groq** key in Render env vars.
 - **Live train status:** Uses free Indian Railways NTES public API.
-- **Payments:** Dev mode (auto-confirms without Razorpay keys).
+- **Payments:** Razorpay checkout (UPI, cards, net banking, wallets) when `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` are set. Without keys, bookings still confirm in demo mode.
 
 ---
 
@@ -97,7 +97,18 @@ ADMIN_EMAIL=admin@railway.com
 ADMIN_PASSWORD=Adm!n@2004#Hyd
 APP_URL=https://your-app.onrender.com
 GROQ_API_KEY=optional
+RAZORPAY_KEY_ID=rzp_test_…   # from https://dashboard.razorpay.com/app/keys
+RAZORPAY_KEY_SECRET=…        # never commit this
+RAZORPAY_WEBHOOK_SECRET=…    # optional; webhook URL: https://YOUR-APP.onrender.com/api/payments/webhook
 ```
+
+### Razorpay (live checkout)
+
+1. Create an account at [dashboard.razorpay.com](https://dashboard.razorpay.com/).
+2. Stay in **Test Mode** first, then copy **Key ID** (`rzp_test_…`) and **Key Secret**.
+3. On Render → **railyatra** → **Environment**, add `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` (and set `ALLOW_DEV_PAYMENT` to `0` if it is still `1`).
+4. Redeploy. On pay, the Razorpay modal should open instead of **Confirm & Pay (Dev)**.
+5. Optional webhook: `https://railyatra-72z5.onrender.com/api/payments/webhook` with events `payment.captured` and `refund.processed`.
 
 ---
 

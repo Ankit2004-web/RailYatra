@@ -31,7 +31,13 @@ services:
       - key: ADMIN_PASSWORD
         value: "Adm!n@2004#Hyd"
       - key: ALLOW_DEV_PAYMENT
-        value: "1"
+        value: "0"
+      - key: RAZORPAY_KEY_ID
+        value: rzp_test_TPbbdgOQcRZyQq
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: WEB3FORMS_ACCESS_KEY

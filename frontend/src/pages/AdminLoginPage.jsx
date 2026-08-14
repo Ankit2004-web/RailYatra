@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Shield, Eye, EyeOff } from 'lucide-react';
-import CaptchaField from '../components/CaptchaField';
 import AuthShell from '../components/AuthShell';
 import { useAuth } from '../context/AuthContext';
 
@@ -11,7 +10,6 @@ export default function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [captcha, setCaptcha] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -25,7 +23,7 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError('');
     try {
-      const me = await login({ email, password, ...captcha });
+      const me = await login({ email, password });
       if (!me.isAdmin) {
         logout();
         setError('Admin access required');
@@ -82,7 +80,6 @@ export default function AdminLoginPage() {
             </button>
           </div>
         </div>
-        <CaptchaField onChange={setCaptcha} />
         {error && <div className="alert alert-error auth-alert">{error}</div>}
         <button type="submit" className="btn btn-primary btn-block auth-submit" disabled={loading}>
           <Shield size={18} aria-hidden="true" />

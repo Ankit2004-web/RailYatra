@@ -46,6 +46,7 @@ export async function openRazorpayCheckout({
       currency,
       name,
       description,
+      image: `${window.location.origin}/logo.png`,
       order_id: orderId,
       prefill,
       notes,

@@ -91,7 +91,7 @@ router.post('/register', authLimiter, normalizeLoginBody, registerRules, validat
     }
 });
 
-router.post('/login', authLimiter, normalizeLoginBody, loginRules, validate, validateCaptcha, async (req, res) => {
+router.post('/login', authLimiter, normalizeLoginBody, loginRules, validate, async (req, res) => {
     const { phone, password, rememberMe } = req.body;
     const loginId = String(phone || '').trim();
 

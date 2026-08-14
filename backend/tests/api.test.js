@@ -11,17 +11,19 @@ test('GET /api/health returns ok', async () => {
     assert.equal(response.body.database, isSqlite ? 'SQLite' : 'Microsoft SQL Server');
 });
 
-test('GET /api/captcha returns a challenge', async () => {
+test('GET /api/captcha returns an image challenge', async () => {
     const response = await request(app).get('/api/captcha');
     assert.equal(response.status, 200);
     assert.ok(response.body.captchaId);
-    assert.match(response.body.question, /\d+ \+ \d+ = \?/);
+    assert.ok(response.body.image);
+    assert.match(response.body.image, /image\/svg\+xml/);
+    assert.equal(response.body.question, undefined);
 });
 
-test('POST /api/auth/login rejects missing captcha', async () => {
+test('POST /api/auth/login rejects missing password', async () => {
     const response = await request(app)
         .post('/api/auth/login')
-        .send({ phone: '9876543210', password: 'secret123' });
+        .send({ phone: '9876543210' });
 
     assert.equal(response.status, 400);
 });

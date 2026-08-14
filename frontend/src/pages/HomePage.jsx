@@ -354,7 +354,7 @@ export default function HomePage() {
               </span>
             </div>
             <h3>Secure booking</h3>
-            <p>Login, select seats, and pay with simulated or Razorpay checkout.</p>
+            <p>Login, select seats, and pay with Razorpay — UPI, cards, net banking, and wallets.</p>
             <div className="feature-illustration feature-illustration-secure" aria-hidden="true">
               <ShieldCheck size={16} />
               <span className="fi-card" />

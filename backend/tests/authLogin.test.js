@@ -16,18 +16,13 @@ const dbReady = (() => {
 
 const app = require('../server');
 
-const solveCaptcha = (question) => {
-    const match = String(question).match(/(\d+)\s*\+\s*(\d+)/);
-    if (!match) throw new Error(`Could not parse captcha question: ${question}`);
-    return String(Number(match[1]) + Number(match[2]));
-};
-
 const fetchCaptcha = async (agent) => {
     const response = await agent.get('/api/captcha');
     assert.equal(response.status, 200);
+    assert.ok(response.body.devAnswer, 'devAnswer required for tests');
     return {
         captchaId: response.body.captchaId,
-        captchaAnswer: solveCaptcha(response.body.question)
+        captchaAnswer: response.body.devAnswer
     };
 };
 

@@ -88,12 +88,13 @@ export default function PaymentOffersPanel({
       </div>
 
       <div className="payment-method-row">
-        <span className="payment-method-label">Payment method</span>
+        <span className="payment-method-label">Preferred method</span>
         <div className="payment-method-options">
           {[
             { id: 'card', label: 'Card' },
             { id: 'upi', label: 'UPI' },
-            { id: 'netbanking', label: 'Net Banking' }
+            { id: 'netbanking', label: 'Net Banking' },
+            { id: 'wallet', label: 'Wallet' }
           ].map((method) => (
             <button
               key={method.id}
@@ -106,6 +107,7 @@ export default function PaymentOffersPanel({
           ))}
         </div>
       </div>
+      <p className="payment-method-hint">You’ll pay on the Razorpay checkout for the method you pick.</p>
 
       {recommendations.length > 0 && (
         <div className="payment-offer-recs">

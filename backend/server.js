@@ -51,9 +51,9 @@ app.use(helmet({
             scriptSrc: ["'self'", "'unsafe-inline'", 'https://checkout.razorpay.com', 'https://cdn.jsdelivr.net', 'https://accounts.google.com', 'https://www.gstatic.com'],
             styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com', 'https://fonts.googleapis.com', 'https://cdn.jsdelivr.net', 'https://accounts.google.com'],
             fontSrc: ["'self'", 'https://cdnjs.cloudflare.com', 'https://fonts.gstatic.com'],
-            imgSrc: ["'self'", 'data:', 'blob:', 'https://*.googleusercontent.com'],
-            connectSrc: ["'self'", 'https://api.razorpay.com', 'https://api.web3forms.com', 'https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
-            frameSrc: ['https://api.razorpay.com', 'https://accounts.google.com']
+            imgSrc: ["'self'", 'data:', 'blob:', 'https://*.googleusercontent.com', 'https://*.razorpay.com'],
+            connectSrc: ["'self'", 'https://api.razorpay.com', 'https://lumberjack.razorpay.com', 'https://lumberjack-cx.razorpay.com', 'https://api.web3forms.com', 'https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
+            frameSrc: ['https://api.razorpay.com', 'https://checkout.razorpay.com', 'https://accounts.google.com']
         }
     }
 }));
