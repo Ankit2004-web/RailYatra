@@ -1,12 +1,24 @@
 import { api, pollBookingStatus } from '../api/client';
 import { openRazorpayCheckout } from './razorpay';
 
+function resolveBooking(booking) {
+  if (!booking) return null;
+  if (booking.id || booking._id) return booking;
+  if (booking.booking?.id || booking.booking?._id) return booking.booking;
+  return null;
+}
+
 export async function completeBookingPayment(booking, user, trainMeta = {}, { idempotencyKey, paymentMethod } = {}) {
+  const paidBooking = resolveBooking(booking);
+  if (!paidBooking?.id && !paidBooking?._id) {
+    throw new Error('Booking was created but payment could not start. Open My Bookings to complete payment.');
+  }
+  const bookingId = paidBooking.id || paidBooking._id;
   const payHeaders = idempotencyKey ? { idempotencyKey } : {};
-  const order = await api.post('/payments/create-order', { bookingId: booking.id }, payHeaders);
+  const order = await api.post('/payments/create-order', { bookingId }, payHeaders);
 
   if (order.devMode) {
-    const confirmed = await api.post('/payments/dev-confirm', { bookingId: booking.id }, payHeaders);
+    const confirmed = await api.post('/payments/dev-confirm', { bookingId }, payHeaders);
     return confirmed.booking;
   }
 
@@ -15,7 +27,7 @@ export async function completeBookingPayment(booking, user, trainMeta = {}, { id
     orderId: order.orderId,
     amount: order.amount,
     currency: order.currency,
-    description: trainMeta.description || `Booking PNR ${booking.pnrNumber || booking.id}`,
+    description: trainMeta.description || `Booking PNR ${paidBooking.pnrNumber || bookingId}`,
     prefill: {
       name: user?.name || '',
       email: user?.email || '',
@@ -23,14 +35,14 @@ export async function completeBookingPayment(booking, user, trainMeta = {}, { id
       method: paymentMethod || undefined
     },
     notes: {
-      bookingId: String(booking.id),
+      bookingId: String(bookingId),
       train: trainMeta.trainNumber || ''
     }
   });
 
   const verifyKey = idempotencyKey ? `${idempotencyKey}-verify` : undefined;
   const verified = await api.post('/payments/verify', {
-    bookingId: booking.id,
+    bookingId,
     razorpay_order_id: payment.razorpay_order_id,
     razorpay_payment_id: payment.razorpay_payment_id,
     razorpay_signature: payment.razorpay_signature
@@ -38,9 +50,9 @@ export async function completeBookingPayment(booking, user, trainMeta = {}, { id
 
   if (verified.booking) return verified.booking;
 
-  const polled = await pollBookingStatus(booking.id);
+  const polled = await pollBookingStatus(bookingId);
   if (polled?.status === 'Confirmed') {
-    return api.get(`/bookings/${booking.id}`);
+    return api.get(`/bookings/${bookingId}`);
   }
 
   return verified.booking;

@@ -231,7 +231,11 @@ function BookingContent() {
       payload.fromStationCode = source || train?.from?.stationCode || train?.sourceStation?.code;
       payload.toStationCode = destination || train?.to?.stationCode || train?.destinationStation?.code;
 
-      const booking = await api.post('/bookings', payload, { idempotencyKey: bookingIdempotencyKey.current });
+      const created = await api.post('/bookings', payload, { idempotencyKey: bookingIdempotencyKey.current });
+      const booking = created?.id || created?._id ? created : created?.booking;
+      if (!booking?.id && !booking?._id) {
+        throw new Error('Booking did not return an ID. Check My Bookings, or try again.');
+      }
       const final = await payAndConfirm(booking);
       bookingIdempotencyKey.current = null;
       navigate('/bookings', { state: { message: `Booked! PNR ${final.pnrNumber}` } });

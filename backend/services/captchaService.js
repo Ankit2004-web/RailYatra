@@ -34,14 +34,14 @@ function escapeXml(value) {
 }
 
 function buildCaptchaSvg(text) {
-    const width = 200;
-    const height = 64;
+    const width = 260;
+    const height = 88;
     const chars = [...text].map((ch, index) => {
-        const x = 22 + index * 34;
-        const y = 42 + randomInt(9) - 4;
-        const rot = randomInt(25) - 12;
+        const x = 32 + index * 44;
+        const y = 54;
+        const rot = randomInt(13) - 6;
         const fill = ['#0F2D3D', '#125B6E', '#1A4A5C', '#0D7377'][index % 4];
-        return `<text x="${x}" y="${y}" fill="${fill}" font-size="30" font-family="Georgia, Times, serif" font-weight="700" letter-spacing="2" transform="rotate(${rot} ${x} ${y})">${escapeXml(ch)}</text>`;
+        return `<text x="${x}" y="${y}" fill="${fill}" font-size="32" font-family="Georgia, Times, serif" font-weight="700" text-anchor="middle" dominant-baseline="middle" transform="rotate(${rot} ${x} ${y})">${escapeXml(ch)}</text>`;
     }).join('');
 
     const noiseLines = Array.from({ length: 6 }, () => {

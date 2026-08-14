@@ -625,15 +625,18 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--border);
   border-radius: 12px;
   overflow: hidden;
-  background: var(--muted-bg);
+  background: #e7f4f6;
+  min-height: 88px;
 }
 
 .captcha-image {
-  flex: 1;
+  flex: 1 1 auto;
   display: block;
-  width: 100%;
-  height: 64px;
-  object-fit: cover;
+  width: auto;
+  max-width: calc(100% - 44px);
+  height: 88px;
+  object-fit: contain;
+  object-position: center;
   background: #e7f4f6;
 }
 

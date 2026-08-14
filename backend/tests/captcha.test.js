@@ -6,6 +6,9 @@ test('image captcha verifies matching text case-insensitively', () => {
     const challenge = createChallenge();
     assert.ok(challenge.captchaId);
     assert.match(challenge.image, /image\/svg\+xml/);
+    const svg = decodeURIComponent(challenge.image.split(',')[1] || '');
+    assert.match(svg, /height="88"/);
+    assert.ok(!svg.includes('object-fit'));
     assert.ok(challenge.devAnswer);
     assert.equal(verifyChallenge(challenge.captchaId, challenge.devAnswer.toLowerCase()), true);
 });

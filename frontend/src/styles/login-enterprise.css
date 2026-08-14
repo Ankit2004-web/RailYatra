@@ -397,10 +397,10 @@
   display: flex;
   align-items: stretch;
   width: 100%;
-  min-height: 44px;
+  min-height: 88px;
   border: 1px solid var(--login-border);
   border-radius: 12px;
-  background: var(--muted-bg);
+  background: #e7f4f6;
   overflow: hidden;
   margin-bottom: 6px;
   box-sizing: border-box;
@@ -423,11 +423,13 @@
 }
 
 .auth-shell--enterprise .captcha-image {
-  flex: 1;
+  flex: 1 1 auto;
   display: block;
-  height: 56px;
-  width: 100%;
-  object-fit: cover;
+  height: 88px;
+  width: auto;
+  max-width: calc(100% - 44px);
+  object-fit: contain;
+  object-position: center;
   background: #e7f4f6;
 }
 

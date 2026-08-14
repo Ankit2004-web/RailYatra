@@ -506,6 +506,9 @@ const createBooking = async ({
                         [userId, trainId, totalPrice, grandTotal, paymentBreakdown, JSON.stringify(seatNumbers), journeyDate, pnrNumber, classCode, bookingType, quota, fromStationId || null, toStationId || null]
                     );
                     booking = inserted[0];
+                    if (!booking?.id) {
+                        return { error: 'Could not create booking. Please try again.', status: 500 };
+                    }
 
                     const seatResult = await seatRepository.validateAndLockSeats(query, {
                         trainId,
