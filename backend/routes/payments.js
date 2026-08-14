@@ -32,6 +32,8 @@ router.get('/config', (req, res) => {
     });
 });
 
+const bookingOwnerId = (booking) => Number(booking?.user?.id ?? booking?.userId ?? booking?.user);
+
 router.post('/create-order', auth, idempotencyMiddleware('/api/payments/create-order'), paymentRules, validate, async (req, res) => {
     try {
         const booking = await bookingRepository.findById(req.body.bookingId);
@@ -40,7 +42,7 @@ router.post('/create-order', auth, idempotencyMiddleware('/api/payments/create-o
             return res.status(404).json({ msg: 'Booking not found' });
         }
 
-        if (booking.user.id !== req.user.id) {
+        if (bookingOwnerId(booking) !== Number(req.user.id)) {
             return res.status(403).json({ msg: 'Not authorized' });
         }
 
@@ -91,7 +93,7 @@ router.post('/verify', auth, idempotencyMiddleware('/api/payments/verify'), veri
             return res.status(404).json({ msg: 'Booking not found' });
         }
 
-        if (booking.user.id !== req.user.id) {
+        if (bookingOwnerId(booking) !== Number(req.user.id)) {
             return res.status(403).json({ msg: 'Not authorized' });
         }
 
@@ -133,7 +135,7 @@ router.post('/dev-confirm', auth, paymentRules, validate, async (req, res) => {
             return res.status(404).json({ msg: 'Booking not found' });
         }
 
-        if (booking.user.id !== req.user.id) {
+        if (bookingOwnerId(booking) !== Number(req.user.id)) {
             return res.status(403).json({ msg: 'Not authorized' });
         }
 

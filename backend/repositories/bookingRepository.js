@@ -62,6 +62,8 @@ const formatTrainSummary = (train) => ({
 });
 
 const formatBooking = (booking, train, user, passengers) => {
+    if (!booking) return null;
+
     const paymentBreakdown = parsePaymentBreakdown(
         booking.paymentBreakdown,
         booking.totalPrice,
@@ -92,7 +94,10 @@ const formatBooking = (booking, train, user, passengers) => {
     return {
     id: booking.id,
     _id: booking.id,
-    user: user ? { id: user.id, name: user.name, email: user.email, phone: user.phone } : booking.userId,
+    userId: user?.id ?? booking.userId ?? null,
+    user: user?.id
+        ? { id: user.id, name: user.name, email: user.email, phone: user.phone }
+        : (booking.userId ? { id: booking.userId } : null),
     train: trainSummary,
     boarding: booking.from_station_code ? {
         code: booking.from_station_code,
@@ -246,8 +251,8 @@ const findById = async (id) => {
                 ${BOOKING_DETAIL_SELECT},
                 r.refundAmount, r.refundPercent, r.cancellationCharge, r.reason AS refundReason
             FROM Bookings b
-            INNER JOIN Trains t ON b.trainId = t.id
-            INNER JOIN Users u ON b.userId = u.id
+            LEFT JOIN Trains t ON b.trainId = t.id
+            LEFT JOIN Users u ON b.userId = u.id
             LEFT JOIN TrainClasses tc ON b.trainId = tc.trainId AND b.classCode = tc.classCode
             ${BOOKING_DETAIL_JOINS}
             LEFT JOIN Refunds r ON b.id = r.bookingId
@@ -582,7 +587,11 @@ const createBooking = async ({
     });
 
     if (txResult.error) return txResult;
-    return { booking: await findById(txResult.bookingId) };
+    const created = await findById(txResult.bookingId);
+    if (!created?.id) {
+        return { error: 'Booking was created but could not be loaded. Open My Bookings to pay.', status: 500 };
+    }
+    return { booking: created };
 };
 
 const assignSeatsIfMissing = async (bookingId, { strict = false } = {}) => {

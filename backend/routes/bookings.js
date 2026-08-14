@@ -335,6 +335,10 @@ router.post('/', auth, bookingLimiter, idempotencyMiddleware('/api/bookings'), t
             return res.status(result.status).json({ msg: result.error });
         }
 
+        if (!result.booking?.id) {
+            return res.status(500).json({ msg: 'Booking was created but could not be loaded. Open My Bookings to pay.' });
+        }
+
         res.status(201).json(result.booking);
     } catch (err) {
         console.error('Booking creation error:', err);
